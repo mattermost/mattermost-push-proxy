@@ -1,6 +1,6 @@
 Mattermost Licensing
 
-SOFTWARE LICENSING 
+SOFTWARE LICENSING
 
 Mattermost server is made available under two separate licensing options:
 
