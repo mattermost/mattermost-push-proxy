@@ -62,12 +62,12 @@ package:
 	cp NOTICE.txt $(DIST_PATH)
 	cp README.md $(DIST_PATH)
 
-	tar -C dist -czf $(DIST_PATH).tar.gz matter-proxy-push
+	tar -C dist -czf $(DIST_PATH).tar.gz matter-push-proxy
 
 test:
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=180s ./server || exit 1
 
-clean: stop-docker
+clean:
 	rm -Rf $(DIST_ROOT)
 	go clean $(GOFLAGS) -i ./...
 
