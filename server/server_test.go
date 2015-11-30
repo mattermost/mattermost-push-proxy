@@ -13,6 +13,7 @@ import (
 func TestServer(t *testing.T) {
 	LoadConfig("config-push-proxy.json")
 	Start()
+	time.Sleep(time.Second * 2)
 
 	msg := PushNotification{}
 	msg.Platform = PUSH_NOTIFY_APPLE
@@ -28,6 +29,5 @@ func TestServer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second * 2)
 	Stop()
 }
