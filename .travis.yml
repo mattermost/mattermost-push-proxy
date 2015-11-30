@@ -1,16 +1,16 @@
 language: go
 go:
-  - 1.5.1
+- 1.5.1
 install: make
 before_deploy:
-    - rm -rf dist/mm-push-proxy
+- rm -rf dist/mm-push-proxy
 deploy:
-# Github releases, builds only on tags
- - provider: releases
-   api_key:
-     secure: ma8Y0oimU+LB6LTAh8to2E1/ghaDPhcsAFXBrODsHpd4JgxA6HYoEwSEBCJFHSpu/JteclsxSTfp9hcuzw/IOtlwlSAiVoBZ60s24MRKTIAQNtrJ4QrX5wyfAZi+Bcuk/E8NynmoIW5qpaElSAdjgocyjAJIQ5ChMEztglL0cAEBXQRWbWMqSZ0hVLPrKDCIkWIyv3pFxqdLOxktkzxW07r2dlT0hppXR3dCaPJo0nelArS2H3LdN/3Iv6cAddfS27RaZkqDj/PDh6OZr4EguC99TxlVNChIr7nPr3/OiAssbkvEnhlSLeABFO9+7KfutL2WhAjpFXTjtPVq6Qalc8UW0K0gxq//sVfhb1MzjenmdOf06uB2bilQ8kgwHo7dDdRZBqqAtxQ6Q0Ht3SFMj6v/1zVD3s+YX/kWCEbUTHm6r2G/eF794ozcJyU+6j1L8hm6mvf8Mr9XCqBfgpZy6FCLX+9OKdMvX2jY8reo3Xz1PA9R6yzhN08vjku+jW+fsoYrBLd0fY1UGK2uOuvBByCeJzXupd3YpBMjEyRupVxqEj7K0GWOJeml65mkqKSNsHdDSeSjMpb8mwneZyTbdjsxCFQRLcLgpAajFrkk4G2Yz3KfhXSo29XKEGX+EbY5NuP8KmDsBsguPI0zfwv/co0hAY8PIIcehxcdoR9Vb2c=
-   file: dist/mm-push-proxy.tar.gz
-   skip_cleanup: true
-   on:
-     repo: mattermost/push-proxy
-     tags: true
+  provider: releases
+  api_key:
+    secure: ZZA5d+luoIlr9B5tI9E/eVhZIPV+Zp6ja4jj62Jt2tNjef6nxPQ7HLRSBPKjrDWgO6XPqJcHwT3brHli7JnZcVcp9TAAEuRMc/YIG8cvD0yE1gOfDz27pkeYTJ6Qmueh/3KneDa8KuRR9Hs50VlpWokzggO8MJgmi1yMEJ3Aya+i14NMdLrWaPMaQ/Kdaw7pSdYvtM4sl4QnHeGnb39UKzFZbWklv+DPCYS22Jvbut0katUi0R3OFcwfDwXihUj/fxy8GQIdnxoUL0ez1ukawO4H3QfEBSYDokr0ik1+MV/1i2xSMGalsx7A2/Np5ofFcMaH5hBJ0GdSnCZK3kGX6ZbeLOV+HogtKSm5b0vFtoE7M26a1C3dxubkHpwiJUMt4UtFLQwZ+qDfKc6Ch3ZHWLqcQWT/iIxOFEyAx58Lg/ARRwD8Ye/PQpOsyWhh1uqlu7wKpE4wpsIjTPcCMsLdGZRYhS5VeL/MkFEhxmSVGafBVXwuDIG1l6nhRJylwyyIHigv0bTntZNS+lrAIDUU1wmNdSt15RUh4Zk4r+pMlIlsiBPrlr29o8U+R8t6nWWLfpI+XumxU29BGVAxL7KWc2RFR4rPmnVIdYh+WVgydAXYQJV8QazzTNzKUxCjghZEc9CN683ZxH5hRZ7Ws7M/JNAFexwZ78NSjdYNCetnVlk=
+  file: dist/mm-push-proxy.tar.gz
+  skip_cleanup: true
+  on:
+    repo: mattermost/push-proxy
+     branch: master
+     #tags: true
