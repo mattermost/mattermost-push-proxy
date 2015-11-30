@@ -2,7 +2,7 @@ language: go
 go:
 - 1.5.1
 install: make
-before_deploy:
+before_install:
 - rm -rf dist/mm-push-proxy
 deploy:
   provider: releases
