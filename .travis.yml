@@ -1,8 +1,7 @@
 language: go
 go:
   - 1.5.1
-before_install:
-script: make
+install: make
 before_deploy:
     - rm -rf dist/mm-push-proxy
 deploy:
