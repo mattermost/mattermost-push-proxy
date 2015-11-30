@@ -3,12 +3,12 @@ go:
 - 1.5.1
 install: make
 before_install:
-- rm -rf dist/mm-push-proxy
+- rm -rf dist/matter-push-proxy
 deploy:
   provider: releases
   api_key:
     secure: ZZA5d+luoIlr9B5tI9E/eVhZIPV+Zp6ja4jj62Jt2tNjef6nxPQ7HLRSBPKjrDWgO6XPqJcHwT3brHli7JnZcVcp9TAAEuRMc/YIG8cvD0yE1gOfDz27pkeYTJ6Qmueh/3KneDa8KuRR9Hs50VlpWokzggO8MJgmi1yMEJ3Aya+i14NMdLrWaPMaQ/Kdaw7pSdYvtM4sl4QnHeGnb39UKzFZbWklv+DPCYS22Jvbut0katUi0R3OFcwfDwXihUj/fxy8GQIdnxoUL0ez1ukawO4H3QfEBSYDokr0ik1+MV/1i2xSMGalsx7A2/Np5ofFcMaH5hBJ0GdSnCZK3kGX6ZbeLOV+HogtKSm5b0vFtoE7M26a1C3dxubkHpwiJUMt4UtFLQwZ+qDfKc6Ch3ZHWLqcQWT/iIxOFEyAx58Lg/ARRwD8Ye/PQpOsyWhh1uqlu7wKpE4wpsIjTPcCMsLdGZRYhS5VeL/MkFEhxmSVGafBVXwuDIG1l6nhRJylwyyIHigv0bTntZNS+lrAIDUU1wmNdSt15RUh4Zk4r+pMlIlsiBPrlr29o8U+R8t6nWWLfpI+XumxU29BGVAxL7KWc2RFR4rPmnVIdYh+WVgydAXYQJV8QazzTNzKUxCjghZEc9CN683ZxH5hRZ7Ws7M/JNAFexwZ78NSjdYNCetnVlk=
-  file: dist/mm-push-proxy.tar.gz
+  file: dist/matter-push-proxy.tar.gz
   skip_cleanup: true
   on:
     repo: mattermost/push-proxy

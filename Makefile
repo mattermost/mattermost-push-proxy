@@ -19,7 +19,7 @@ else
 endif
 
 DIST_ROOT=dist
-DIST_PATH=$(DIST_ROOT)/matter-proxy-push
+DIST_PATH=$(DIST_ROOT)/matter-push-proxy
 
 TESTS=.
 
