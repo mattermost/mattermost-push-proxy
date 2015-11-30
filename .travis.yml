@@ -1,0 +1,16 @@
+language: generic
+sudo: required
+before_install:
+script: make
+before_deploy:
+    - sudo rm -rf dist/mm-push-proxy
+deploy:
+# Github releases, builds only on tags
+ - provider: releases
+   api_key:
+     secure: ma8Y0oimU+LB6LTAh8to2E1/ghaDPhcsAFXBrODsHpd4JgxA6HYoEwSEBCJFHSpu/JteclsxSTfp9hcuzw/IOtlwlSAiVoBZ60s24MRKTIAQNtrJ4QrX5wyfAZi+Bcuk/E8NynmoIW5qpaElSAdjgocyjAJIQ5ChMEztglL0cAEBXQRWbWMqSZ0hVLPrKDCIkWIyv3pFxqdLOxktkzxW07r2dlT0hppXR3dCaPJo0nelArS2H3LdN/3Iv6cAddfS27RaZkqDj/PDh6OZr4EguC99TxlVNChIr7nPr3/OiAssbkvEnhlSLeABFO9+7KfutL2WhAjpFXTjtPVq6Qalc8UW0K0gxq//sVfhb1MzjenmdOf06uB2bilQ8kgwHo7dDdRZBqqAtxQ6Q0Ht3SFMj6v/1zVD3s+YX/kWCEbUTHm6r2G/eF794ozcJyU+6j1L8hm6mvf8Mr9XCqBfgpZy6FCLX+9OKdMvX2jY8reo3Xz1PA9R6yzhN08vjku+jW+fsoYrBLd0fY1UGK2uOuvBByCeJzXupd3YpBMjEyRupVxqEj7K0GWOJeml65mkqKSNsHdDSeSjMpb8mwneZyTbdjsxCFQRLcLgpAajFrkk4G2Yz3KfhXSo29XKEGX+EbY5NuP8KmDsBsguPI0zfwv/co0hAY8PIIcehxcdoR9Vb2c=
+   file: dist/mm-push-proxy.tar.gz
+   skip_cleanup: true
+   on:
+     repo: mattermost/push-proxy
+     tags: true

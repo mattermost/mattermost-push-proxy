@@ -1,0 +1,10 @@
+
+{
+    "ListenAddress": ":8066",
+    "ApplePushServer": "gateway.push.apple.com:2195",
+    "ApplePushCertPublic": "",
+    "ApplePushCertPrivate": "",
+    "ThrottlePerSec": 100,
+    "ThrottleMemoryStoreSize": 10000,
+    "ThrottleVaryByHeader": "X-Forwarded-For"
+}

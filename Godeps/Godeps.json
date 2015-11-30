@@ -1,0 +1,62 @@
+{
+	"ImportPath": "github.com/mattermost/push-proxy",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/anachronistic/apns",
+			"Rev": "f90152b7e0ae845938ce1258d90072fd116131ac"
+		},
+		{
+			"ImportPath": "github.com/braintree/manners",
+			"Comment": "0.4.0-9-g3fdfada",
+			"Rev": "3fdfadabc96863ceec055bd73ab1e80324e72706"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/internal",
+			"Rev": "6ece6e0a09f28cc399b21550cbf37ab39ba63cce"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/redis",
+			"Rev": "6ece6e0a09f28cc399b21550cbf37ab39ba63cce"
+		},
+		{
+			"ImportPath": "github.com/golang/groupcache/lru",
+			"Rev": "604ed5785183e59ae2789449d89e73f3a2a77987"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "1c83b3eabd45b6d76072b66b746c20815fb2872d"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "9c068cf16d982f8bd444b8c352acbeec34c4fe5b"
+		},
+		{
+			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Rev": "d8ed2627bdf02c080bf22230dbb337003b7aba2d"
+		},
+		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.0-83-gd797d25",
+			"Rev": "d797d25e0fa6d53be3b1a216d24e868d6a1912ef"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
+			"Comment": "v1.0-83-gd797d25",
+			"Rev": "d797d25e0fa6d53be3b1a216d24e868d6a1912ef"
+		},
+		{
+			"ImportPath": "gopkg.in/throttled/throttled.v1",
+			"Comment": "v1.0.0",
+			"Rev": "74e328a1af88a9b54f9eca1397d74ad98572a6df"
+		}
+	]
+}
