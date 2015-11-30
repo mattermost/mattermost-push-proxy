@@ -27,7 +27,7 @@ all: dist
 
 dist: | build-server test package
 
-build-server:
+build-server: | .prepare
 	@echo Building proxy push server
 
 	rm -Rf $(DIST_ROOT)
