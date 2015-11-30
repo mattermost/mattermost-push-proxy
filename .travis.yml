@@ -1,9 +1,10 @@
-language: generic
-sudo: required
+language: go
+go:
+  - 1.5.1
 before_install:
 script: make
 before_deploy:
-    - sudo rm -rf dist/mm-push-proxy
+    - rm -rf dist/mm-push-proxy
 deploy:
 # Github releases, builds only on tags
  - provider: releases
