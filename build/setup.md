@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# copy following lines to /etc/init/matter-push-proxy.conf
+
+# start on runlevel [2345]
+# stop on runlevel [016]
+# respawn
+# chdir /home/ubuntu/matter-push-proxy
+# setuid ubuntu
+# console output
+# exec bin/push-proxy | logger
+
+sudo stop matter-push-proxy
+
+
+rm -f matter-push-proxy.tar.gz
+rm -rf ~/matter-push-proxy
+
+wget https://github.com/mattermost/push-proxy/releases/download/v0.1.0/matter-push-proxy.tar.gz
+
+mkdir -p ~/matter-push-proxy
+
+tar -C ~/ -xzf matter-push-proxy.tar.gz
+
+cp config.json ~/matter-push-proxy/config/config.json
+
+sudo start matter-push-proxy
+
+sleep 10
+
+curl localhost:8066

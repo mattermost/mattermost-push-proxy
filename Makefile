@@ -84,4 +84,4 @@ clean:
 
 run: .prepare
 	@echo Starting go web server
-	$(GO) run $(GOFLAGS) main.go -config=config.json &
+	$(GO) run $(GOFLAGS) main.go

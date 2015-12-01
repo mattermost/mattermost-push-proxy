@@ -39,6 +39,8 @@ func Start() {
 
 	handler = th.Throttle(router)
 
+	router.HandleFunc("/", root).Methods("GET")
+
 	r := router.PathPrefix("/api/v1").Subrouter()
 	r.HandleFunc("/send_push", handleSendNotification).Methods("POST")
 
@@ -55,6 +57,10 @@ func Start() {
 func Stop() {
 	LogInfo("Stopping Server...")
 	manners.Close()
+}
+
+func root(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
 }
 
 func handleSendNotification(w http.ResponseWriter, r *http.Request) {
