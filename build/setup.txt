@@ -22,7 +22,7 @@ mkdir -p ~/matter-push-proxy
 
 tar -C ~/ -xzf matter-push-proxy.tar.gz
 
-cp config.json ~/matter-push-proxy/config/config-push-proxy.json
+cp config-push-proxy.json ~/matter-push-proxy/config/config-push-proxy.json
 
 sudo start matter-push-proxy
 

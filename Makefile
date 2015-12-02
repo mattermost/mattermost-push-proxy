@@ -58,7 +58,7 @@ package:
 
 	mkdir -p $(DIST_PATH)/logs
 
-	cp build/MIT-COMPILED-LICENSE.md $(DIST_PATH)
+	cp LICENSE.txt $(DIST_PATH)
 	cp NOTICE.txt $(DIST_PATH)
 	cp README.md $(DIST_PATH)
 
