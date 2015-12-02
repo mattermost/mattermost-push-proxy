@@ -7,7 +7,9 @@ For organizations who want to keep internal communications behind their firewall
 ### Requirements
 
 1. A linux Ubuntu 14.04 server with at least 1GB of memory.  
-2. Private and public keys obtained from the Apple Developer Program
+2. Having either compiled the Mattermost iOS app and submitted it to the Apple App Store, or hosted in your own Enterprise App Store. 
+3. Private and public keys obtained from the Apple Developer Program
+
 
 ### Installation 
 
@@ -17,6 +19,4 @@ For organizations who want to keep internal communications behind their firewall
   3. Uncompress the file with `tar -xvzf matter-push-proxy.tar.gz`.
 2. Update `config.json` with your private and public keys.
   3. Edit using `vi /home/ubuntu/push-proxy/config/config.json` and set `ApplePushCertPublic` and `ApplePushCertPrivate` based on the public and private keys previously generated. 
-3. Start the Mattermost Notification Server. 
-  1. Run `sudo start push-proxy`. 
-4. Verify push notifications are working by mentioning a user who is offline, which should trigger a push notification.
+3. Verify push notifications are working by mentioning a user who is offline, which should trigger a push notification.
