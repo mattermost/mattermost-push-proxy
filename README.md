@@ -1,8 +1,8 @@
-# Mattermost Notifications Server 
+# Mattermost Push Notifications Service 
 
 A server for proxying push notifications to iOS devices from Mattermost, [a self-hosted team communication solution](http://www.mattermost.org/). 
 
-For organizations who want to keep internal communications behind their firewall, this server encrypts notification messages with a private key under your control before sending them to Apple's public push notification server for delivery to your iOS devices. 
+For organizations who want to keep internal communications behind their firewall, this service encrypts notification messages with a private key under your control before sending them to Apple's public push notification service for delivery to your iOS devices. 
 
 ### Requirements
 
