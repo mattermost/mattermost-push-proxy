@@ -18,5 +18,5 @@ For organizations who want to keep internal communications behind their firewall
   2. Download Mattermost Notification Server v0.1.1 with `wget https://github.com/mattermost/push-proxy/releases/download/v0.1.1/matter-push-proxy.tar.gz`.
   3. Uncompress the file with `tar -xvzf matter-push-proxy.tar.gz`.
 2. Update `config.json` with your private and public keys.
-  3. Edit using `vi /home/ubuntu/push-proxy/config/config.json` and set `ApplePushCertPublic` and `ApplePushCertPrivate` based on the public and private keys previously generated. 
+  1. Edit using `vi /home/ubuntu/push-proxy/config/config.json` and set `ApplePushCertPublic` and `ApplePushCertPrivate`, this should be a path to the public and private keys previously generated. 
 3. Verify push notifications are working by mentioning a user who is offline, which should trigger a push notification.
