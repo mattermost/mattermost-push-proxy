@@ -89,7 +89,7 @@ func sendAppleNotification(msg *PushNotification) {
 	pn := apns.NewPushNotification()
 	pn.DeviceToken = msg.DeviceId
 	pn.AddPayload(payload)
-	client := apns.BareClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
+	client := apns.NewClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
 	resp := client.Send(pn)
 
 	if resp.Error != nil {
