@@ -14,6 +14,7 @@ type ConfigPushProxy struct {
 	ApplePushServer         string
 	ApplePushCertPublic     string
 	ApplePushCertPrivate    string
+	AndroidApiKey           string
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int
 	ThrottleVaryByHeader    string

@@ -1,7 +1,11 @@
 {
 	"ImportPath": "github.com/mattermost/push-proxy",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.5",
 	"Deps": [
+		{
+			"ImportPath": "github.com/alexjlockwood/gcm",
+			"Rev": "2407bc782264326a3d4c71dd1ebeb8ab75221923"
+		},
 		{
 			"ImportPath": "github.com/anachronistic/apns",
 			"Rev": "f90152b7e0ae845938ce1258d90072fd116131ac"

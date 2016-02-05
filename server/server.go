@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alexjlockwood/gcm"
 	"github.com/anachronistic/apns"
 	"github.com/braintree/manners"
 	"github.com/gorilla/mux"
@@ -76,8 +77,24 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 
 	if msg.Platform == PUSH_NOTIFY_APPLE {
 		go sendAppleNotification(msg)
+	} else if msg.Platform == PUSH_NOTIFY_ANDROID {
+		go sendAndroidNotification(msg)
 	} else {
 		LogError("Missing platform property")
+	}
+}
+
+func sendAndroidNotification(msg *PushNotification) {
+	data := map[string]interface{}{"message": msg.Message}
+	regIDs := []string{msg.DeviceId}
+
+	gcmMsg := gcm.NewMessage(data, regIDs...)
+	sender := &gcm.Sender{ApiKey: CfgPP.AndroidApiKey}
+
+	_, err := sender.Send(gcmMsg, 2)
+
+	if err != nil {
+		LogError(fmt.Sprintf("Failed to send GCM push: %s", err))
 	}
 }
 

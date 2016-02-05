@@ -4,6 +4,7 @@
     "ApplePushServer": "gateway.push.apple.com:2195",
     "ApplePushCertPublic": "",
     "ApplePushCertPrivate": "",
+    "AndroidApiKey": "",
     "ThrottlePerSec": 100,
     "ThrottleMemoryStoreSize": 10000,
     "ThrottleVaryByHeader": "X-Forwarded-For"
