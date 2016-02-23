@@ -91,10 +91,16 @@ func sendAndroidNotification(msg *PushNotification) {
 	gcmMsg := gcm.NewMessage(data, regIDs...)
 	sender := &gcm.Sender{ApiKey: CfgPP.AndroidApiKey}
 
-	_, err := sender.Send(gcmMsg, 2)
+	LogInfo("Sending android push notification")
+	resp, err := sender.Send(gcmMsg, 2)
 
 	if err != nil {
-		LogError(fmt.Sprintf("Failed to send GCM push: %s", err))
+		LogError(fmt.Sprintf("Failed to send GCM push: %v", err))
+		return
+	}
+
+	if resp.Failure > 0 {
+		LogError(fmt.Sprintf("Android reponse: %v", resp))
 	}
 }
 
@@ -107,6 +113,8 @@ func sendAppleNotification(msg *PushNotification) {
 	pn.DeviceToken = msg.DeviceId
 	pn.AddPayload(payload)
 	client := apns.NewClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
+
+	LogInfo("Sending apple push notification")
 	resp := client.Send(pn)
 
 	if resp.Error != nil {
