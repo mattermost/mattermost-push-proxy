@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
-	"gopkg.in/throttled/throttled.v1"
-	"gopkg.in/throttled/throttled.v1/store"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/garyburd/redigo/redis"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/gopkg.in/throttled/throttled.v1"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/gopkg.in/throttled/throttled.v1/store"
 )
 
 var (

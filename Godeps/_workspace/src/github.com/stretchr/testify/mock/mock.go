@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stretchr/objx"
-	"github.com/stretchr/testify/assert"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/stretchr/objx"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/stretchr/testify/assert"
 )
 
 // TestingT is an interface wrapper around *testing.T

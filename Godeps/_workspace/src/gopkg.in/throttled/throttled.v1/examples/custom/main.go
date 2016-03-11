@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/throttled/throttled.v1"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/gopkg.in/throttled/throttled.v1"
 )
 
 var (

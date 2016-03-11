@@ -1,6 +1,6 @@
 package apns
 
-import "github.com/stretchr/testify/mock"
+import "github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/stretchr/testify/mock"
 
 type MockClient struct {
 	mock.Mock
