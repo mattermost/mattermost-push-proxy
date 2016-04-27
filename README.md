@@ -20,7 +20,7 @@ For organizations who want to keep internal communications behind their firewall
 2. Update `config.json` with your private and public keys.
   1. Edit using `vi /home/ubuntu/push-proxy/config/config.json` and set `ApplePushCertPublic` and `ApplePushCertPrivate`, this should be a path to the public and private keys previously generated.  For example 
   ```
-"ApplePushCertPublic": "./config/publickey.cer",
+"ApplePushCertPublic": "./config/publickey.pem",
 "ApplePushCertPrivate": "./config/privatekey.pem",
   ```
   2. Edit using `vi /home/ubuntu/push-proxy/config/config.json` and set `AndroidApiKey`, this should be a key generated from Google Cloud Messaging.  For example 
