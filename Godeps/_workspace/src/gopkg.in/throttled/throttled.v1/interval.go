@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/groupcache/lru"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/golang/groupcache/lru"
 )
 
 // Static check to ensure that the interval limiters implement the Limiter interface.

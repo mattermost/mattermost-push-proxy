@@ -3,8 +3,8 @@ package store
 import (
 	"time"
 
-	"github.com/garyburd/redigo/redis"
-	"gopkg.in/throttled/throttled.v1"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/github.com/garyburd/redigo/redis"
+	"github.com/mattermost/push-proxy/Godeps/_workspace/src/gopkg.in/throttled/throttled.v1"
 )
 
 // redisStore implements a Redis-based store.
