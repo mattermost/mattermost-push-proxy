@@ -108,6 +108,7 @@ func sendAppleNotification(msg *PushNotification) {
 	payload := apns.NewPayload()
 	payload.Alert = msg.Message
 	payload.Badge = msg.Badge
+	payload.Sound = "default"
 
 	pn := apns.NewPushNotification()
 	pn.DeviceToken = msg.DeviceId
