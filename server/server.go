@@ -76,6 +76,10 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 		LogError("Failed because of missing server Id")
 	}
 
+	if len(msg.Message) > 2047 {
+		msg.Message = msg.Message[0:2046]
+	}
+
 	if msg.Platform == PUSH_NOTIFY_APPLE {
 		go sendAppleNotification(msg)
 	} else if msg.Platform == PUSH_NOTIFY_ANDROID {
