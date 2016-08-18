@@ -118,14 +118,14 @@ func sendAndroidNotification(msg *PushNotification) {
 func sendAppleNotification(msg *PushNotification) {
 	payload := apns.NewPayload()
 
-	if msg.Type == PUSH_TYPE_CLEAR {
-		payload.Badge = 0
-	} else {
+	if msg.Type != PUSH_TYPE_CLEAR {
 		payload.Alert = emoji.Sprint(msg.Message)
 		payload.Badge = msg.Badge
 		payload.Category = msg.Category
 		payload.Sound = "default"
 	}
+
+	payload.Badge = msg.Badge
 
 	pn := apns.NewPushNotification()
 	pn.DeviceToken = msg.DeviceId
