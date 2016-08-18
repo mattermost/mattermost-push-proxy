@@ -11,6 +11,8 @@ import (
 const (
 	PUSH_NOTIFY_APPLE   = "apple"
 	PUSH_NOTIFY_ANDROID = "android"
+	PUSH_TYPE_MESSAGE   = "message"
+	PUSH_TYPE_CLEAR     = "clear"
 )
 
 type PushNotification struct {
@@ -24,6 +26,7 @@ type PushNotification struct {
 	ContentAvailable int    `json:"cont_ava"`
 	ChannelId        string `json:"channel_id"`
 	ChannelName      string `json:"channel_name"`
+	Type             string `json:"type"`
 }
 
 func (me *PushNotification) ToJson() string {
