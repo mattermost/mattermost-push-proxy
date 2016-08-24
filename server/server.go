@@ -90,10 +90,16 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendAndroidNotification(msg *PushNotification) {
-	data := map[string]interface{}{"message": emoji.Sprint(msg.Message), "channel_id": msg.ChannelId, "channel_name": msg.ChannelName}
-	regIDs := []string{msg.DeviceId}
+	var data map[string]interface{}
+	if msg.Type == PUSH_TYPE_CLEAR {
+		data = map[string]interface{}{"type": PUSH_TYPE_CLEAR, "channel_id": msg.ChannelId}
+	} else {
+		data = map[string]interface{}{"type": PUSH_TYPE_MESSAGE, "message": emoji.Sprint(msg.Message), "channel_id": msg.ChannelId, "channel_name": msg.ChannelName}
+	}
 
+	regIDs := []string{msg.DeviceId}
 	gcmMsg := gcm.NewMessage(data, regIDs...)
+
 	sender := &gcm.Sender{ApiKey: CfgPP.AndroidApiKey}
 
 	LogInfo("Sending android push notification")
@@ -105,16 +111,21 @@ func sendAndroidNotification(msg *PushNotification) {
 	}
 
 	if resp.Failure > 0 {
-		LogError(fmt.Sprintf("Android reponse: %v", resp))
+		LogError(fmt.Sprintf("Android response: %v", resp))
 	}
 }
 
 func sendAppleNotification(msg *PushNotification) {
 	payload := apns.NewPayload()
-	payload.Alert = emoji.Sprint(msg.Message)
+
+	if msg.Type != PUSH_TYPE_CLEAR {
+		payload.Alert = emoji.Sprint(msg.Message)
+		payload.Badge = msg.Badge
+		payload.Category = msg.Category
+		payload.Sound = "default"
+	}
+
 	payload.Badge = msg.Badge
-	payload.Category = msg.Category
-	payload.Sound = "default"
 
 	pn := apns.NewPushNotification()
 	pn.DeviceToken = msg.DeviceId
