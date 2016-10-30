@@ -33,3 +33,28 @@ For organizations who want to keep internal communications behind their firewall
 curl http://127.0.0.1:8066/api/v1/send_push -X POST -H "Content-Type: application/json" -d '{ "message":"test", "badge": 1, "platform":"apple", "server_id":"MATTERMOST_DIAG_ID", "device_id":"IPHONE_DEVICE_ID"}'
 ```
 Replace MATTERMOST_DIAG_ID and IPHONE_DEVICE_ID with the relevant values.
+
+
+### Troubleshooting 
+
+The push-poxy logs to the console. If you're using Ubuntu 14.04 and `upstart` to start the process you can use something similar to the  following to send console output to a log file: 
+
+- `/etc/init/matter-push-proxy.conf`
+
+```
+start on runlevel [2345]
+stop on runlevel [016]
+respawn
+chdir /home/ubuntu/matter-push-proxy
+setuid ubuntu
+console log
+exec bin/push-proxy | logger
+```
+
+To show the log file: 
+
+```
+sudo tail -n 1000 /var/log/upstart/
+matter-push-proxy.log
+```
+
