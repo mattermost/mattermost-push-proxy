@@ -39,7 +39,7 @@ For organizations who want to keep internal communications behind their firewall
    - Change directories by typing `cd ~/push-proxy/config`
    - Edit the file by typing `vi config-push-proxy.json`
    - Replace `"ApplePushCertPublic": ""` and `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
-   - Replace `"AndroidApiKey": ""` with a path to the key generated from Google Cloud Messaging
+   - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging
    - For example: 
    
      ```
@@ -66,18 +66,30 @@ For organizations who want to keep internal communications behind their firewall
      ```
      
    - You can manage the process by typing:
-      -  `sudo start matter-push-proxy`
-  - Verify the server operates normally by using curl: 
-    - `curl http://127.0.0.1:8066/api/v1/send_push -X POST -H "Content-Type: application/json" -d '{ "message":"test", "badge": 1, "platform":"apple", "server_id":"MATTERMOST_DIAG_ID", "device_id":"IPHONE_DEVICE_ID"}'`
-    - Replace MATTERMOST_DIAG_ID and IPHONE_DEVICE_ID with the relevant values
-  - You can also stop the process by running the command
-      `sudo stop matter-push-proxy`, but we will skip this step for now
+     -  `sudo start matter-push-proxy`
+   - You can also stop the process by running the command `sudo stop matter-push-proxy`, but we will skip this step for now
 
    
 7. Test the Push Proxy Server
 
-   - Verify push notifications are working by mentioning a user who is offline, which should trigger a push notification
-   - To show the log file: 
+   - Verify the server is functioning normally and test the push notifications using curl: 
+     - `curl http://127.0.0.1:8066/api/v1/send_push -X POST -H "Content-Type: application/json" -d '{ "message":"test", "badge": 1, "platform":"apple", "server_id":"MATTERMOST_DIAG_ID", "device_id":"IPHONE_DEVICE_ID"}'`
+     - Replace MATTERMOST_DIAG_ID with the value found by running the SQL query:
+       - `SELECT * FROM Systems WHERE Name = 'DiagnosticId';`
+     - Replace IPHONE_DEVICE_ID with your device ID, which can be found using: 
+      ```
+      SELECT
+         Email, DeviceId
+      FROM
+         Sessions,
+         Users
+      WHERE
+         Sessions.UserId = Users.Id
+            AND DeviceId != ''
+            AND Email = 'test@example.com'`
+     ```
+   - You can also verify push notifications are working by opening your Mattermost site and mentioning a user who has push notifications enabled in Account Settings > Notifications > Mobile Push Notifications
+   - To view the log file, use: 
      
      ```
      sudo tail -n 1000 /var/log/upstart/
