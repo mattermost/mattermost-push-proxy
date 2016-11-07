@@ -14,29 +14,32 @@ For organizations who want to keep internal communications behind their firewall
 ### Obtaining Apple Developer Keys
 
 1. Follow the directions at [developer.apple.com](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/DistributingEnterpriseProgramApps/DistributingEnterpriseProgramApps.html#//apple_ref/doc/uid/TP40012582-CH33-SW4) to generate an Apple Push Notification service SSL Certificate, this should give you an `aps_production.cer`
-2. `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
+2. Convert the certificate format to .pem:
+  - `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
 3. Double click `aps_production.cer` to install it into the keychain tool
 4. Right click the private cert in keychain access and export to .p12
-5. `openssl pkcs12 -in Certificates.p12 -out aps_production_priv.pem -nodes -clcerts`
-6. `openssl s_client -connect gateway.push.apple.com:2195 -cert aps_production.pem -key aps_production_priv.pem`
+5. Extract the private key from the certificate: 
+  - `openssl pkcs12 -in Certificates.p12 -out aps_production_priv.pem -nodes -clcerts`
+6. Verifying the certificate works with apple:
+  - `openssl s_client -connect gateway.push.apple.com:2195 -cert aps_production.pem -key aps_production_priv.pem`
 
 ### Set Up Push Proxy Server
 
 1. For the sake of making this guide simple we located the files at
-   `/home/ubuntu/push-proxy`. 
-2. We have also elected to run the Push Proxy Server as the `ubuntu` account for simplicity. We recommend setting up and running the service under a `matter-push-proxy` user account with limited permissions.
+   `/home/ubuntu/mattermost-push-proxy`. 
+2. We have also elected to run the Push Proxy Server as the `ubuntu` account for simplicity. We recommend setting up and running the service under a `mattermost-push-proxy` user account with limited permissions.
 3. Download Mattermost Notification Server v2.0 by typing:
 
-   -   `wget https://github.com/mattermost/push-proxy/releases/download/v2.0/matter-push-proxy.tar.gz`
+   -   `wget https://github.com/mattermost/push-proxy/releases/download/v2.0/mattermost-push-proxy.tar.gz`
    
 4. Unzip the Push Proxy Server by typing:
 
-   -  `tar -xvzf matter-push-proxy.tar.gz`
+   -  `tar -xvzf mattermost-push-proxy.tar.gz`
 
 5. Configure Push Proxy Server by editing the config-push-proxy.json file at
-   `/home/ubuntu/push-proxy/config`
+   `/home/ubuntu/mattermost-push-proxy/config`
 
-   - Change directories by typing `cd ~/push-proxy/config`
+   - Change directories by typing `cd ~/mattermost-push-proxy/config`
    - Edit the file by typing `vi config-push-proxy.json`
    - Replace `"ApplePushCertPublic": ""` and `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
    - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging
@@ -51,23 +54,23 @@ For organizations who want to keep internal communications behind their firewall
 6. Setup Push Proxy to use the Upstart daemon which handles supervision
    of the Push Proxy process.
 
-   -  `sudo touch /etc/init/matter-push-proxy.conf`
-   -  `sudo vi /etc/init/matter-push-proxy.conf`
-   -  Copy the following lines into `/etc/init/matter-push-proxy.conf`
+   -  `sudo touch /etc/init/mattermost-push-proxy.conf`
+   -  `sudo vi /etc/init/mattermost-push-proxy.conf`
+   -  Copy the following lines into `/etc/init/mattermost-push-proxy.conf`
      
      ```
      start on runlevel [2345]
      stop on runlevel [016]
      respawn
-     chdir /home/ubuntu/matter-push-proxy
+     chdir /home/ubuntu/mattermost-push-proxy
      setuid ubuntu
      console log
-     exec bin/push-proxy | logger
+     exec bin/mattermost-push-proxy | logger
      ```
      
    - You can manage the process by typing:
-     -  `sudo start matter-push-proxy`
-   - You can also stop the process by running the command `sudo stop matter-push-proxy`, but we will skip this step for now
+     -  `sudo start mattermost-push-proxy`
+   - You can also stop the process by running the command `sudo stop mattermost-push-proxy`, but we will skip this step for now
 
    
 7. Test the Push Proxy Server
@@ -93,7 +96,7 @@ For organizations who want to keep internal communications behind their firewall
      
      ```
      sudo tail -n 1000 /var/log/upstart/
-     matter-push-proxy.log
+     mattermost-push-proxy.log
      ```
 
          
