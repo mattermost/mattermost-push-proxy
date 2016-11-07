@@ -106,12 +106,12 @@ func sendAndroidNotification(msg *PushNotification) {
 	resp, err := sender.Send(gcmMsg, 2)
 
 	if err != nil {
-		LogError(fmt.Sprintf("Failed to send GCM push: %v", err))
+		LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
 		return
 	}
 
 	if resp.Failure > 0 {
-		LogError(fmt.Sprintf("Android response: %v", resp))
+		LogError(fmt.Sprintf("Android response failure: %v", resp))
 	}
 }
 
