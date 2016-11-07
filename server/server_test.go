@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	LoadConfig("config-push-proxy.json")
+	LoadConfig("mattermost-push-proxy.json")
 	Start()
 	time.Sleep(time.Second * 2)
 

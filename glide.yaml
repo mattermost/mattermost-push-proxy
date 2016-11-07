@@ -1,0 +1,10 @@
+package: github.com/mattermost/push-proxy
+import:
+- package: github.com/alexjlockwood/gcm
+- package: github.com/anachronistic/apns
+- package: github.com/braintree/manners
+- package: github.com/gorilla/mux
+- package: github.com/kyokomi/emoji
+- package: gopkg.in/throttled/throttled.v1
+  subpackages:
+  - store
