@@ -174,38 +174,6 @@ func sendAppleNotification(msg *PushNotification) {
 			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
 		}
 	}
-
-	// payload := apns.NewPayload()
-
-	// if msg.Type != PUSH_TYPE_CLEAR {
-	// 	payload.Alert = emoji.Sprint(msg.Message)
-	// 	payload.Badge = msg.Badge
-	// 	payload.Category = msg.Category
-	// 	payload.Sound = "default"
-	// }
-
-	// payload.Badge = msg.Badge
-
-	// pn := apns.NewPushNotification()
-	// pn.DeviceToken = msg.DeviceId
-	// pn.AddPayload(payload)
-
-	// if len(msg.ChannelId) > 0 {
-	// 	pn.Set("channel_id", msg.ChannelId)
-	// }
-
-	// if len(msg.ChannelName) > 0 {
-	// 	pn.Set("channel_name", msg.ChannelName)
-	// }
-
-	// client := apns.NewClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
-
-	// LogInfo("Sending apple push notification")
-	// resp := client.Send(pn)
-
-	// if resp.Error != nil {
-	// 	LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, resp.Error))
-	// }
 }
 
 func LogInfo(msg string) {
