@@ -30,17 +30,17 @@ For organizations who want to keep internal communications behind their firewall
 2. We have also elected to run the Push Proxy Server as the `ubuntu` account for simplicity. We recommend setting up and running the service under a `mattermost-push-proxy` user account with limited permissions.
 3. Download Mattermost Notification Server v2.0 by typing:
 
-   -   `wget https://github.com/mattermost/push-proxy/releases/download/v2.0/mattermost-push-proxy.tar.gz`
+   -   `wget https://github.com/mattermost/mattermost-push-proxy/releases/download/vX.X/mattermost-push-proxy.tar.gz`
    
 4. Unzip the Push Proxy Server by typing:
 
    -  `tar -xvzf mattermost-push-proxy.tar.gz`
 
-5. Configure Push Proxy Server by editing the config-push-proxy.json file at
+5. Configure Push Proxy Server by editing the mattermost-push-proxy.json file at
    `/home/ubuntu/mattermost-push-proxy/config`
 
    - Change directories by typing `cd ~/mattermost-push-proxy/config`
-   - Edit the file by typing `vi config-push-proxy.json`
+   - Edit the file by typing `vi mattermost-push-proxy.json`
    - Replace `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
    - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging
    - Replace `"ApplePushTopic": "com.mattermost.Mattermost"` with the iOS bundle ID of your custom mobile app.

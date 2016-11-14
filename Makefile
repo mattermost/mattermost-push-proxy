@@ -50,7 +50,7 @@ package:
 	@ echo Packaging push proxy
 
 	mkdir -p $(DIST_PATH)/bin
-	cp $(GOPATH)/bin/push-proxy $(DIST_PATH)/bin
+	cp $(GOPATH)/bin/mattermost-push-proxy $(DIST_PATH)/bin
 
 	cp -RL config $(DIST_PATH)/config
 	touch $(DIST_PATH)/config/build.txt

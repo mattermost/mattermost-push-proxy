@@ -1,4 +1,4 @@
-package: github.com/mattermost/push-proxy
+package: github.com/mattermost/mattermost-push-proxy
 import:
 - package: github.com/alexjlockwood/gcm
 - package: github.com/braintree/manners
