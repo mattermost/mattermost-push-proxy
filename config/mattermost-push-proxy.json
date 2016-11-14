@@ -1,11 +1,11 @@
 
 {
     "ListenAddress": ":8066",
-    "ApplePushServer": "gateway.push.apple.com:2195",
-    "ApplePushCertPublic": "",
-    "ApplePushCertPrivate": "",
+    "ApplePushUseDevelopment": false,
+    "ApplePushCertPrivate": "./config/aps_production_priv.pem",
+    "ApplePushCertPassword": "",
     "AndroidApiKey": "",
-    "ThrottlePerSec": 100,
-    "ThrottleMemoryStoreSize": 10000,
+    "ThrottlePerSec": 300,
+    "ThrottleMemoryStoreSize": 50000,
     "ThrottleVaryByHeader": "X-Forwarded-For"
 }

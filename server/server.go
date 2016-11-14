@@ -11,10 +11,12 @@ import (
 	"strings"
 
 	"github.com/alexjlockwood/gcm"
-	"github.com/anachronistic/apns"
 	"github.com/braintree/manners"
 	"github.com/gorilla/mux"
 	"github.com/kyokomi/emoji"
+	apns "github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/certificate"
+	"github.com/sideshow/apns2/payload"
 	"gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 )
@@ -24,8 +26,21 @@ const (
 	HEADER_REAL_IP   = "X-Real-IP"
 )
 
+var appleClient *apns.Client
+
 func Start() {
 	LogInfo("Push proxy server is initializing...")
+
+	appleCert, appleCertErr := certificate.FromPemFile(CfgPP.ApplePushCertPrivate, CfgPP.ApplePushCertPassword)
+	if appleCertErr != nil {
+		LogCritical(fmt.Sprintf("Failed to load the apple pem cert err=%v", appleCertErr))
+	}
+
+	if CfgPP.ApplePushUseDevelopment {
+		appleClient = apns.NewClient(appleCert).Development()
+	} else {
+		appleClient = apns.NewClient(appleCert).Production()
+	}
 
 	router := mux.NewRouter()
 	var handler http.Handler = router
@@ -116,37 +131,69 @@ func sendAndroidNotification(msg *PushNotification) {
 }
 
 func sendAppleNotification(msg *PushNotification) {
-	payload := apns.NewPayload()
+
+	notification := &apns.Notification{}
+	notification.DeviceToken = msg.DeviceId
+	payload := payload.NewPayload()
+	notification.Payload = payload
+	notification.Topic = "com.mattermost.Mattermost"
+	payload.Badge(msg.Badge)
 
 	if msg.Type != PUSH_TYPE_CLEAR {
-		payload.Alert = emoji.Sprint(msg.Message)
-		payload.Badge = msg.Badge
-		payload.Category = msg.Category
-		payload.Sound = "default"
+		payload.Alert(emoji.Sprint(msg.Message))
+		payload.Category(msg.Category)
+		payload.Sound("default")
 	}
 
-	payload.Badge = msg.Badge
-
-	pn := apns.NewPushNotification()
-	pn.DeviceToken = msg.DeviceId
-	pn.AddPayload(payload)
-
 	if len(msg.ChannelId) > 0 {
-		pn.Set("channel_id", msg.ChannelId)
+		payload.Custom("channel_id", msg.ChannelId)
 	}
 
 	if len(msg.ChannelName) > 0 {
-		pn.Set("channel_name", msg.ChannelName)
+		payload.Custom("channel_name", msg.ChannelName)
 	}
-
-	client := apns.NewClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
 
 	LogInfo("Sending apple push notification")
-	resp := client.Send(pn)
-
-	if resp.Error != nil {
-		LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, resp.Error))
+	res, err := appleClient.Push(notification)
+	if err != nil {
+		LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
 	}
+
+	if !res.Sent() {
+		LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
+	}
+
+	// payload := apns.NewPayload()
+
+	// if msg.Type != PUSH_TYPE_CLEAR {
+	// 	payload.Alert = emoji.Sprint(msg.Message)
+	// 	payload.Badge = msg.Badge
+	// 	payload.Category = msg.Category
+	// 	payload.Sound = "default"
+	// }
+
+	// payload.Badge = msg.Badge
+
+	// pn := apns.NewPushNotification()
+	// pn.DeviceToken = msg.DeviceId
+	// pn.AddPayload(payload)
+
+	// if len(msg.ChannelId) > 0 {
+	// 	pn.Set("channel_id", msg.ChannelId)
+	// }
+
+	// if len(msg.ChannelName) > 0 {
+	// 	pn.Set("channel_name", msg.ChannelName)
+	// }
+
+	// client := apns.NewClient(CfgPP.ApplePushServer, CfgPP.ApplePushCertPublic, CfgPP.ApplePushCertPrivate)
+
+	// LogInfo("Sending apple push notification")
+	// resp := client.Send(pn)
+
+	// if resp.Error != nil {
+	// 	LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, resp.Error))
+	// }
 }
 
 func LogInfo(msg string) {

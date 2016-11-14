@@ -35,5 +35,7 @@ func TestServer(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(time.Second * 2)
+
 	Stop()
 }
