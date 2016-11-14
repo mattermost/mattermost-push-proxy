@@ -115,9 +115,9 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 func sendAndroidNotification(msg *PushNotification) {
 	var data map[string]interface{}
 	if msg.Type == PUSH_TYPE_CLEAR {
-		data = map[string]interface{}{"type": PUSH_TYPE_CLEAR, "channel_id": msg.ChannelId}
+		data = map[string]interface{}{"type": PUSH_TYPE_CLEAR, "channel_id": msg.ChannelId, "team_id": msg.TeamId}
 	} else {
-		data = map[string]interface{}{"type": PUSH_TYPE_MESSAGE, "message": emoji.Sprint(msg.Message), "channel_id": msg.ChannelId, "channel_name": msg.ChannelName}
+		data = map[string]interface{}{"type": PUSH_TYPE_MESSAGE, "message": emoji.Sprint(msg.Message), "channel_id": msg.ChannelId, "channel_name": msg.ChannelName, "team_id": msg.TeamId}
 	}
 
 	regIDs := []string{msg.DeviceId}
@@ -157,6 +157,10 @@ func sendAppleNotification(msg *PushNotification) {
 
 	if len(msg.ChannelId) > 0 {
 		payload.Custom("channel_id", msg.ChannelId)
+	}
+
+	if len(msg.TeamId) > 0 {
+		payload.Custom("team_id", msg.TeamId)
 	}
 
 	if len(msg.ChannelName) > 0 {
