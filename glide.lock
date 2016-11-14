@@ -1,0 +1,49 @@
+hash: 77efdd10c6ad9a9e67265162148d3955fa99eb71ef12f516f6a0eb35abb4e3d7
+updated: 2016-11-14T12:06:39.957049878-08:00
+imports:
+- name: github.com/alexjlockwood/gcm
+  version: 2407bc782264326a3d4c71dd1ebeb8ab75221923
+- name: github.com/braintree/manners
+  version: 0b5e6b2c2843f4c83c2a40f96980b09cf4af733c
+- name: github.com/garyburd/redigo
+  version: 80f7de34463b0ed3d7c61303e5619efe1b227f92
+  subpackages:
+  - redis
+  - internal
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
+- name: github.com/kyokomi/emoji
+  version: 17c5e7085c9d59630aa578df67f4469481fbe7a9
+- name: github.com/sideshow/apns2
+  version: 873d6f531482befe8177997be72eacf61c72d5a2
+  subpackages:
+  - certificate
+  - payload
+- name: golang.org/x/crypto
+  version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
+  subpackages:
+  - pkcs12
+  - pkcs12/internal/rc2
+- name: golang.org/x/net
+  version: 8566e9372a500d1344adb9fdfd943c4354ef4aa2
+  subpackages:
+  - http2
+  - http2/hpack
+  - idna
+  - lex/httplex
+- name: gopkg.in/throttled/throttled.v1
+  version: b5675e93f9d999b22f92d859a5bf2138d3641af4
+  subpackages:
+  - store
+- name: gopkg.in/throttled/throttled.v2
+  version: b5675e93f9d999b22f92d859a5bf2138d3641af4
+  subpackages:
+  - store/memstore
+  - store/redigostore
+testImports: []
