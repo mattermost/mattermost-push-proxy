@@ -31,15 +31,23 @@ var appleClient *apns.Client
 func Start() {
 	LogInfo("Push proxy server is initializing...")
 
-	appleCert, appleCertErr := certificate.FromPemFile(CfgPP.ApplePushCertPrivate, CfgPP.ApplePushCertPassword)
-	if appleCertErr != nil {
-		LogCritical(fmt.Sprintf("Failed to load the apple pem cert err=%v", appleCertErr))
+	if len(CfgPP.ApplePushCertPrivate) > 0 {
+		appleCert, appleCertErr := certificate.FromPemFile(CfgPP.ApplePushCertPrivate, CfgPP.ApplePushCertPassword)
+		if appleCertErr != nil {
+			LogCritical(fmt.Sprintf("Failed to load the apple pem cert err=%v", appleCertErr))
+		}
+
+		if CfgPP.ApplePushUseDevelopment {
+			appleClient = apns.NewClient(appleCert).Development()
+		} else {
+			appleClient = apns.NewClient(appleCert).Production()
+		}
+	} else {
+		LogError("Apple push notifications not configured.  Mssing ApplePushCertPrivate.")
 	}
 
-	if CfgPP.ApplePushUseDevelopment {
-		appleClient = apns.NewClient(appleCert).Development()
-	} else {
-		appleClient = apns.NewClient(appleCert).Production()
+	if len(CfgPP.AndroidApiKey) == 0 {
+		LogError("Android push notifications not configured.  Mssing AndroidApiKey.")
 	}
 
 	router := mux.NewRouter()
@@ -117,16 +125,18 @@ func sendAndroidNotification(msg *PushNotification) {
 
 	sender := &gcm.Sender{ApiKey: CfgPP.AndroidApiKey}
 
-	LogInfo("Sending android push notification")
-	resp, err := sender.Send(gcmMsg, 2)
+	if len(CfgPP.AndroidApiKey) > 0 {
+		LogInfo("Sending android push notification")
+		resp, err := sender.Send(gcmMsg, 2)
 
-	if err != nil {
-		LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
-		return
-	}
+		if err != nil {
+			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
+			return
+		}
 
-	if resp.Failure > 0 {
-		LogError(fmt.Sprintf("Android response failure: %v", resp))
+		if resp.Failure > 0 {
+			LogError(fmt.Sprintf("Android response failure: %v", resp))
+		}
 	}
 }
 
@@ -136,7 +146,7 @@ func sendAppleNotification(msg *PushNotification) {
 	notification.DeviceToken = msg.DeviceId
 	payload := payload.NewPayload()
 	notification.Payload = payload
-	notification.Topic = "com.mattermost.Mattermost"
+	notification.Topic = CfgPP.ApplePushTopic
 	payload.Badge(msg.Badge)
 
 	if msg.Type != PUSH_TYPE_CLEAR {
@@ -153,14 +163,16 @@ func sendAppleNotification(msg *PushNotification) {
 		payload.Custom("channel_name", msg.ChannelName)
 	}
 
-	LogInfo("Sending apple push notification")
-	res, err := appleClient.Push(notification)
-	if err != nil {
-		LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
-	}
+	if appleClient != nil {
+		LogInfo("Sending apple push notification")
+		res, err := appleClient.Push(notification)
+		if err != nil {
+			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
+		}
 
-	if !res.Sent() {
-		LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
+		if !res.Sent() {
+			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
+		}
 	}
 
 	// payload := apns.NewPayload()
