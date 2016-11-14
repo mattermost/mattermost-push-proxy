@@ -41,12 +41,13 @@ For organizations who want to keep internal communications behind their firewall
 
    - Change directories by typing `cd ~/mattermost-push-proxy/config`
    - Edit the file by typing `vi config-push-proxy.json`
-   - Replace `"ApplePushCertPublic": ""` and `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
+   - Replace `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
    - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging
+   - Replace `"ApplePushTopic": "com.mattermost.Mattermost"` with the iOS bundle ID of your custom mobile app.
+   - Replace `"ApplePushCertPassword": ""` if your certificate has a password.  Otherwise leave it blank.
    - For example: 
    
      ```
-     "ApplePushCertPublic": "./config/aps_production.pem",
      "ApplePushCertPrivate": "./config/aps_production_priv.pem",
      "AndroidApiKey": "DKJDIiwjerljd290u34jFKDSF",
      ```

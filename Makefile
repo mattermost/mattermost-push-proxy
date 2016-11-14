@@ -1,4 +1,4 @@
-.PHONY: all dist dist-local dist-travis start-docker build-server package build-client test travis-init build-container stop-docker clean-docker clean nuke run stop setup-mac cleandb docker-build docker-run
+.PHONY: all dist build-server package test clean run 
 
 GOPATH ?= $(GOPATH:)
 GOFLAGS ?= $(GOFLAGS:)
@@ -6,7 +6,7 @@ BUILD_NUMBER ?= $(BUILD_NUMBER:)
 BUILD_DATE = $(shell date -u)
 BUILD_HASH = $(shell git rev-parse HEAD)
 
-GO=$(GOPATH)/bin/godep go
+GO=go
 
 ifeq ($(BUILD_NUMBER),)
 	BUILD_NUMBER := dev
@@ -19,7 +19,7 @@ else
 endif
 
 DIST_ROOT=dist
-DIST_PATH=$(DIST_ROOT)/matter-push-proxy
+DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
 
 TESTS=.
 
@@ -27,7 +27,7 @@ all: dist
 
 dist: | build-server test package
 
-build-server: | .prepare
+build-server: | .prebuild
 	@echo Building proxy push server
 
 	rm -Rf $(DIST_ROOT)
@@ -62,26 +62,24 @@ package:
 	cp NOTICE.txt $(DIST_PATH)
 	cp README.md $(DIST_PATH)
 
-	tar -C dist -czf $(DIST_PATH).tar.gz matter-push-proxy
+	tar -C dist -czf $(DIST_PATH).tar.gz mattermost-push-proxy
 
 test:
 	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=180s ./server || exit 1
 
 clean:
+	@echo Cleaning
 	rm -Rf $(DIST_ROOT)
 	go clean $(GOFLAGS) -i ./...
 
-	rm -rf Godeps/_workspace/pkg/
+	rm -f .prebuild
 
-	rm -f .prepare
-
-.prepare:
-	@echo Preparation for run step
-
-	go get $(GOFLAGS) github.com/tools/godep
+.prebuild:
+	@echo Preparation for running go code
+	go get $(GOFLAGS) github.com/Masterminds/glide
 
 	touch $@
 
-run: .prepare
+run: .prebuild
 	@echo Starting go web server
 	$(GO) run $(GOFLAGS) main.go

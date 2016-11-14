@@ -11,9 +11,10 @@ import (
 
 type ConfigPushProxy struct {
 	ListenAddress           string
-	ApplePushServer         string
-	ApplePushCertPublic     string
+	ApplePushUseDevelopment bool
 	ApplePushCertPrivate    string
+	ApplePushCertPassword   string
+	ApplePushTopic          string
 	AndroidApiKey           string
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int

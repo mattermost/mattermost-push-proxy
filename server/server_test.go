@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	LoadConfig("config-push-proxy.json")
+	LoadConfig("mattermost-push-proxy.json")
 	Start()
 	time.Sleep(time.Second * 2)
 
@@ -28,6 +28,14 @@ func TestServer(t *testing.T) {
 	if _, err := client.Do(rq); err != nil {
 		t.Fatal(err)
 	}
+
+	msg.Platform = PUSH_NOTIFY_ANDROID
+	rq2, _ := http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
+	if _, err := client.Do(rq2); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(time.Second * 2)
 
 	Stop()
 }

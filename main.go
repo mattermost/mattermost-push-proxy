@@ -18,7 +18,7 @@ var stopChan chan os.Signal = make(chan os.Signal)
 
 func main() {
 
-	flag.StringVar(&flagConfigFile, "config", "config-push-proxy.json", "")
+	flag.StringVar(&flagConfigFile, "config", "mattermost-push-proxy.json", "")
 	flag.Parse()
 	server.LoadConfig(flagConfigFile)
 
