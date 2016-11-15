@@ -1,0 +1,64 @@
+hash: 10174d5d39f1e3974517c62b0b09c4329082b45efd0152f0c8d9f63a56e761b5
+updated: 2016-11-15T10:36:41.047317256-08:00
+imports:
+- name: github.com/alecthomas/template
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
+- name: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/alexjlockwood/gcm
+  version: 2407bc782264326a3d4c71dd1ebeb8ab75221923
+- name: github.com/braintree/manners
+  version: 0b5e6b2c2843f4c83c2a40f96980b09cf4af733c
+- name: github.com/garyburd/redigo
+  version: 80f7de34463b0ed3d7c61303e5619efe1b227f92
+  subpackages:
+  - internal
+  - redis
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
+- name: github.com/kyokomi/emoji
+  version: 17c5e7085c9d59630aa578df67f4469481fbe7a9
+- name: github.com/sideshow/apns2
+  version: 873d6f531482befe8177997be72eacf61c72d5a2
+  subpackages:
+  - certificate
+  - payload
+- name: golang.org/x/crypto
+  version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
+  subpackages:
+  - pkcs12
+  - pkcs12/internal/rc2
+- name: golang.org/x/net
+  version: cac22060de4e495155959e69adcb4b45763ccb10
+  subpackages:
+  - http2
+  - http2/hpack
+  - idna
+  - lex/httplex
+- name: golang.org/x/text
+  version: a263ba8db058568bb9beba166777d9c9dbe75d68
+  subpackages:
+  - encoding
+  - encoding/charmap
+- name: golang.org/x/tools
+  version: 5e2ae75eb72a62985e086eed33a5982a929e4fff
+  subpackages:
+  - go/buildutil
+- name: gopkg.in/alecthomas/kingpin.v2
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+- name: gopkg.in/throttled/throttled.v1
+  version: b5675e93f9d999b22f92d859a5bf2138d3641af4
+  subpackages:
+  - store
+- name: gopkg.in/throttled/throttled.v2
+  version: b5675e93f9d999b22f92d859a5bf2138d3641af4
+  subpackages:
+  - store/memstore
+  - store/redigostore
+testImports: []

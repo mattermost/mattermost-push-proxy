@@ -1,0 +1,29 @@
+package: github.com/mattermost/mattermost-push-proxy
+import:
+- package: github.com/alexjlockwood/gcm
+- package: github.com/braintree/manners
+  version: 0.4.0
+- package: github.com/gorilla/mux
+  version: v1.1
+- package: github.com/kyokomi/emoji
+  version: v1.4
+- package: github.com/sideshow/apns2
+  version: v0.7
+  subpackages:
+  - certificate
+  - payload
+- package: gopkg.in/throttled/throttled.v1
+  version: v2.0.3
+  subpackages:
+  - store
+- package: gopkg.in/alecthomas/kingpin.v2
+  version: v2.2.3
+- package: golang.org/x/text
+  subpackages:
+  - encoding
+  - encoding/charmap
+- package: github.com/alecthomas/template
+- package: github.com/alecthomas/units
+- package: golang.org/x/tools
+  subpackages:
+  - go/buildutil
