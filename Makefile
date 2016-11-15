@@ -12,12 +12,6 @@ ifeq ($(BUILD_NUMBER),)
 	BUILD_NUMBER := dev
 endif
 
-ifeq ($(TRAVIS_BUILD_NUMBER),)
-	BUILD_NUMBER := dev
-else
-	BUILD_NUMBER := $(TRAVIS_BUILD_NUMBER)
-endif
-
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
 
