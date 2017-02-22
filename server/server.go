@@ -141,6 +141,21 @@ func sendAndroidNotification(msg *PushNotification) {
 }
 
 func sendAppleNotification(msg *PushNotification) {
+	defer func() {
+		if z := recover(); z != nil {
+			fmt.Println("recovered in 'handleSendNotification'", z)
+			appleCert, appleCertErr := certificate.FromPemFile(CfgPP.ApplePushCertPrivate, CfgPP.ApplePushCertPassword)
+			if appleCertErr != nil {
+				LogCritical(fmt.Sprintf("Failed to load the apple pem cert err=%v", appleCertErr))
+			}
+			if CfgPP.ApplePushUseDevelopment {
+				appleClient = apns.NewClient(appleCert).Development()
+			} else {
+				appleClient = apns.NewClient(appleCert).Production()
+			}
+			sendAppleNotification(msg)
+		}
+	}()
 
 	notification := &apns.Notification{}
 	notification.DeviceToken = msg.DeviceId
@@ -171,10 +186,8 @@ func sendAppleNotification(msg *PushNotification) {
 		LogInfo("Sending apple push notification")
 		res, err := appleClient.Push(notification)
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
-		}
-
-		if !res.Sent() {
+			LogCritical(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
+		} else if !res.Sent() {
 			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
 		}
 	}
