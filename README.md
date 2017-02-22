@@ -100,4 +100,6 @@ For organizations who want to keep internal communications behind their firewall
      mattermost-push-proxy.log
      ```
 
-         
+### Reporting issues 
+
+For issues with repro steps, please report to https://github.com/mattermost/platform/issues
