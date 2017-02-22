@@ -25,7 +25,7 @@ build-server: | .prebuild
 	@echo Building proxy push server
 
 	rm -Rf $(DIST_ROOT)
-	$(GO) clean $(GOFLAGS) -i ./...
+	env GOOS=linux GOARCH=amd64 $(GO) clean $(GOFLAGS) -i ./...
 
 	@echo GOFMT
 	$(eval GOFMT_OUTPUT := $(shell gofmt -d -s server/ main.go 2>&1))
@@ -37,14 +37,14 @@ build-server: | .prebuild
 		exit 1; \
 	fi
 
-	$(GO) build $(GOFLAGS) ./...
-	$(GO) install $(GOFLAGS) ./...
+	env GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) ./...
+	env GOOS=linux GOARCH=amd64 $(GO) install $(GOFLAGS) ./...
 
 package:
 	@ echo Packaging push proxy
 
 	mkdir -p $(DIST_PATH)/bin
-	cp $(GOPATH)/bin/mattermost-push-proxy $(DIST_PATH)/bin
+	cp $(GOPATH)/bin/linux_amd64/mattermost-push-proxy $(DIST_PATH)/bin
 
 	cp -RL config $(DIST_PATH)/config
 	touch $(DIST_PATH)/config/build.txt
