@@ -34,7 +34,7 @@ For organizations who want to keep internal communications behind their firewall
    
 4. Unzip the Push Proxy Server by typing:
 
-   -  `tar -xvzf mattermost-push-proxy.tar.gz`
+   -  `tar -xvzf mattermost-push-proxy-X.X.X.tar.gz`
 
 5. Configure Push Proxy Server by editing the mattermost-push-proxy.json file at
    `/home/ubuntu/mattermost-push-proxy/config`
