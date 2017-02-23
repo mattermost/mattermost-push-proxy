@@ -28,9 +28,9 @@ For organizations who want to keep internal communications behind their firewall
 1. For the sake of making this guide simple we located the files at
    `/home/ubuntu/mattermost-push-proxy`. 
 2. We have also elected to run the Push Proxy Server as the `ubuntu` account for simplicity. We recommend setting up and running the service under a `mattermost-push-proxy` user account with limited permissions.
-3. Download Mattermost Notification Server v2.0 by typing:
+3. Download latest Mattermost Notification Server from
 
-   -   `wget https://github.com/mattermost/mattermost-push-proxy/releases/download/vX.X/mattermost-push-proxy.tar.gz`
+   - https://github.com/mattermost/mattermost-push-proxy/releases
    
 4. Unzip the Push Proxy Server by typing:
 
