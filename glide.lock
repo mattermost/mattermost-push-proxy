@@ -7,8 +7,6 @@ imports:
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/alexjlockwood/gcm
   version: 532ebb3946fe1524432b00b8d04d39867c3d4c53
-- name: github.com/braintree/manners
-  version: 0b5e6b2c2843f4c83c2a40f96980b09cf4af733c
 - name: github.com/garyburd/redigo
   version: 0d253a66e6e1349f4581d6d2b300ee434ee2da9f
   subpackages:
