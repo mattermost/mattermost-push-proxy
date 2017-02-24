@@ -4,7 +4,7 @@ import:
 - package: github.com/braintree/manners
   version: 0.4.0
 - package: github.com/gorilla/mux
-  version: v1.1
+  version: v1.3.0
 - package: github.com/kyokomi/emoji
   version: v1.4
 - package: github.com/sideshow/apns2
@@ -27,3 +27,11 @@ import:
 - package: golang.org/x/tools
   subpackages:
   - go/buildutil
+- package: github.com/tylerb/graceful
+  version: v1.2.15
+- package: github.com/gorilla/handlers
+  version: v1.2
+- package: github.com/urfave/negroni
+  version: v0.2.0
+- package: gopkg.in/tylerb/graceful.v1
+  version: v1.2.15

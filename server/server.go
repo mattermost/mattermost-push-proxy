@@ -9,23 +9,28 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/alexjlockwood/gcm"
-	"github.com/braintree/manners"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/kyokomi/emoji"
 	apns "github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
+	"github.com/tylerb/graceful"
 	"gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 )
 
 const (
-	HEADER_FORWARDED = "X-Forwarded-For"
-	HEADER_REAL_IP   = "X-Real-IP"
+	HEADER_FORWARDED           = "X-Forwarded-For"
+	HEADER_REAL_IP             = "X-Real-IP"
+	WAIT_FOR_SERVER_SHUTDOWN   = time.Second * 5
+	CONNECTION_TIMEOUT_SECONDS = 60
 )
 
+var gracefulServer *graceful.Server
 var appleClient *apns.Client
 
 func Start() {
@@ -70,7 +75,16 @@ func Start() {
 	r.HandleFunc("/send_push", handleSendNotification).Methods("POST")
 
 	go func() {
-		err := manners.ListenAndServe(CfgPP.ListenAddress, handler)
+		gracefulServer = &graceful.Server{
+			Timeout: WAIT_FOR_SERVER_SHUTDOWN,
+			Server: &http.Server{
+				Addr:         CfgPP.ListenAddress,
+				Handler:      handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(handler),
+				ReadTimeout:  time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
+				WriteTimeout: time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
+			},
+		}
+		err := gracefulServer.ListenAndServe()
 		if err != nil {
 			LogCritical(err.Error())
 		}
@@ -81,7 +95,7 @@ func Start() {
 
 func Stop() {
 	LogInfo("Stopping Server...")
-	manners.Close()
+	gracefulServer.Stop(WAIT_FOR_SERVER_SHUTDOWN)
 }
 
 func root(w http.ResponseWriter, r *http.Request) {

@@ -1,5 +1,5 @@
-hash: 10174d5d39f1e3974517c62b0b09c4329082b45efd0152f0c8d9f63a56e761b5
-updated: 2017-02-24T09:30:14.288422927-05:00
+hash: 50c90fed889e2b487b58c0d98df5c3a4ae339ff00e3c919480fe73b3e1a19ebf
+updated: 2017-02-24T09:54:37.97838583-05:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -16,8 +16,10 @@ imports:
   - redis
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/handlers
+  version: 3a5767ca75ece5f7f1440b1d16975247f8d8b221
 - name: github.com/gorilla/mux
-  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/hashicorp/golang-lru
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
@@ -29,6 +31,10 @@ imports:
   subpackages:
   - certificate
   - payload
+- name: github.com/tylerb/graceful
+  version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
+- name: github.com/urfave/negroni
+  version: fde5e16d32adc7ad637e9cd9ad21d4ebc6192535
 - name: golang.org/x/crypto
   version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
   subpackages:
@@ -61,4 +67,6 @@ imports:
   subpackages:
   - store/memstore
   - store/redigostore
+- name: gopkg.in/tylerb/graceful.v1
+  version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
 testImports: []
