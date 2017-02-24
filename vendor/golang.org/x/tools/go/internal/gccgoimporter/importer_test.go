@@ -4,7 +4,9 @@
 
 package gccgoimporter
 
-// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go.
+// This is a verbatim copy of $GOROOT/src/go/internal/gccgoimporter/importer_test.go
+// except for the importerTests variable which does not contain Go1.9-specific tests.
+// Those are added via importer19_test.go.
 
 import (
 	"go/types"
@@ -90,14 +92,18 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 	}
 }
 
-var importerTests = [...]importerTest{
+var importerTests = []importerTest{
 	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
 	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1 + -1i)"},
 	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
 	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
 	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
-	// TODO: enable this entry once bug has been tracked down
-	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+	{pkgpath: "conversions", name: "Bits", want: "const Bits Units", wantval: `"bits"`},
+	{pkgpath: "time", name: "Duration", want: "type Duration int64"},
+	{pkgpath: "time", name: "Nanosecond", want: "const Nanosecond Duration", wantval: "1"},
+	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
+	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
+	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
 }
 
 func TestGoxImporter(t *testing.T) {

@@ -25,7 +25,9 @@ type WriteScheduler interface {
 	// https://tools.ietf.org/html/rfc7540#section-5.1
 	AdjustStream(streamID uint32, priority PriorityParam)
 
-	// Push queues a frame in the scheduler.
+	// Push queues a frame in the scheduler. In most cases, this will not be
+	// called with wr.StreamID()!=0 unless that stream is currently open. The one
+	// exception is RST_STREAM frames, which may be sent on idle or closed streams.
 	Push(wr FrameWriteRequest)
 
 	// Pop dequeues the next frame to write. Returns false if no frames can
@@ -156,6 +158,20 @@ func (wr FrameWriteRequest) String() string {
 		des = fmt.Sprintf("%T", wr.write)
 	}
 	return fmt.Sprintf("[FrameWriteRequest stream=%d, ch=%v, writer=%v]", wr.StreamID(), wr.done != nil, des)
+}
+
+// replyToWriter sends err to wr.done and panics if the send must block
+// This does nothing if wr.done is nil.
+func (wr *FrameWriteRequest) replyToWriter(err error) {
+	if wr.done == nil {
+		return
+	}
+	select {
+	case wr.done <- err:
+	default:
+		panic(fmt.Sprintf("unbuffered done channel passed in for type %T", wr.write))
+	}
+	wr.write = nil // prevent use (assume it's tainted after wr.done send)
 }
 
 // writeQueue is used by implementations of WriteScheduler.

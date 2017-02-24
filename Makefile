@@ -1,4 +1,4 @@
-.PHONY: all dist build-server package test clean run 
+.PHONY: all dist build-server package test clean run update-dependencies-after-release
 
 GOPATH ?= $(GOPATH:)
 GOFLAGS ?= $(GOFLAGS:)
@@ -20,6 +20,10 @@ TESTS=.
 all: dist
 
 dist: | build-server test package
+
+update-dependencies-after-release:
+	@echo Run this to updated the go lang dependencies after a major release
+	glide up
 
 build-server: | .prebuild
 	@echo Building proxy push server

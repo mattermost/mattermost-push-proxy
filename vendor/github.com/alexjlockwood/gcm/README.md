@@ -1,6 +1,8 @@
 gcm
 ===
 
+## NOTE: I no longer maintain this library. Feel free to fork! :)
+
 The Android SDK provides a nice convenience library ([com.google.android.gcm.server](https://github.com/google/gcm/tree/master/client-libraries/java/rest-client/src/com/google/android/gcm/server)) that greatly simplifies the interaction between Java-based application servers and Google's GCM servers. However, Google has not provided much support for application servers implemented in languages other than Java, specifically those written in the Go programming language. The `gcm` package helps to fill in this gap, providing a simple interface for sending GCM messages and automatically retrying requests in case of service unavailability.
 
 Documentation: http://godoc.org/github.com/alexjlockwood/gcm
