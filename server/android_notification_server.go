@@ -52,8 +52,15 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 
 		if resp.Failure > 0 {
+
 			LogError(fmt.Sprintf("Android response failure: %v", resp))
-			return NewErrorPushResponse("unknown send response error")
+
+			if len(resp.Results) > 0 && resp.Results[0].Error == "InvalidRegistration" {
+				return NewRemovePushResponse()
+
+			} else {
+				return NewErrorPushResponse("unknown send response error")
+			}
 		}
 	}
 
