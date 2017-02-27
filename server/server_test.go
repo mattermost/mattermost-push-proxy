@@ -10,32 +10,82 @@ import (
 	"time"
 )
 
-func TestServer(t *testing.T) {
+func TestBasicServer(t *testing.T) {
 	LoadConfig("mattermost-push-proxy.json")
 	Start()
 	time.Sleep(time.Second * 2)
 
 	msg := PushNotification{}
-	msg.Platform = PUSH_NOTIFY_APPLE
 	msg.Message = "test"
 	msg.Badge = 1
 	msg.DeviceId = "test"
+
+	// Test for missing server Id
+	client := http.Client{}
+	rq, _ := http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
+	if resp, err := client.Do(rq); err != nil {
+		t.Fatal(err)
+	} else {
+		pr := PushResponseFromJson(resp.Body)
+		if pr == nil || pr[PUSH_STATUS] != PUSH_STATUS_FAIL {
+			t.Fatal("invalid response")
+		}
+	}
+
+	// Test for missing platform type
 	msg.ServerId = "test"
+	client = http.Client{}
+	rq, _ = http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
+	if resp, err := client.Do(rq); err != nil {
+		t.Fatal(err)
+	} else {
+		pr := PushResponseFromJson(resp.Body)
+		if pr == nil || pr[PUSH_STATUS] != PUSH_STATUS_FAIL {
+			t.Fatal("invalid response")
+		}
+	}
+
+	// Test for junk platform type
+	msg.Platform = "junk"
+	rq, _ = http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
+	if resp, err := client.Do(rq); err != nil {
+		t.Fatal(err)
+	} else {
+		pr := PushResponseFromJson(resp.Body)
+		println(pr.ToJson())
+		if pr == nil || pr[PUSH_STATUS] != PUSH_STATUS_FAIL {
+			t.Fatal("invalid response")
+		}
+	}
+
+	Stop()
+	time.Sleep(time.Second * 2)
+}
+
+func TestAndroidSend(t *testing.T) {
+	LoadConfig("mattermost-push-proxy.json")
+	CfgPP.AndroidPushSettings[0].AndroidApiKey = "junk"
+	Start()
+	time.Sleep(time.Second * 2)
+
+	msg := PushNotification{}
+	msg.Message = "test"
+	msg.Badge = 1
+	msg.Platform = PUSH_NOTIFY_ANDROID
+	msg.ServerId = "test"
+	msg.DeviceId = "test"
 
 	client := http.Client{}
 	rq, _ := http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
-
-	if _, err := client.Do(rq); err != nil {
+	if resp, err := client.Do(rq); err != nil {
 		t.Fatal(err)
+	} else {
+		pr := PushResponseFromJson(resp.Body)
+		if pr == nil || pr[PUSH_STATUS] != PUSH_STATUS_FAIL {
+			t.Fatal("invalid response")
+		}
 	}
-
-	msg.Platform = PUSH_NOTIFY_ANDROID
-	rq2, _ := http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
-	if _, err := client.Do(rq2); err != nil {
-		t.Fatal(err)
-	}
-
-	time.Sleep(time.Second * 2)
 
 	Stop()
+	time.Sleep(time.Second * 2)
 }

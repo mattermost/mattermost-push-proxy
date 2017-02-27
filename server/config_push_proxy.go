@@ -11,14 +11,24 @@ import (
 
 type ConfigPushProxy struct {
 	ListenAddress           string
+	ThrottlePerSec          int
+	ThrottleMemoryStoreSize int
+	ThrottleVaryByHeader    string
+	ApplePushSettings       []ApplePushSettings
+	AndroidPushSettings     []AndroidPushSettings
+}
+
+type ApplePushSettings struct {
+	Type                    string
 	ApplePushUseDevelopment bool
 	ApplePushCertPrivate    string
 	ApplePushCertPassword   string
 	ApplePushTopic          string
-	AndroidApiKey           string
-	ThrottlePerSec          int
-	ThrottleMemoryStoreSize int
-	ThrottleVaryByHeader    string
+}
+
+type AndroidPushSettings struct {
+	Type          string
+	AndroidApiKey string
 }
 
 var CfgPP *ConfigPushProxy = &ConfigPushProxy{}
