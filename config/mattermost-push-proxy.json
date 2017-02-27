@@ -1,12 +1,22 @@
 
 {
     "ListenAddress": ":8066",
-    "ApplePushUseDevelopment": false,
-    "ApplePushCertPrivate": "",
-    "ApplePushCertPassword": "",
-    "ApplePushTopic": "com.mattermost.Mattermost",
-    "AndroidApiKey": "",
     "ThrottlePerSec": 300,
     "ThrottleMemoryStoreSize": 50000,
-    "ThrottleVaryByHeader": "X-Forwarded-For"
+    "ThrottleVaryByHeader": "X-Forwarded-For",
+    "ApplePushSettings": [
+    	{
+    		"Type" : "apple",
+	    	"ApplePushUseDevelopment": false,
+	    	"ApplePushCertPrivate": "",
+	    	"ApplePushCertPassword": "",
+	    	"ApplePushTopic": "com.mattermost.Mattermost"
+	    }
+    ],
+    "AndroidPushSettings": [
+    	{
+    		"Type" : "android",
+	    	"AndroidApiKey": ""
+	    }
+    ]
 }
