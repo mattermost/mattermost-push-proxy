@@ -43,11 +43,11 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	sender := &gcm.Sender{ApiKey: me.AndroidPushSettings.AndroidApiKey}
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
-		LogInfo("Sending android push notification for type=%v", me.AndroidPushSettings.Type)
+		LogInfo(fmt.Sprintf("Sending android push notification for type=%v", me.AndroidPushSettings.Type))
 		resp, err := sender.Send(gcmMsg, 2)
 
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, , me.AndroidPushSettings.Type))
+			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
 			return NewErrorPushResponse("unknown transport error")
 		}
 
