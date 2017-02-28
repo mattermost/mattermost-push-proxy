@@ -114,7 +114,7 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(msg.DeviceId) == 0 {
-		rMsg := LogError("Failed because of missing device Id")
+		rMsg := LogError(fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId))
 		w.Write([]byte(rMsg.ToJson()))
 		return
 	}
