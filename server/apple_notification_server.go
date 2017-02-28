@@ -79,12 +79,13 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 
 		if !res.Sent() {
-			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
-
 			if res.Reason == "BadDeviceToken" || res.Reason == "Unregistered" || res.Reason == "MissingDeviceToken" {
+				LogError(fmt.Sprintf("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
+
 				return NewRemovePushResponse()
 
 			} else {
+				LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
 				return NewErrorPushResponse("unknown send response error")
 			}
 		}

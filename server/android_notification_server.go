@@ -52,12 +52,11 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 
 		if resp.Failure > 0 {
-
-			LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
-
 			if len(resp.Results) > 0 && (resp.Results[0].Error == "InvalidRegistration" || resp.Results[0].Error == "NotRegistered") {
+				LogError(fmt.Sprintf("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type))
 				return NewRemovePushResponse()
 			} else {
+				LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
 				return NewErrorPushResponse("unknown send response error")
 			}
 		}
