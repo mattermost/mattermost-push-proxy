@@ -71,20 +71,20 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if me.AppleClient != nil {
-		LogInfo("Sending apple push notification")
+		LogInfo(fmt.Sprintf("Sending apple push notification type=%v", me.ApplePushSettings.Type))
 		res, err := me.AppleClient.Push(notification)
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
+			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.ApplePushSettings.Type))
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if !res.Sent() {
-			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v", res.ApnsID, res.Reason, res.StatusCode))
-
-			if res.Reason == "BadDeviceToken" {
+			if res.Reason == "BadDeviceToken" || res.Reason == "Unregistered" || res.Reason == "MissingDeviceToken" {
+				LogInfo(fmt.Sprintf("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
 				return NewRemovePushResponse()
 
 			} else {
+				LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
 				return NewErrorPushResponse("unknown send response error")
 			}
 		}
