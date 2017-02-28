@@ -101,14 +101,20 @@ func root(w http.ResponseWriter, r *http.Request) {
 func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 	msg := PushNotificationFromJson(r.Body)
 
+	if msg == nil {
+		rMsg := LogError("Failed to read message body")
+		w.Write([]byte(rMsg.ToJson()))
+		return
+	}
+
 	if len(msg.ServerId) == 0 {
 		rMsg := LogError("Failed because of missing server Id")
 		w.Write([]byte(rMsg.ToJson()))
 		return
 	}
 
-	if msg == nil {
-		rMsg := LogError("Failed to read message body")
+	if len(msg.DeviceId) == 0 {
+		rMsg := LogError("Failed because of missing device Id")
 		w.Write([]byte(rMsg.ToJson()))
 		return
 	}
