@@ -43,21 +43,20 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	sender := &gcm.Sender{ApiKey: me.AndroidPushSettings.AndroidApiKey}
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
-		LogInfo("Sending android push notification")
+		LogInfo("Sending android push notification for type=%v", me.AndroidPushSettings.Type)
 		resp, err := sender.Send(gcmMsg, 2)
 
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v", msg.ServerId, msg.DeviceId, err))
+			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, , me.AndroidPushSettings.Type))
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if resp.Failure > 0 {
 
-			LogError(fmt.Sprintf("Android response failure: %v", resp))
+			LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
 
-			if len(resp.Results) > 0 && resp.Results[0].Error == "InvalidRegistration" {
+			if len(resp.Results) > 0 && (resp.Results[0].Error == "InvalidRegistration" || resp.Results[0].Error == "NotRegistered") {
 				return NewRemovePushResponse()
-
 			} else {
 				return NewErrorPushResponse("unknown send response error")
 			}
