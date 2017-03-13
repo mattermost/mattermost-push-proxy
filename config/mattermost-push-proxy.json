@@ -11,12 +11,23 @@
 	    	"ApplePushCertPrivate": "",
 	    	"ApplePushCertPassword": "",
 	    	"ApplePushTopic": "com.mattermost.Mattermost"
-	    }
+	    },
+        {
+            "Type" : "apple_rn",
+            "ApplePushUseDevelopment": false,
+            "ApplePushCertPrivate": "",
+            "ApplePushCertPassword": "",
+            "ApplePushTopic": "com.mattermost.react.native"
+        }
     ],
     "AndroidPushSettings": [
     	{
     		"Type" : "android",
 	    	"AndroidApiKey": ""
-	    }
+	    },
+        {
+            "Type" : "android_rn",
+            "AndroidApiKey": ""
+        }
     ]
 }
