@@ -37,20 +37,50 @@ For organizations who want to keep internal communications behind their firewall
    -  `tar -xvzf mattermost-push-proxy.tar.gz`
 
 5. Configure Push Proxy Server by editing the mattermost-push-proxy.json file at
-   `/home/ubuntu/mattermost-push-proxy/config`
+   `/home/ubuntu/mattermost-push-proxy/config`.
 
    - Change directories by typing `cd ~/mattermost-push-proxy/config`
    - Edit the file by typing `vi mattermost-push-proxy.json`
-   - Replace `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program
-   - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging
-   - Replace `"ApplePushTopic": "com.mattermost.Mattermost"` with the iOS bundle ID of your custom mobile app.
-   - Replace `"ApplePushCertPassword": ""` if your certificate has a password.  Otherwise leave it blank.
+   - Replace `"ApplePushCertPrivate": ""` with a path to the public and private keys obtained from the Apple Developer Program, in two places.
+   - For `"AndroidApiKey": ""`, set the key generated from Google Cloud Messaging, in two places.
+   - Replace `"ApplePushTopic": "com.mattermost.Mattermost"` with the iOS bundle ID of your custom mobile app, in two places.
+   - Replace `"ApplePushCertPassword": ""` if your certificate has a password, in two places. Otherwise leave it blank.
    - For example: 
    
-     ```
-     "ApplePushCertPrivate": "./config/aps_production_priv.pem",
-     "AndroidApiKey": "DKJDIiwjerljd290u34jFKDSF",
-     ```
+     ``` javascript
+     {
+      "ListenAddress":":8066",
+      "ThrottlePerSec":300,
+      "ThrottleMemoryStoreSize":50000,
+      "ThrottleVaryByHeader":"X-Forwarded-For",
+      "ApplePushSettings":[
+        {
+            "Type":"apple",
+            "ApplePushUseDevelopment":false,
+            "ApplePushCertPrivate":"./config/aps_production_priv.pem",
+            "ApplePushCertPassword":"",
+            "ApplePushTopic":"com.mattermost.Mattermost"
+        },
+        {
+            "Type":"apple_rn",
+            "ApplePushUseDevelopment":false,
+            "ApplePushCertPrivate":"./config/aps_production_priv.pem",
+            "ApplePushCertPassword":"",
+            "ApplePushTopic":"com.mattermost.react.native"
+        }
+      ],
+      "AndroidPushSettings":[
+        {
+            "Type":"android",
+            "AndroidApiKey":"DKJDIiwjerljd290u34jFKDSF"
+        },
+        {
+            "Type":"android_rn",
+            "AndroidApiKey":"DKJDIiwjerljd290u34jFKDSF"
+        }
+      ]
+    }
+    ```
 
 6. Setup Push Proxy to use the Upstart daemon which handles supervision
    of the Push Proxy process.
