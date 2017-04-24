@@ -2,6 +2,8 @@
 
 A server for proxying push notifications to iOS and Android devices from Mattermost, [a self-hosted team communication solution](http://www.mattermost.org/). 
 
+See our [mobile applications deployment guide](https://docs.mattermost.com/deployment/push.html) for details on how MPNS works with your Mattermost server and mobile applications.
+
 For organizations who want to keep internal communications behind their firewall, this service encrypts notification messages with a private key under your control before sending them to Apple's public push notification service for delivery to your iOS devices. 
 
 See our [mobile applications deployment guide](https://docs.mattermost.com/deployment/push.html) for details on how MPNS works with your Mattermost server and mobile applications.
