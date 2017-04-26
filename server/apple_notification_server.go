@@ -70,8 +70,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Custom("channel_name", msg.ChannelName)
 	}
 
-	if len(msg.UserId) > 0 {
-		payload.Custom("user_id", msg.UserId)
+	if len(msg.SenderId) > 0 {
+		payload.Custom("sender_id", msg.SenderId)
 	}
 
 	if len(msg.OverrideUsername) > 0 {
