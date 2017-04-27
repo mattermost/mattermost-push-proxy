@@ -102,6 +102,7 @@ func init() {
 		"runtime.Goexit":                   ext۰runtime۰Goexit,
 		"runtime.Gosched":                  ext۰runtime۰Gosched,
 		"runtime.init":                     ext۰nop,
+		"runtime.KeepAlive":                ext۰nop,
 		"runtime.NumCPU":                   ext۰runtime۰NumCPU,
 		"runtime.NumGoroutine":             ext۰runtime۰NumGoroutine,
 		"runtime.ReadMemStats":             ext۰runtime۰ReadMemStats,
@@ -112,6 +113,7 @@ func init() {
 		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
 		"strings.init":                     ext۰nop, // avoid asm dependency
+		"strings.Count":                    ext۰strings۰Count,
 		"strings.Index":                    ext۰strings۰Index,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
 		"sync.runtime_Semacquire":          ext۰nop, // unimplementable
@@ -121,12 +123,21 @@ func init() {
 		"sync.runtime_registerPoolCleanup": ext۰nop,
 		"sync/atomic.AddInt32":             ext۰atomic۰AddInt32,
 		"sync/atomic.AddUint32":            ext۰atomic۰AddUint32,
-		"sync/atomic.AddUint64":            ext۰atomic۰AddUint64,
 		"sync/atomic.CompareAndSwapInt32":  ext۰atomic۰CompareAndSwapInt32,
+		"sync/atomic.CompareAndSwapUint32": ext۰atomic۰CompareAndSwapUint32,
 		"sync/atomic.LoadInt32":            ext۰atomic۰LoadInt32,
 		"sync/atomic.LoadUint32":           ext۰atomic۰LoadUint32,
 		"sync/atomic.StoreInt32":           ext۰atomic۰StoreInt32,
 		"sync/atomic.StoreUint32":          ext۰atomic۰StoreUint32,
+		"sync/atomic.AddInt64":             ext۰atomic۰AddInt64,
+		"sync/atomic.AddUint64":            ext۰atomic۰AddUint64,
+		"sync/atomic.CompareAndSwapInt64":  ext۰atomic۰CompareAndSwapInt64,
+		"sync/atomic.CompareAndSwapUint64": ext۰atomic۰CompareAndSwapUint64,
+		"sync/atomic.LoadInt64":            ext۰atomic۰LoadInt64,
+		"sync/atomic.LoadUint64":           ext۰atomic۰LoadUint64,
+		"sync/atomic.StoreInt64":           ext۰atomic۰StoreInt64,
+		"sync/atomic.StoreUint64":          ext۰atomic۰StoreUint64,
+		"testing.callerEntry":              ext۰testing۰callerEntry,
 		"testing.runExample":               ext۰testing۰runExample,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
@@ -270,7 +281,7 @@ func ext۰runtime۰Callers(fr *frame, args []value) value {
 		}
 	}
 	i := 0
-	for fr != nil {
+	for fr != nil && i < len(pc) {
 		pc[i] = uintptr(unsafe.Pointer(fr.fn))
 		i++
 		fr = fr.caller
@@ -297,6 +308,11 @@ func ext۰runtime۰environ(fr *frame, args []value) value {
 
 func ext۰runtime۰getgoroot(fr *frame, args []value) value {
 	return os.Getenv("GOROOT")
+}
+
+func ext۰strings۰Count(fr *frame, args []value) value {
+	// Call compiled version to avoid asm dependency.
+	return strings.Count(args[0].(string), args[1].(string))
 }
 
 func ext۰strings۰IndexByte(fr *frame, args []value) value {
@@ -376,6 +392,16 @@ func ext۰atomic۰CompareAndSwapInt32(fr *frame, args []value) value {
 	return false
 }
 
+func ext۰atomic۰CompareAndSwapUint32(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	if (*p).(uint32) == args[1].(uint32) {
+		*p = args[2].(uint32)
+		return true
+	}
+	return false
+}
+
 func ext۰atomic۰AddInt32(fr *frame, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	p := args[0].(*value)
@@ -388,6 +414,56 @@ func ext۰atomic۰AddUint32(fr *frame, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	p := args[0].(*value)
 	newv := (*p).(uint32) + args[1].(uint32)
+	*p = newv
+	return newv
+}
+
+func ext۰atomic۰LoadUint64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	return (*args[0].(*value)).(uint64)
+}
+
+func ext۰atomic۰StoreUint64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	*args[0].(*value) = args[1].(uint64)
+	return nil
+}
+
+func ext۰atomic۰LoadInt64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	return (*args[0].(*value)).(int64)
+}
+
+func ext۰atomic۰StoreInt64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	*args[0].(*value) = args[1].(int64)
+	return nil
+}
+
+func ext۰atomic۰CompareAndSwapInt64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	if (*p).(int64) == args[1].(int64) {
+		*p = args[2].(int64)
+		return true
+	}
+	return false
+}
+
+func ext۰atomic۰CompareAndSwapUint64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	if (*p).(uint64) == args[1].(uint64) {
+		*p = args[2].(uint64)
+		return true
+	}
+	return false
+}
+
+func ext۰atomic۰AddInt64(fr *frame, args []value) value {
+	// TODO(adonovan): fix: not atomic!
+	p := args[0].(*value)
+	newv := (*p).(int64) + args[1].(int64)
 	*p = newv
 	return newv
 }
@@ -444,6 +520,10 @@ func ext۰testing۰runExample(fr *frame, args []value) value {
 	F := args[0].(structure)[1]
 	call(fr.i, fr, 0, F, nil)
 	return true
+}
+
+func ext۰testing۰callerEntry(fr *frame, args []value) value {
+	return uintptr(0) // bogus implementation for now
 }
 
 func ext۰time۰now(fr *frame, args []value) value {

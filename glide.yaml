@@ -1,6 +1,7 @@
 package: github.com/mattermost/mattermost-push-proxy
 import:
 - package: github.com/alexjlockwood/gcm
+  repo: https://github.com/mattermost/gcm.git
 - package: github.com/gorilla/mux
   version: v1.3.0
 - package: github.com/kyokomi/emoji
