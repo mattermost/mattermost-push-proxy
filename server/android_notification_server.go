@@ -32,9 +32,27 @@ func (me *AndroidNotificationServer) Initialize() bool {
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	var data map[string]interface{}
 	if msg.Type == PUSH_TYPE_CLEAR {
-		data = map[string]interface{}{"type": PUSH_TYPE_CLEAR, "channel_id": msg.ChannelId, "team_id": msg.TeamId}
+		data = map[string]interface{}{
+			"type":              PUSH_TYPE_CLEAR,
+			"channel_id":        msg.ChannelId,
+			"team_id":           msg.TeamId,
+			"sender_id":         msg.SenderId,
+			"override_username": msg.OverrideUsername,
+			"override_icon_url": msg.OverrideIconUrl,
+			"from_webhook":      msg.FromWebhook,
+		}
 	} else {
-		data = map[string]interface{}{"type": PUSH_TYPE_MESSAGE, "message": emoji.Sprint(msg.Message), "channel_id": msg.ChannelId, "channel_name": msg.ChannelName, "team_id": msg.TeamId}
+		data = map[string]interface{}{
+			"type":              PUSH_TYPE_MESSAGE,
+			"message":           emoji.Sprint(msg.Message),
+			"channel_id":        msg.ChannelId,
+			"channel_name":      msg.ChannelName,
+			"team_id":           msg.TeamId,
+			"sender_id":         msg.SenderId,
+			"override_username": msg.OverrideUsername,
+			"override_icon_url": msg.OverrideIconUrl,
+			"from_webhook":      msg.FromWebhook,
+		}
 	}
 
 	regIDs := []string{msg.DeviceId}

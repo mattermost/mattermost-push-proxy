@@ -70,6 +70,22 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Custom("channel_name", msg.ChannelName)
 	}
 
+	if len(msg.SenderId) > 0 {
+		payload.Custom("sender_id", msg.SenderId)
+	}
+
+	if len(msg.OverrideUsername) > 0 {
+		payload.Custom("override_username", msg.OverrideUsername)
+	}
+
+	if len(msg.OverrideIconUrl) > 0 {
+		payload.Custom("override_icon_url", msg.OverrideIconUrl)
+	}
+
+	if len(msg.FromWebhook) > 0 {
+		payload.Custom("from_webhook", msg.FromWebhook)
+	}
+
 	if me.AppleClient != nil {
 		LogInfo(fmt.Sprintf("Sending apple push notification type=%v", me.ApplePushSettings.Type))
 		res, err := me.AppleClient.Push(notification)
