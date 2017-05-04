@@ -103,19 +103,19 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 
 	if msg == nil {
 		rMsg := LogError("Failed to read message body")
-		w.Write([]byte(rMsg.ToJson()))
+		http.Error(w, rMsg.ToJson(), http.StatusBadRequest)
 		return
 	}
 
 	if len(msg.ServerId) == 0 {
 		rMsg := LogError("Failed because of missing server Id")
-		w.Write([]byte(rMsg.ToJson()))
+		http.Error(w, rMsg.ToJson(), http.StatusBadRequest)
 		return
 	}
 
 	if len(msg.DeviceId) == 0 {
 		rMsg := LogError(fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId))
-		w.Write([]byte(rMsg.ToJson()))
+		http.Error(w, rMsg.ToJson(), http.StatusBadRequest)
 		return
 	}
 
@@ -129,7 +129,7 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		rMsg := LogError(fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerId))
-		w.Write([]byte(rMsg.ToJson()))
+		http.Error(w, rMsg.ToJson(), http.StatusInternalServerError)
 		return
 	}
 }
