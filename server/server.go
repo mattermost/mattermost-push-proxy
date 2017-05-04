@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/tylerb/graceful"
+	"gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 )
 
