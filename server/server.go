@@ -67,8 +67,15 @@ func Start() {
 
 	router.HandleFunc("/", root).Methods("GET")
 
+	metricCompatibleHandler := handleSendNotification
+	if CfgPP.EnableMetrics {
+		MetricsEnabled = true
+		metrics := NewPrometheusHandler()
+		router.Handle("/metrics", metrics).Methods("GET")
+		metricCompatibleHandler = responseTimeMiddleware(handleSendNotification)
+	}
 	r := router.PathPrefix("/api/v1").Subrouter()
-	r.HandleFunc("/send_push", handleSendNotification).Methods("POST")
+	r.HandleFunc("/send_push", metricCompatibleHandler).Methods("POST")
 
 	go func() {
 		gracefulServer = &graceful.Server{
@@ -98,24 +105,35 @@ func root(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
 }
 
+func responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		f(w, r)
+		observeServiceResponse(time.Since(start).Seconds())
+	}
+}
+
 func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 	msg := PushNotificationFromJson(r.Body)
 
 	if msg == nil {
 		rMsg := LogError("Failed to read message body")
 		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
 		return
 	}
 
 	if len(msg.ServerId) == 0 {
 		rMsg := LogError("Failed because of missing server Id")
 		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
 		return
 	}
 
 	if len(msg.DeviceId) == 0 {
 		rMsg := LogError(fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId))
 		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
 		return
 	}
 
@@ -130,6 +148,7 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 	} else {
 		rMsg := LogError(fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerId))
 		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
 		return
 	}
 }
