@@ -34,6 +34,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	if msg.Type == PUSH_TYPE_CLEAR {
 		data = map[string]interface{}{
 			"type":              PUSH_TYPE_CLEAR,
+			"badge":             msg.Badge,
 			"channel_id":        msg.ChannelId,
 			"team_id":           msg.TeamId,
 			"sender_id":         msg.SenderId,
@@ -44,6 +45,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	} else {
 		data = map[string]interface{}{
 			"type":              PUSH_TYPE_MESSAGE,
+			"badge":             msg.Badge,
 			"message":           emoji.Sprint(msg.Message),
 			"channel_id":        msg.ChannelId,
 			"channel_name":      msg.ChannelName,
