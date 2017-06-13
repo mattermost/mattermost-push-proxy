@@ -56,7 +56,11 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Alert(emoji.Sprint(msg.Message))
 		payload.Category(msg.Category)
 		payload.Sound("default")
+	} else {
+		payload.Alert("")
 	}
+
+	payload.Custom("type", msg.Type)
 
 	if len(msg.ChannelId) > 0 {
 		payload.Custom("channel_id", msg.ChannelId)
