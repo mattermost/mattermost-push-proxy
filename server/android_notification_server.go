@@ -60,7 +60,10 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	regIDs := []string{msg.DeviceId}
 	gcmMsg := gcm.NewMessage(data, regIDs...)
 
-	sender := &gcm.Sender{ApiKey: me.AndroidPushSettings.AndroidApiKey}
+	sender := &gcm.Sender{
+		ApiKey: me.AndroidPushSettings.AndroidApiKey,
+		Http:   httpClient,
+	}
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
 		LogInfo(fmt.Sprintf("Sending android push notification for type=%v", me.AndroidPushSettings.Type))
