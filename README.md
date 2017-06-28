@@ -10,7 +10,7 @@ See our [mobile applications deployment guide](https://docs.mattermost.com/deplo
 
 ### Requirements
 
-1. A linux Ubuntu 14.04 server with at least 1GB of memory
+1. A linux Ubuntu 14.04 server with at least 1GB of memory (or CentOs 7.x)
 2. Either compile the Mattermost iOS app and submit it to the Apple App Store, or host it in your own Enterprise App Store
 3. Private and public keys obtained from the Apple Developer Program
 4. An Android API key generated from Google Cloud Messaging
@@ -32,13 +32,13 @@ See our [mobile applications deployment guide](https://docs.mattermost.com/deplo
 1. For the sake of making this guide simple we located the files at
    `/home/ubuntu/mattermost-push-proxy`. 
 2. We have also elected to run the Push Proxy Server as the `ubuntu` account for simplicity. We recommend setting up and running the service under a `mattermost-push-proxy` user account with limited permissions.
-3. Download Mattermost Notification Server v2.0 by typing:
+3. Download latest Mattermost Notification Server from
 
-   -   `wget https://github.com/mattermost/mattermost-push-proxy/releases/download/vX.X/mattermost-push-proxy.tar.gz`
+   - https://github.com/mattermost/mattermost-push-proxy/releases
    
 4. Unzip the Push Proxy Server by typing:
 
-   -  `tar -xvzf mattermost-push-proxy.tar.gz`
+   -  `tar -xvzf mattermost-push-proxy-X.X.X.tar.gz`
 
 5. Configure Push Proxy Server by editing the mattermost-push-proxy.json file at
    `/home/ubuntu/mattermost-push-proxy/config`.
@@ -86,26 +86,47 @@ See our [mobile applications deployment guide](https://docs.mattermost.com/deplo
     }
     ```
 
-6. Setup Push Proxy to use the Upstart daemon which handles supervision
-   of the Push Proxy process.
+6. Setup as Service:
 
-   -  `sudo touch /etc/init/mattermost-push-proxy.conf`
-   -  `sudo vi /etc/init/mattermost-push-proxy.conf`
-   -  Copy the following lines into `/etc/init/mattermost-push-proxy.conf`
+   6.1. Ubuntu: 
+     -  `sudo touch /etc/init/mattermost-push-proxy.conf`
+     -  `sudo vi /etc/init/mattermost-push-proxy.conf`
+     -  Copy the following lines into `/etc/init/mattermost-push-proxy.conf`
+
+       ```
+       start on runlevel [2345]
+       stop on runlevel [016]
+       respawn
+       chdir /home/ubuntu/mattermost-push-proxy
+       setuid ubuntu
+       console log
+       exec bin/mattermost-push-proxy | logger
+       ```
+
+     - You can manage the process by typing:
+       -  `sudo start mattermost-push-proxy`
+     - You can also stop the process by running the command `sudo stop mattermost-push-proxy`, but we will skip this step for now
+    
+    
+   6.2. Centos 7.x:
+   
+     - `vi /usr/lib/systemd/system/mmproxy.service`
      
-     ```
-     start on runlevel [2345]
-     stop on runlevel [016]
-     respawn
-     chdir /home/ubuntu/mattermost-push-proxy
-     setuid ubuntu
-     console log
-     exec bin/mattermost-push-proxy | logger
-     ```
+     - configure systemd
      
-   - You can manage the process by typing:
-     -  `sudo start mattermost-push-proxy`
-   - You can also stop the process by running the command `sudo stop mattermost-push-proxy`, but we will skip this step for now
+        ```
+        [Unit]
+        Description=MM Proxy
+
+        [Service]
+        ExecStart=/opt/mattermost-push-proxy/bin/mattermost-push-proxy -config /opt/mattermost-push-proxy/config/mattermost-push-proxy.json
+
+        [Install]
+        WantedBy=multi-user.target
+
+        ```
+     - `service mmproxy start`
+     - `service mmproxy stop`
 
    
 7. Test the Push Proxy Server
