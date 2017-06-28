@@ -23,7 +23,7 @@ func NewAppleNotificationServer(settings ApplePushSettings) NotificationServer {
 }
 
 func (me *AppleNotificationServer) Initialize() bool {
-	LogInfo(fmt.Sprintf("Initializing apple notificaiton server for type=%v", me.ApplePushSettings.Type))
+	LogInfo(fmt.Sprintf("Initializing apple notification server for type=%v", me.ApplePushSettings.Type))
 
 	if len(me.ApplePushSettings.ApplePushCertPrivate) > 0 {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
@@ -40,7 +40,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 
 		return true
 	} else {
-		LogError(fmt.Sprintf("Apple push notifications not configured.  Mssing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type))
+		LogError(fmt.Sprintf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type))
 		return false
 	}
 }
