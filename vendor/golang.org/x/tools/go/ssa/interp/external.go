@@ -73,6 +73,7 @@ func init() {
 		"bytes.Equal":                      ext۰bytes۰Equal,
 		"bytes.IndexByte":                  ext۰bytes۰IndexByte,
 		"hash/crc32.haveSSE42":             ext۰crc32۰haveSSE42,
+		"internal/cpu.cpuid":               ext۰cpu۰cpuid,
 		"math.Abs":                         ext۰math۰Abs,
 		"math.Exp":                         ext۰math۰Exp,
 		"math.Float32bits":                 ext۰math۰Float32bits,
@@ -474,6 +475,10 @@ func ext۰atomic۰AddUint64(fr *frame, args []value) value {
 	newv := (*p).(uint64) + args[1].(uint64)
 	*p = newv
 	return newv
+}
+
+func ext۰cpu۰cpuid(fr *frame, args []value) value {
+	return tuple{uint32(0), uint32(0), uint32(0), uint32(0)}
 }
 
 // Pretend: type runtime.Func struct { entry *ssa.Function }

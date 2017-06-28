@@ -1,5 +1,5 @@
 hash: 802177d97912512484131c71883e4ebbf654559d32015505990e845fd84cdc55
-updated: 2017-04-27T12:26:50.719824649-07:00
+updated: 2017-06-28T07:47:22.26643588-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -8,11 +8,19 @@ imports:
 - name: github.com/alexjlockwood/gcm
   version: bde5c1f07819f7d6734a90303a956a2aa75d0eb0
   repo: https://github.com/mattermost/gcm.git
+- name: github.com/beorn7/perks
+  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  subpackages:
+  - quantile
 - name: github.com/garyburd/redigo
-  version: ac91d6ff49bd0d278a90201de77a4f8ad9628e25
+  version: 57f1cd7de6175c96b423e7ac2534ff2b39e2ef79
   subpackages:
   - internal
   - redis
+- name: github.com/golang/protobuf
+  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
+  subpackages:
+  - proto
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/handlers
@@ -25,6 +33,28 @@ imports:
   - simplelru
 - name: github.com/kyokomi/emoji
   version: 17c5e7085c9d59630aa578df67f4469481fbe7a9
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
+- name: github.com/prometheus/client_golang
+  version: ab4214782d022e867e3195b4c9ddb1ca45413382
+  subpackages:
+  - prometheus
+- name: github.com/prometheus/client_model
+  version: 6f3806018612930941127f2a7c6c453ba2c527d2
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: 0866df4b85a18d652b6965be022d007cdf076822
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: 822d4a1f8edcbcbc71e8d1fd6527b12331a6d0ad
+  subpackages:
+  - xfs
 - name: github.com/sideshow/apns2
   version: 873d6f531482befe8177997be72eacf61c72d5a2
   subpackages:
@@ -35,19 +65,19 @@ imports:
 - name: github.com/urfave/negroni
   version: fde5e16d32adc7ad637e9cd9ad21d4ebc6192535
 - name: golang.org/x/crypto
-  version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
+  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
   subpackages:
   - pkcs12
   - pkcs12/internal/rc2
 - name: golang.org/x/net
-  version: 78ebe5c8b6a27ec13109c73c22193d618270e1e1
+  version: 8663ed5da4fd087c3cfb99a996e628b72e2f0948
   subpackages:
   - http2
   - http2/hpack
   - idna
   - lex/httplex
 - name: golang.org/x/text
-  version: 470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4
+  version: 6353ef0f924300eea566d3438817aa4d3374817e
   subpackages:
   - encoding
   - encoding/charmap
@@ -56,7 +86,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: golang.org/x/tools
-  version: 3aa1caa08a9813c4635689965b58bd050828f0bf
+  version: e6cb469339aef5b7be0c89de730d5f3cc8e47e50
   subpackages:
   - go/buildutil
 - name: gopkg.in/alecthomas/kingpin.v2

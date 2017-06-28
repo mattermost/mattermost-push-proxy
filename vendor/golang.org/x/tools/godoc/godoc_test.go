@@ -202,6 +202,28 @@ var <span id="S">S</span> <a href="#T">T</a> = <a href="#T">T</a>{<a href="#T.X"
 	}
 }
 
+func TestFuncDeclNotLink(t *testing.T) {
+	// Function.
+	got := linkifySource(t, []byte(`
+package http
+
+func Get(url string) (resp *Response, err error)`))
+	want := `func Get(url <a href="/pkg/builtin/#string">string</a>) (resp *<a href="#Response">Response</a>, err <a href="/pkg/builtin/#error">error</a>)`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+
+	// Method.
+	got = linkifySource(t, []byte(`
+package http
+
+func (h Header) Get(key string) string`))
+	want = `func (h <a href="#Header">Header</a>) Get(key <a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#string">string</a>`
+	if got != want {
+		t.Errorf("got: %s\n\nwant: %s\n", got, want)
+	}
+}
+
 func linkifySource(t *testing.T, src []byte) string {
 	p := &Presentation{
 		DeclLinks: true,
@@ -265,6 +287,35 @@ func TestReplaceLeadingIndentation(t *testing.T) {
 		if got := replaceLeadingIndentation(tc.src, oldIndent, newIndent); got != tc.want {
 			t.Errorf("replaceLeadingIndentation:\n%v\n---\nhave:\n%v\n---\nwant:\n%v\n",
 				tc.src, got, tc.want)
+		}
+	}
+}
+
+func TestSrcBreadcrumbFunc(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{"src/", `<span class="text-muted">src/</span>`},
+		{"src/fmt/", `<a href="/src">src</a>/<span class="text-muted">fmt/</span>`},
+		{"src/fmt/print.go", `<a href="/src">src</a>/<a href="/src/fmt">fmt</a>/<span class="text-muted">print.go</span>`},
+	} {
+		if got := srcBreadcrumbFunc(tc.path); got != tc.want {
+			t.Errorf("srcBreadcrumbFunc(%v) = %v; want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestSrcToPkgLinkFunc(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{"src/", `<a href="/pkg">Index</a>`},
+		{"src/fmt/", `<a href="/pkg/fmt">fmt</a>`},
+	} {
+		if got := srcToPkgLinkFunc(tc.path); got != tc.want {
+			t.Errorf("srcToPkgLinkFunc(%v) = %v; want %v", tc.path, got, tc.want)
 		}
 	}
 }
