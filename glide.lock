@@ -1,5 +1,5 @@
 hash: 802177d97912512484131c71883e4ebbf654559d32015505990e845fd84cdc55
-updated: 2017-06-28T07:47:22.26643588-07:00
+updated: 2017-06-28T08:06:30.81438283-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -65,7 +65,7 @@ imports:
 - name: github.com/urfave/negroni
   version: fde5e16d32adc7ad637e9cd9ad21d4ebc6192535
 - name: golang.org/x/crypto
-  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
+  version: 84f24dfdf3c414ed893ca1b318d0045ef5a1f607
   subpackages:
   - pkcs12
   - pkcs12/internal/rc2

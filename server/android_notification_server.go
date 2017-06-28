@@ -68,7 +68,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		start := time.Now()
 		resp, err := sender.Send(gcmMsg, 2)
 		observeGCMResponse(time.Since(start).Seconds())
-		
+
 		if err != nil {
 			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
 			incrementFailure(me.AndroidPushSettings.Type)
