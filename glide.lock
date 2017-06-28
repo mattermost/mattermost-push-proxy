@@ -1,5 +1,5 @@
-hash: 802177d97912512484131c71883e4ebbf654559d32015505990e845fd84cdc55
-updated: 2017-06-28T08:06:30.81438283-07:00
+hash: fb3a16e32005d553b8d88d8391020a5ef9d0abb96cf2e7feec83ef42d721a169
+updated: 2017-06-28T08:15:31.619867546-07:00
 imports:
 - name: github.com/alecthomas/template
   version: a0175ee3bccc567396460bf5acd36800cb10c49c
@@ -31,6 +31,8 @@ imports:
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
   - simplelru
+- name: github.com/julienschmidt/httprouter
+  version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
 - name: github.com/kyokomi/emoji
   version: 17c5e7085c9d59630aa578df67f4469481fbe7a9
 - name: github.com/matttproud/golang_protobuf_extensions
@@ -60,6 +62,8 @@ imports:
   subpackages:
   - certificate
   - payload
+- name: github.com/sirupsen/logrus
+  version: 202f25545ea4cf9b191ff7f846df5d87c9382c2b
 - name: github.com/tylerb/graceful
   version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
 - name: github.com/urfave/negroni
@@ -89,8 +93,12 @@ imports:
   version: e6cb469339aef5b7be0c89de730d5f3cc8e47e50
   subpackages:
   - go/buildutil
+- name: gopkg.in/airbrake/gobrake.v2
+  version: 3e9a4999b0371bf26c63fda81cc849383919b3da
 - name: gopkg.in/alecthomas/kingpin.v2
   version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+- name: gopkg.in/gemnasium/logrus-airbrake-hook.v2
+  version: e928b033a891c0175fb643d5aa0779e86325eb12
 - name: gopkg.in/throttled/throttled.v1
   version: b5675e93f9d999b22f92d859a5bf2138d3641af4
   subpackages:
@@ -102,4 +110,6 @@ imports:
   - store/redigostore
 - name: gopkg.in/tylerb/graceful.v1
   version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
+- name: gopkg.in/yaml.v2
+  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
 testImports: []
