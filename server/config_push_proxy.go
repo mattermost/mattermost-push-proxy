@@ -14,6 +14,7 @@ type ConfigPushProxy struct {
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int
 	ThrottleVaryByHeader    string
+	EnableMetrics           bool
 	ApplePushSettings       []ApplePushSettings
 	AndroidPushSettings     []AndroidPushSettings
 }

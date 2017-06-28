@@ -5,6 +5,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/alexjlockwood/gcm"
 	"github.com/kyokomi/emoji"
@@ -64,23 +65,28 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
 		LogInfo(fmt.Sprintf("Sending android push notification for type=%v", me.AndroidPushSettings.Type))
+		start := time.Now()
 		resp, err := sender.Send(gcmMsg, 2)
-
+		observeGCMResponse(time.Since(start).Seconds())
+		
 		if err != nil {
 			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
+			incrementFailure(me.AndroidPushSettings.Type)
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if resp.Failure > 0 {
 			if len(resp.Results) > 0 && (resp.Results[0].Error == "InvalidRegistration" || resp.Results[0].Error == "NotRegistered") {
 				LogInfo(fmt.Sprintf("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type))
+				incrementRemoval(me.AndroidPushSettings.Type)
 				return NewRemovePushResponse()
-			} else {
-				LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
-				return NewErrorPushResponse("unknown send response error")
 			}
+			LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
+			incrementFailure(me.AndroidPushSettings.Type)
+			return NewErrorPushResponse("unknown send response error")
 		}
 	}
 
+	incrementSuccess(me.AndroidPushSettings.Type)
 	return NewOkPushResponse()
 }

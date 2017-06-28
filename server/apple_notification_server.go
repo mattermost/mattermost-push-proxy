@@ -5,6 +5,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	apns "github.com/sideshow/apns2"
@@ -92,23 +93,28 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if me.AppleClient != nil {
 		LogInfo(fmt.Sprintf("Sending apple push notification type=%v", me.ApplePushSettings.Type))
+		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
+		observeAPNSResponse(time.Since(start).Seconds())
 		if err != nil {
 			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.ApplePushSettings.Type))
+			incrementFailure(me.ApplePushSettings.Type)
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if !res.Sent() {
 			if res.Reason == "BadDeviceToken" || res.Reason == "Unregistered" || res.Reason == "MissingDeviceToken" || res.Reason == "DeviceTokenNotForTopic" {
 				LogInfo(fmt.Sprintf("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
+				incrementRemoval(me.ApplePushSettings.Type)
 				return NewRemovePushResponse()
-
-			} else {
-				LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
-				return NewErrorPushResponse("unknown send response error")
 			}
+
+			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
+			incrementFailure(me.ApplePushSettings.Type)
+			return NewErrorPushResponse("unknown send response error")
 		}
 	}
 
+	incrementSuccess(me.ApplePushSettings.Type)
 	return NewOkPushResponse()
 }
