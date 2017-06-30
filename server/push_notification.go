@@ -40,9 +40,6 @@ var httpClient = &http.Client{
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   TLSDialTimeout,
 		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: enableInsecureConnections,
-		},
 	},
 	Timeout: HTTPClientTimeout,
 }
