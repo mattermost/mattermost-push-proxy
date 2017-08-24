@@ -79,6 +79,14 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Custom("sender_id", msg.SenderId)
 	}
 
+	if len(msg.PostId) > 0 {
+		payload.Custom("post_id", msg.PostId)
+	}
+
+	if len(msg.RootId) > 0 {
+		payload.Custom("root_id", msg.RootId)
+	}
+
 	if len(msg.OverrideUsername) > 0 {
 		payload.Custom("override_username", msg.OverrideUsername)
 	}
