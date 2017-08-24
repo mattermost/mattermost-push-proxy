@@ -51,6 +51,8 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			"channel_id":        msg.ChannelId,
 			"channel_name":      msg.ChannelName,
 			"team_id":           msg.TeamId,
+			"post_id":           msg.PostId,
+			"root_id":           msg.RootId,
 			"sender_id":         msg.SenderId,
 			"override_username": msg.OverrideUsername,
 			"override_icon_url": msg.OverrideIconUrl,

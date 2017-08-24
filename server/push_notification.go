@@ -4,7 +4,6 @@
 package server
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"io"
 	"net"
@@ -55,6 +54,8 @@ type PushNotification struct {
 	ContentAvailable int    `json:"cont_ava"`
 	TeamId           string `json:"team_id"`
 	ChannelId        string `json:"channel_id"`
+	PostId           string `json:"post_id"`
+	RootId           string `json:"root_id"`
 	ChannelName      string `json:"channel_name"`
 	Type             string `json:"type"`
 	SenderId         string `json:"sender_id"`
