@@ -136,4 +136,4 @@ See our [mobile applications deployment guide](https://docs.mattermost.com/deplo
 
 ### Reporting issues 
 
-For issues with repro steps, please report to https://github.com/mattermost/platform/issues
+For issues with repro steps, please report to https://github.com/mattermost/mattermost-server/issues
