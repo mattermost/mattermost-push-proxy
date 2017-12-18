@@ -1,0 +1,44 @@
+#!/usr/bin/env groovy
+
+podTemplate(label: 'jenkins-slave', 
+    containers: [
+        containerTemplate(
+            name: 'golang', 
+            image: 'golang:1.9.1', 
+            ttyEnabled: true, 
+            command: 'cat',
+            alwaysPullImage: false
+        )
+    ]
+)
+{
+    def gitCommit
+    node('jenkins-slave') {
+        stage('Checkout') {
+            container('golang') {
+                dir('mattermost-push-proxy') {
+                    checkout scm
+                    gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                }
+            }
+        }
+        stage('Pepare Environment') {
+            container('golang') {
+                // Link up the code to GOPATH.
+                sh 'mkdir -p /go/src/github.com/mattermost'
+                sh 'ln -s `pwd`/mattermost-push-proxy /go/src/github.com/mattermost/mattermost-push-proxy'
+            }
+        }
+        stage('Build') {
+            container('golang') {
+                sh 'cd /go/src/github.com/mattermost/mattermost-push-proxy && make build-server'
+                sh 'cd /go/src/github.com/mattermost/mattermost-push-proxy && make package'
+            }
+        }
+        stage('Unit Tests') {
+            container('golang') {
+                sh 'cd /go/src/github.com/mattermost/mattermost-push-proxy && make test'
+            }
+        }
+    }
+}
