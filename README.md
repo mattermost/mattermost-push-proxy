@@ -1,31 +1,17 @@
 # Mattermost Push Notifications Service 
 
-A server for proxying push notifications to iOS and Android devices from Mattermost, [a self-hosted team communication solution](http://www.mattermost.org/). 
+A server for proxying push notifications to iOS and Android devices from Mattermost, [a self-hosted team communication solution](https://about.mattermost.com/). 
 
-See our [mobile applications deployment guide](https://docs.mattermost.com/deployment/push.html) for details on how MPNS works with your Mattermost server and mobile applications.
+See our [mobile applications deployment guide](https://docs.mattermost.com/mobile/mobile-overview.html) for details on how MPNS works with your Mattermost server and mobile applications.
 
-For organizations who want to keep internal communications behind their firewall, this service encrypts notification messages with a private key under your control before sending them to Apple's public push notification service for delivery to your iOS devices. 
-
-See our [mobile applications deployment guide](https://docs.mattermost.com/deployment/push.html) for details on how MPNS works with your Mattermost server and mobile applications.
+For organizations who want to keep internal communications behind their firewall, this service encrypts notification messages with a private key under your control before sending them to Apple's public push notification service for delivery to your Android and iOS devices. 
 
 ### Requirements
 
 1. A linux Ubuntu 14.04 server with at least 1GB of memory
-2. Either compile the Mattermost iOS app and submit it to the Apple App Store, or host it in your own Enterprise App Store
+2. Either compile the Mattermost Android and iOS apps and submit it to the App Stores, or host it in your own Enterprise App Store
 3. Private and public keys obtained from the Apple Developer Program
 4. An Android API key generated from Google Cloud Messaging
-
-### Obtaining Apple Developer Keys
-
-1. Follow the directions at [developer.apple.com](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/DistributingEnterpriseProgramApps/DistributingEnterpriseProgramApps.html#//apple_ref/doc/uid/TP40012582-CH33-SW4) to generate an Apple Push Notification service SSL Certificate, this should give you an `aps_production.cer`
-2. Convert the certificate format to .pem:
-  - `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
-3. Double click `aps_production.cer` to install it into the keychain tool
-4. Right click the private cert in keychain access and export to .p12
-5. Extract the private key from the certificate: 
-  - `openssl pkcs12 -in Certificates.p12 -out aps_production_priv.pem -nodes -clcerts`
-6. Verifying the certificate works with apple:
-  - `openssl s_client -connect gateway.push.apple.com:2195 -cert aps_production.pem -key aps_production_priv.pem`
 
 ### Set Up Push Proxy Server
 
@@ -41,7 +27,7 @@ See our [mobile applications deployment guide](https://docs.mattermost.com/deplo
    -  `tar -xvzf mattermost-push-proxy.tar.gz`
 
 5. Configure Push Proxy Server by editing the mattermost-push-proxy.json file at
-   `/home/ubuntu/mattermost-push-proxy/config`.
+   `/home/ubuntu/mattermost-push-proxy/config`, read the [Push Notifications with Your Own Build](https://docs.mattermost.com/developer/mobile-developer-setup.html#push-notifications-with-your-own-build) documentation to learn more.
 
    - Change directories by typing `cd ~/mattermost-push-proxy/config`
    - Edit the file by typing `vi mattermost-push-proxy.json`
