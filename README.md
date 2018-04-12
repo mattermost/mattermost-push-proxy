@@ -112,6 +112,7 @@ For organizations who want to keep internal communications behind their firewall
             AND DeviceId != ''
             AND Email = 'test@example.com'`
      ```
+     - Remove the "apple:", "apple_rn:", "android:" or "android_rn:" prefix from your device ID before replacing IPHONE_DEVICE_ID
    - You can also verify push notifications are working by opening your Mattermost site and mentioning a user who has push notifications enabled in Account Settings > Notifications > Mobile Push Notifications
    - To view the log file, use: 
      
