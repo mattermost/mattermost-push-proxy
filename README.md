@@ -97,7 +97,7 @@ For organizations who want to keep internal communications behind their firewall
 7. Test the Push Proxy Server
 
    - Verify the server is functioning normally and test the push notifications using curl: 
-     - `curl http://127.0.0.1:8066/api/v1/send_push -X POST -H "Content-Type: application/json" -d '{ "message":"test", "badge": 1, "platform":"apple", "server_id":"MATTERMOST_DIAG_ID", "device_id":"IPHONE_DEVICE_ID"}'`
+     - `curl http://127.0.0.1:8066/api/v1/send_push -X POST -H "Content-Type: application/json" -d '{ "message":"test", "badge": 1, "platform":"PLATFORM", "server_id":"MATTERMOST_DIAG_ID", "device_id":"DEVICE_ID"}'`
      - Replace MATTERMOST_DIAG_ID with the value found by running the SQL query:
        - `SELECT * FROM Systems WHERE Name = 'DiagnosticId';`
      - Replace IPHONE_DEVICE_ID with your device ID, which can be found using: 
@@ -112,7 +112,7 @@ For organizations who want to keep internal communications behind their firewall
             AND DeviceId != ''
             AND Email = 'test@example.com'`
      ```
-     - Remove the "apple:", "apple_rn:", "android:" or "android_rn:" prefix from your device ID before replacing IPHONE_DEVICE_ID
+     - Remove the "apple:", "apple_rn:", "android:" or "android_rn:" prefix from your device ID before replacing IPHONE_DEVICE_ID. Use that prefix as the PLATFORM (make sure to remove the ":")
    - You can also verify push notifications are working by opening your Mattermost site and mentioning a user who has push notifications enabled in Account Settings > Notifications > Mobile Push Notifications
    - To view the log file, use: 
      
