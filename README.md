@@ -138,7 +138,7 @@ panic: Failed to load the apple pem cert err=failed to parse PKCS1 private key f
 6. Generate an intermediate RSA private key
   - `openssl rsa -in intermediate.pem -out intermediate_rsa_priv.pem`
 7. Remove the private key information from intermediate.pem
-  - `sed -i '/^-----BEGIN PRIVATE KEY-----$/,$d' intermediate.pem
+  - `sed -i '/^-----BEGIN PRIVATE KEY-----$/,$d' intermediate.pem`
 8. Combine intermediate.pem and intermediate_rsa_priv.pem to create a valid bundle
   - `cat intermediate.pem intermediate_rsa_priv.pem >> aps_production_priv.pem && rm intermediate.pem intermediate_rsa_priv.pem`
 6. Verifying the certificate works with apple:
