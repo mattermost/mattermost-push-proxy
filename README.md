@@ -121,6 +121,30 @@ For organizations who want to keep internal communications behind their firewall
      mattermost-push-proxy.log
      ```
 
+### Troubleshooting
+
+#### High Sierra Apple Developer Keys Steps - follow these instructions if you run into an error like below:
+```
+2018/04/13 12:39:24 CRIT Failed to load the apple pem cert err=failed to parse PKCS1 private key for type=apple_rn
+panic: Failed to load the apple pem cert err=failed to parse PKCS1 private key for type=apple_rn
+```
+
+1. Follow the directions at [developer.apple.com](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/DistributingEnterpriseProgramApps/DistributingEnterpriseProgramApps.html#//apple_ref/doc/uid/TP40012582-CH33-SW4) to generate an Apple Push Notification service SSL Certificate, this should give you an `aps_production.cer`
+2. Convert the certificate format to .pem:
+  - `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
+3. Double click `aps_production.cer` to install it into the keychain tool
+4. Right click the private cert in keychain access and export to .p12
+5. Extract the private key from the certificate into an intermediate state:
+  - `openssl pkcs12 -in Certificates.p12 -out intermediate.pem -nodes -clcerts`
+6. Generate an intermediate RSA private key
+  - `openssl rsa -in intermediate.pem -out intermediate_rsa_priv.pem`
+7. Remove the private key information from intermediate.pem
+  - `sed -i '/^-----BEGIN PRIVATE KEY-----$/,$d' intermediate.pem`
+8. Combine intermediate.pem and intermediate_rsa_priv.pem to create a valid bundle
+  - `cat intermediate.pem intermediate_rsa_priv.pem >> aps_production_priv.pem && rm intermediate.pem intermediate_rsa_priv.pem`
+6. Verifying the certificate works with apple:
+  - `openssl s_client -connect gateway.push.apple.com:2195 -cert aps_production.pem -key aps_production_priv.pem`
+
 ### Reporting issues 
 
 For issues with repro steps, please report to https://github.com/mattermost/mattermost-server/issues
