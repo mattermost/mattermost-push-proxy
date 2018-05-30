@@ -51,10 +51,11 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	payload := payload.NewPayload()
 	notification.Payload = payload
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
+
 	payload.Badge(msg.Badge)
 
 	if msg.Type != PUSH_TYPE_CLEAR {
-		payload.Alert(emoji.Sprint(msg.Message))
+		payload.AlertBody(emoji.Sprint(msg.Message))
 		payload.Category(msg.Category)
 		payload.Sound("default")
 	} else {
@@ -72,6 +73,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if len(msg.ChannelName) > 0 {
+		payload.AlertTitle(msg.ChannelName)
 		payload.Custom("channel_name", msg.ChannelName)
 	}
 
