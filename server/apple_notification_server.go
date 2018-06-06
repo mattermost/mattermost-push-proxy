@@ -55,9 +55,21 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	payload.Badge(msg.Badge)
 
 	if msg.Type != PUSH_TYPE_CLEAR {
-		payload.AlertBody(emoji.Sprint(msg.Message))
 		payload.Category(msg.Category)
 		payload.Sound("default")
+		payload.Custom("version", msg.Version)
+
+		if len(msg.ChannelName) > 0 && msg.Version == "v2" {
+			payload.AlertTitle(msg.ChannelName)
+			payload.AlertBody(emoji.Sprint(msg.Message))
+			payload.Custom("channel_name", msg.ChannelName)
+		} else {
+			payload.Alert(emoji.Sprint(msg.Message))
+
+			if len(msg.ChannelName) > 0 {
+				payload.Custom("channel_name", msg.ChannelName)
+			}
+		}
 	} else {
 		payload.Alert("")
 	}
@@ -70,11 +82,6 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if len(msg.TeamId) > 0 {
 		payload.Custom("team_id", msg.TeamId)
-	}
-
-	if len(msg.ChannelName) > 0 {
-		payload.AlertTitle(msg.ChannelName)
-		payload.Custom("channel_name", msg.ChannelName)
 	}
 
 	if len(msg.SenderId) > 0 {
