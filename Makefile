@@ -23,7 +23,7 @@ dist: | build-server test package
 
 update-dependencies-after-release:
 	@echo Run this to updated the go lang dependencies after a major release
-	glide up
+	dep ensure -update
 
 build-server: | .prebuild
 	@echo Building proxy push server
