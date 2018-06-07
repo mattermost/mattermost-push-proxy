@@ -31,7 +31,7 @@ type VaryBy struct {
 	// Defaults to a newline character if empty (\n).
 	Separator string
 
-	// DEPRECATED. Custom specifies the custom-generated key to use for this request.
+	// Custom specifies the custom-generated key to use for this request.
 	// If not nil, the value returned by this function is used instead of any
 	// VaryBy criteria.
 	Custom func(r *http.Request) string

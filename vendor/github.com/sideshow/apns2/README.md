@@ -7,27 +7,28 @@ APNS/2 is a go package designed for simple, flexible and fast Apple Push Notific
 ## Features
 
 - Uses new Apple APNs HTTP/2 connection
-- Works with older versions of go (1.5.x) not just 1.6
+- Fast - See [notes on speed](https://github.com/sideshow/apns2/wiki/APNS-HTTP-2-Push-Speed)
+- Works with go 1.6 and later
+- Supports new Apple Token Based Authentication (JWT)
 - Supports new iOS 10 features such as Collapse IDs, Subtitles and Mutable Notifications
 - Supports persistent connections to APNs
-- Fast, modular & easy to use
+- Supports VoIP/PushKit notifications (iOS 8 and later)
+- Modular & easy to use
 - Tested and working in APNs production environment
 
 ## Install
 
 - Make sure you have [Go](https://golang.org/doc/install) installed and have set your [GOPATH](https://golang.org/doc/code.html#GOPATH).
-- Download and install the dependencies:
-
-  ```sh
-  go get -u golang.org/x/net/http2
-  go get -u golang.org/x/crypto/pkcs12
-  ```
-
 - Install apns2:
 
-  ```sh
-  go get -u github.com/sideshow/apns2
-  ```
+```sh
+go get -u github.com/sideshow/apns2
+```
+
+If you are running the test suite you will also need to install testify:
+```sh
+go get -u github.com/stretchr/testify
+```
 
 ## Example
 
@@ -35,41 +36,70 @@ APNS/2 is a go package designed for simple, flexible and fast Apple Push Notific
 package main
 
 import (
-  apns "github.com/sideshow/apns2"
-  "github.com/sideshow/apns2/certificate"
   "log"
+  "fmt"
+
+  "github.com/sideshow/apns2"
+  "github.com/sideshow/apns2/certificate"
 )
 
 func main() {
 
-  cert, pemErr := certificate.FromPemFile("../cert.pem", "")
-  if pemErr != nil {
-    log.Println("Cert Error:", pemErr)
+  cert, err := certificate.FromP12File("../cert.p12", "")
+  if err != nil {
+    log.Fatal("Cert Error:", err)
   }
 
-  notification := &apns.Notification{}
+  notification := &apns2.Notification{}
   notification.DeviceToken = "11aa01229f15f0f0c52029d8cf8cd0aeaf2365fe4cebc4af26cd6d76b7919ef7"
   notification.Topic = "com.sideshow.Apns2"
   notification.Payload = []byte(`{"aps":{"alert":"Hello!"}}`) // See Payload section below
 
-  client := apns.NewClient(cert).Development()
+  client := apns2.NewClient(cert).Production()
   res, err := client.Push(notification)
 
   if err != nil {
-    log.Println("Error:", err)
-    return
+    log.Fatal("Error:", err)
   }
 
-  log.Println("APNs ID:", res.ApnsID)
+  fmt.Printf("%v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
 }
 ```
+
+## JWT Token Example
+
+Instead of using a `.p12` or `.pem` certificate as above, you can optionally use
+APNs JWT _Provider Authentication Tokens_. First you will need a signing key (`.p8` file), Key ID and Team ID [from Apple](http://help.apple.com/xcode/mac/current/#/dev54d690a66). Once you have these details, you can create a new client:
+
+```go
+authKey, err := token.AuthKeyFromFile("../AuthKey_XXX.p8")
+if err != nil {
+  log.Fatal("token error:", err)
+}
+
+token := &token.Token{
+  AuthKey: authKey,
+  // KeyID from developer account (Certificates, Identifiers & Profiles -> Keys)
+  KeyID:   "ABC123DEFG",
+  // TeamID from developer account (View Account -> Membership)
+  TeamID:  "DEF123GHIJ",
+}
+...
+
+client := apns2.NewTokenClient(token)
+res, err := client.Push(notification)
+```
+
+- You can use one APNs signing key to authenticate tokens for multiple apps.
+- A signing key works for both the development and production environments.
+- A signing key doesn’t expire but can be revoked.
 
 ## Notification
 
 At a minimum, a _Notification_ needs a _DeviceToken_, a _Topic_ and a _Payload_.
 
 ```go
-notification := &Notification{
+notification := &apns2.Notification{
   DeviceToken: "11aa01229f15f0f0c52029d8cf8cd0aeaf2365fe4cebc4af26cd6d76b7919ef7",
   Topic: "com.sideshow.Apns2",
   Payload: []byte(`{"aps":{"alert":"Hello!"}}`),
@@ -81,7 +111,7 @@ You can also set an optional _ApnsID_, _Expiration_ or _Priority_.
 ```go
 notification.ApnsID =  "40636A2C-C093-493E-936A-2A4333C06DEA"
 notification.Expiration = time.Now()
-notification.Priority = apns.PriorityLow
+notification.Priority = apns2.PriorityLow
 ```
 
 ## Payload
@@ -91,7 +121,7 @@ You can use raw bytes for the `notification.Payload` as above, or you can use th
 ```go
 // {"aps":{"alert":"hello","badge":1},"key":"val"}
 
-payload := NewPayload().Alert("hello").Badge(1).Custom("key", "val")
+payload := payload.NewPayload().Alert("hello").Badge(1).Custom("key", "val")
 
 notification.Payload = payload
 client.Push(notification)
@@ -114,10 +144,37 @@ if err != nil {
   log.Println("There was an error", err)
   return
 }
+
 if res.Sent() {
-  log.Println("APNs ID:", res.ApnsID)
+  log.Println("Sent:", res.ApnsID)
+} else {
+  fmt.Printf("Not Sent: %v %v %v\n", res.StatusCode, res.ApnsID, res.Reason)
 }
 ```
+
+## Context & Timeouts
+
+For better control over request cancellations and timeouts APNS/2 supports
+contexts. Using a context can be helpful if you want to cancel all pushes when
+the parent process is cancelled, or need finer grained control over individual
+push timeouts. See the [Google post](https://blog.golang.org/context) for more
+information on contexts.
+
+```go
+ctx, cancel = context.WithTimeout(context.Background(), 10 * time.Second)
+res, err := client.PushWithContext(ctx, notification)
+defer cancel()
+```
+
+## Speed & Performance
+
+Also see the wiki page on [APNS HTTP 2 Push Speed](https://github.com/sideshow/apns2/wiki/APNS-HTTP-2-Push-Speed).
+
+For best performance, you should hold on to an `apns2.Client` instance and not re-create it every push. The underlying TLS connection itself can take a few seconds to connect and negotiate, so if you are setting up an `apns2.Client` and tearing it down every push, then this will greatly affect performance. (Apple suggest keeping the connection open all the time).
+
+You should also limit the amount of `apns2.Client` instances. The underlying transport has a http connection pool itself, so a single client instance will be enough for most users (One instance can potentially do 4,000+ pushes per second). If you need more than this then one instance per CPU core is a good starting point.
+
+Speed is greatly affected by the location of your server and the quality of your network connection. If you're just testing locally, behind a proxy or if your server is outside USA then you're not going to get great performance. With a good server located in AWS, you should be able to get [decent throughput](https://github.com/sideshow/apns2/wiki/APNS-HTTP-2-Push-Speed).
 
 ## Command line tool
 
@@ -127,7 +184,7 @@ APNS/2 has a command line tool that can be installed with `go get github.com/sid
 apns2 --help
 usage: apns2 --certificate-path=CERTIFICATE-PATH --topic=TOPIC [<flags>]
 
-Listens to STDIN to send nofitications and writes APNS response code and reason to STDOUT.
+Listens to STDIN to send notifications and writes APNS response code and reason to STDOUT.
 
 The expected format is: <DeviceToken> <APNS Payload>
 Example: aff0c63d9eaa63ad161bafee732d5bc2c31f66d552054718ff19ce314371e5d0 {"aps": {"alert": "hi"}}

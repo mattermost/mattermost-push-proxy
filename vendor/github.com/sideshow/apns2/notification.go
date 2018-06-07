@@ -32,8 +32,9 @@ type Notification struct {
 	// response.
 	ApnsID string
 
-	// A string which allows a notification to be replaced by a new notification
-	// with the same CollapseID.
+	// A string which allows multiple notifications with the same collapse identifier
+	// to be displayed to the user as a single notification. The value should not
+	// exceed 64 bytes.
 	CollapseID string
 
 	// A string containing hexadecimal bytes of the device token for the target device.
