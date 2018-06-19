@@ -15,6 +15,8 @@ For organizations who want to keep internal communications behind their firewall
 
 ### Obtaining Apple Developer Keys
 
+For more in-depth instructions on setting up push notificaitons with your own build please follow the directions at [docs.mattermost.com](https://docs.mattermost.com/developer/mobile-developer-setup.html#push-notifications-with-your-own-build)
+
 1. Follow the directions at [developer.apple.com](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/DistributingEnterpriseProgramApps/DistributingEnterpriseProgramApps.html#//apple_ref/doc/uid/TP40012582-CH33-SW4) to generate an Apple Push Notification service SSL Certificate, this should give you an `aps_production.cer`
 2. Convert the certificate format to .pem:
   - `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
