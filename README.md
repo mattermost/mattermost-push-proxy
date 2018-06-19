@@ -13,6 +13,18 @@ For organizations who want to keep internal communications behind their firewall
 3. Private and public keys obtained from the Apple Developer Program
 4. An Android API key generated from Google Cloud Messaging
 
+### Obtaining Apple Developer Keys
+
+1. Follow the directions at [developer.apple.com](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/DistributingEnterpriseProgramApps/DistributingEnterpriseProgramApps.html#//apple_ref/doc/uid/TP40012582-CH33-SW4) to generate an Apple Push Notification service SSL Certificate, this should give you an `aps_production.cer`
+2. Convert the certificate format to .pem:
+  - `openssl x509 -in aps.cer -inform DER -out aps_production.pem`
+3. Double click `aps_production.cer` to install it into the keychain tool
+4. Right click the private cert in keychain access and export to .p12
+5. Extract the private key from the certificate: 
+  - `openssl pkcs12 -in Certificates.p12 -out aps_production_priv.pem -nodes -clcerts`
+6. Verifying the certificate works with apple:
+  - `openssl s_client -connect gateway.push.apple.com:2195 -cert aps_production.pem -key aps_production_priv.pem`
+
 ### Set Up Push Proxy Server
 
 1. For the sake of making this guide simple we located the files at
