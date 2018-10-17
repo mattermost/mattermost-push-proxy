@@ -20,7 +20,7 @@ func NewAndroideNotificationServer(settings AndroidPushSettings) NotificationSer
 }
 
 func (me *AndroidNotificationServer) Initialize() bool {
-	LogInfo(fmt.Sprintf("Initializing Android notificaiton server for type=%v", me.AndroidPushSettings.Type))
+	LogInfo(fmt.Sprintf("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type))
 
 	if len(me.AndroidPushSettings.AndroidApiKey) == 0 {
 		LogError("Android push notifications not configured.  Missing AndroidApiKey.")
