@@ -72,6 +72,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	} else {
 		payload.Alert("")
+		payload.ContentAvailable()
 	}
 
 	payload.Custom("type", msg.Type)
