@@ -79,10 +79,20 @@ func NewClient(certificate tls.Certificate) *Client {
 	if len(certificate.Certificate) > 0 {
 		tlsConfig.BuildNameToCertificate()
 	}
-	transport := &http2.Transport{
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   TLSDialTimeout,
+			KeepAlive: TCPKeepAlive,
+		}).DialContext,
+		TLSClientConfig: tlsConfig,
+	}
+
+	http2.ConfigureTransport(transport)
+	/*transport := &http2.Transport{
 		TLSClientConfig: tlsConfig,
 		DialTLS:         DialTLS,
-	}
+	}*/
 	return &Client{
 		HTTPClient: &http.Client{
 			Transport: transport,
