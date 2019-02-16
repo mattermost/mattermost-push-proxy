@@ -13,7 +13,7 @@ const (
 	metricFailureName         = "service_failure_total"
 	metricRemovalName         = "service_removal_total"
 	metricBadRequestName      = "service_bad_request_total"
-	metricGCMResponseName     = "service_gcm_request_duration_seconds"
+	metricFCMResponseName     = "service_fcm_request_duration_seconds"
 	metricAPNSResponseName    = "service_apns_request_duration_seconds"
 	metricServiceResponseName = "service_request_duration_seconds"
 )
@@ -52,8 +52,8 @@ var metricAPNSResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
 	Help: "Request latency distribution",
 })
 
-var metricGCMResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
-	Name: metricGCMResponseName,
+var metricFCMResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
+	Name: metricFCMResponseName,
 	Help: "Request latency distribution",
 })
 
@@ -65,7 +65,7 @@ var metricServiceResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
 func init() {
 	prometheus.MustRegister(metricSuccess, metricFailure, metricRemoval)
 	prometheus.MustRegister(metricBadRequest)
-	prometheus.MustRegister(metricAPNSResponse, metricGCMResponse, metricServiceResponse)
+	prometheus.MustRegister(metricAPNSResponse, metricFCMResponse, metricServiceResponse)
 }
 
 func NewPrometheusHandler() http.Handler {
@@ -102,9 +102,9 @@ func observeAPNSResponse(dur float64) {
 	}
 }
 
-func observeGCMResponse(dur float64) {
+func observeFCMResponse(dur float64) {
 	if MetricsEnabled {
-		metricGCMResponse.Observe(dur)
+		metricFCMResponse.Observe(dur)
 	}
 }
 

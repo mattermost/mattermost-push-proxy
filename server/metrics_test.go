@@ -28,7 +28,7 @@ func TestMetricDisabled(t *testing.T) {
 	incrementRemoval(platform)
 	incrementFailure(platform)
 	observeAPNSResponse(1)
-	observeGCMResponse(1)
+	observeFCMResponse(1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -64,7 +64,7 @@ func TestMetricEnabled(t *testing.T) {
 	incrementRemoval(platform)
 	incrementFailure(platform)
 	observeAPNSResponse(1)
-	observeGCMResponse(1)
+	observeFCMResponse(1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -92,7 +92,7 @@ func TestMetricEnabled(t *testing.T) {
 		}
 	}
 
-	histograms := []string{metricAPNSResponseName, metricGCMResponseName, metricServiceResponseName}
+	histograms := []string{metricAPNSResponseName, metricFCMResponseName, metricServiceResponseName}
 	for _, hn := range histograms {
 		if m, ok := metrics[hn]; !ok {
 			t.Fatalf("metric not found. name: %s", hn)
