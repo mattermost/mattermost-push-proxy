@@ -6,9 +6,6 @@ package server
 import (
 	"encoding/json"
 	"io"
-	"net"
-	"net/http"
-	"time"
 )
 
 const (
@@ -16,32 +13,7 @@ const (
 	PUSH_NOTIFY_ANDROID = "android"
 	PUSH_TYPE_MESSAGE   = "message"
 	PUSH_TYPE_CLEAR     = "clear"
-
-	// TLSDialTimeout is the maximum amount of time a dial will wait for a connect
-	// to complete.
-	TLSDialTimeout = 20 * time.Second
-
-	// HTTPClientTimeout specifies a time limit for requests made by the
-	// HTTPClient. The timeout includes connection time, any redirects,
-	// and reading the response body.
-	HTTPClientTimeout = 30 * time.Second
 )
-
-var httpClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   TLSDialTimeout,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   TLSDialTimeout,
-		ExpectContinueTimeout: 1 * time.Second,
-	},
-	Timeout: HTTPClientTimeout,
-}
 
 type PushNotification struct {
 	Platform         string `json:"platform"`
