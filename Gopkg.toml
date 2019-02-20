@@ -64,3 +64,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/appleboy/go-fcm"
+  version = "0.1.3"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alexjlockwood/gcm"
+	"github.com/appleboy/go-fcm"
 	"github.com/kyokomi/emoji"
 )
 
@@ -62,28 +62,30 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 
-	regIDs := []string{msg.DeviceId}
-	gcmMsg := gcm.NewMessage(data, regIDs...)
-
-	sender := &gcm.Sender{
-		ApiKey: me.AndroidPushSettings.AndroidApiKey,
-		Http:   httpClient,
+	fcmMsg := &fcm.Message{
+		To:   msg.DeviceId,
+		Data: data,
 	}
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
+		sender, err := fcm.NewClient(me.AndroidPushSettings.AndroidApiKey)
+		if err != nil {
+			return NewErrorPushResponse(err.Error())
+		}
+
 		LogInfo(fmt.Sprintf("Sending android push notification for type=%v", me.AndroidPushSettings.Type))
 		start := time.Now()
-		resp, err := sender.Send(gcmMsg, 2)
-		observeGCMResponse(time.Since(start).Seconds())
+		resp, err := sender.SendWithRetry(fcmMsg, 2)
+		observeFCMResponse(time.Since(start).Seconds())
 
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send GCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
+			LogError(fmt.Sprintf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
 			incrementFailure(me.AndroidPushSettings.Type)
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if resp.Failure > 0 {
-			if len(resp.Results) > 0 && (resp.Results[0].Error == "InvalidRegistration" || resp.Results[0].Error == "NotRegistered") {
+			if len(resp.Results) > 0 && (resp.Results[0].Error == fcm.ErrInvalidRegistration || resp.Results[0].Error == fcm.ErrNotRegistered) {
 				LogInfo(fmt.Sprintf("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type))
 				incrementRemoval(me.AndroidPushSettings.Type)
 				return NewRemovePushResponse()
