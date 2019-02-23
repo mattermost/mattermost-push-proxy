@@ -43,6 +43,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			"override_icon_url": msg.OverrideIconUrl,
 			"from_webhook":      msg.FromWebhook,
 			"version":           msg.Version,
+			"id":                msg.Id,
 		}
 	} else {
 		data = map[string]interface{}{
@@ -59,6 +60,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			"override_icon_url": msg.OverrideIconUrl,
 			"from_webhook":      msg.FromWebhook,
 			"version":           msg.Version,
+			"id":                msg.Id,
 		}
 	}
 
