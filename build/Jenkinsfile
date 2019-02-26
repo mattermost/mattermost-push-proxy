@@ -1,11 +1,11 @@
 #!/usr/bin/env groovy
 
-podTemplate(label: 'jenkins-slave', 
+podTemplate(label: 'jenkins-slave',
     containers: [
         containerTemplate(
-            name: 'golang', 
-            image: 'golang:1.9.1', 
-            ttyEnabled: true, 
+            name: 'golang',
+            image: 'golang:1.11.2',
+            ttyEnabled: true,
             command: 'cat',
             alwaysPullImage: false
         )

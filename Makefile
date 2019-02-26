@@ -25,7 +25,7 @@ update-dependencies-after-release:
 	@echo Run this to updated the go lang dependencies after a major release
 	dep ensure -update
 
-build-server: | .prebuild
+build-server:
 	@echo Building proxy push server
 
 	rm -Rf $(DIST_ROOT)
@@ -70,14 +70,6 @@ clean:
 	rm -Rf $(DIST_ROOT)
 	go clean $(GOFLAGS) -i ./...
 
-	rm -f .prebuild
-
-.prebuild:
-	@echo Preparation for running go code
-	go get $(GOFLAGS) github.com/Masterminds/glide
-
-	touch $@
-
-run: .prebuild
+run:
 	@echo Starting go web server
 	$(GO) run $(GOFLAGS) main.go
