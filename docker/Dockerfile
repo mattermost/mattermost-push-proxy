@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 ENV APP_VERSION=4.4.0
 ENV PATH="/mattermost-push-proxy/bin:${PATH}"
