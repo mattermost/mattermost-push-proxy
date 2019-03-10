@@ -1,4 +1,4 @@
-.PHONY: all dist build-server package test clean run update-dependencies-after-release
+.PHONY: all dist build-server package test clean run update-dependencies-after-release gofmt govet check-style
 
 GOPATH ?= $(GOPATH:)
 GOFLAGS ?= $(GOFLAGS:)
@@ -19,18 +19,24 @@ TESTS=.
 
 all: dist
 
-dist: | build-server test package
+check-style: gofmt govet
+
+dist: | gofmt govet build-server test package
 
 update-dependencies-after-release:
 	@echo Run this to updated the go lang dependencies after a major release
 	dep ensure -update
 
-build-server:
+build-server: gofmt govet
 	@echo Building proxy push server
 
 	rm -Rf $(DIST_ROOT)
 	$(GO) clean $(GOFLAGS) -i ./...
 
+	$(GO) build $(GOFLAGS) ./...
+	$(GO) install $(GOFLAGS) ./...
+
+gofmt:
 	@echo GOFMT
 	$(eval GOFMT_OUTPUT := $(shell gofmt -d -s server/ main.go 2>&1))
 	@echo "$(GOFMT_OUTPUT)"
@@ -41,8 +47,12 @@ build-server:
 		exit 1; \
 	fi
 
-	$(GO) build $(GOFLAGS) ./...
-	$(GO) install $(GOFLAGS) ./...
+govet:
+	@echo Running govet
+	$(GO) get golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+	$(GO) vet $$(go list ./...) .
+	$(GO) vet -vettool=$(GOPATH)/bin/shadow $$(go list ./...)
+	@echo Govet success
 
 package:
 	@ echo Packaging push proxy

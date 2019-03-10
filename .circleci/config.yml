@@ -1,0 +1,28 @@
+version: 2.1
+jobs:
+  lint:
+    docker:
+      - image: circleci/golang:1.12
+
+    working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
+    steps:
+      - checkout
+      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run: make check-style
+
+  test:
+    docker:
+      - image: circleci/golang:1.12
+
+    working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
+    steps:
+      - checkout
+      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run: make test
+
+workflows:
+  version: 2
+  untagged-build:
+    jobs:
+      - lint
+      - test
