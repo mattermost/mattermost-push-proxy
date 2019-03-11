@@ -15,8 +15,15 @@ const (
 	PUSH_TYPE_CLEAR     = "clear"
 )
 
+type PushNotificationAck struct {
+	Id         string `json:"id"`
+	ReceivedAt int64  `json:"received_at"`
+	AckAt      int64  `json:"ack_at"`
+}
+
 type PushNotification struct {
 	Id               string `json:"id"`
+	AckId            string `json:"ack_id"`
 	Platform         string `json:"platform"`
 	ServerId         string `json:"server_id"`
 	DeviceId         string `json:"device_id"`
@@ -42,9 +49,8 @@ func (me *PushNotification) ToJson() string {
 	b, err := json.Marshal(me)
 	if err != nil {
 		return ""
-	} else {
-		return string(b)
 	}
+	return string(b)
 }
 
 func PushNotificationFromJson(data io.Reader) *PushNotification {
@@ -53,7 +59,24 @@ func PushNotificationFromJson(data io.Reader) *PushNotification {
 	err := decoder.Decode(&me)
 	if err == nil {
 		return &me
-	} else {
-		return nil
 	}
+	return nil
+}
+
+func (me *PushNotificationAck) ToJson() string {
+	b, err := json.Marshal(me)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func PushNotificationAckFromJson(data io.Reader) *PushNotificationAck {
+	decoder := json.NewDecoder(data)
+	var me PushNotificationAck
+	err := decoder.Decode(&me)
+	if err == nil {
+		return &me
+	}
+	return nil
 }

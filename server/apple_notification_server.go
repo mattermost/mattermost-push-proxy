@@ -77,8 +77,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	payload.Custom("type", msg.Type)
 
-	if len(msg.Id) > 0 {
-		payload.Custom("id", msg.Id)
+	if len(msg.AckId) > 0 {
+		payload.Custom("ack_id", msg.AckId)
 	}
 
 	if len(msg.ChannelId) > 0 {

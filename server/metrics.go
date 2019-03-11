@@ -16,6 +16,7 @@ const (
 	metricFCMResponseName     = "service_fcm_request_duration_seconds"
 	metricAPNSResponseName    = "service_apns_request_duration_seconds"
 	metricServiceResponseName = "service_request_duration_seconds"
+	metricAckName             = "service_ack_total"
 )
 
 var metricSuccess = prometheus.NewCounterVec(
@@ -41,6 +42,11 @@ var metricRemoval = prometheus.NewCounterVec(
 	},
 	[]string{"type"},
 )
+
+var metricAck = prometheus.NewCounter(prometheus.CounterOpts{
+	Name: metricAckName,
+	Help: "Number of push acks.",
+})
 
 var metricBadRequest = prometheus.NewCounter(prometheus.CounterOpts{
 	Name: metricBadRequestName,
@@ -75,6 +81,12 @@ func NewPrometheusHandler() http.Handler {
 func incrementSuccess(pushType string) {
 	if MetricsEnabled {
 		metricSuccess.WithLabelValues(pushType).Inc()
+	}
+}
+
+func incrementAck() {
+	if MetricsEnabled {
+		metricAck.Inc()
 	}
 }
 
