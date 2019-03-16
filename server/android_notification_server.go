@@ -5,7 +5,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/mattermost/mattermost-push-proxy/vendor/github.com/appleboy/go-fcm"
 	"time"
 
 	"github.com/appleboy/go-fcm"
