@@ -58,6 +58,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Category(msg.Category)
 		payload.Sound("default")
 		payload.Custom("version", msg.Version)
+		payload.MutableContent()
 
 		if len(msg.ChannelName) > 0 && msg.Version == "v2" {
 			payload.AlertTitle(msg.ChannelName)
