@@ -58,6 +58,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		payload.Category(msg.Category)
 		payload.Sound("default")
 		payload.Custom("version", msg.Version)
+		payload.MutableContent()
 
 		if len(msg.ChannelName) > 0 && msg.Version == "v2" {
 			payload.AlertTitle(msg.ChannelName)
@@ -71,7 +72,6 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			}
 		}
 	} else {
-		payload.Alert("")
 		payload.ContentAvailable()
 	}
 
@@ -111,7 +111,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if me.AppleClient != nil {
-		LogInfo(fmt.Sprintf("Sending apple push notification type=%v", me.ApplePushSettings.Type))
+		LogInfo(fmt.Sprintf("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type))
 		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
 		observeAPNSResponse(time.Since(start).Seconds())
