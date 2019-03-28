@@ -63,8 +63,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	fcmMsg := &fcm.Message{
-		To:   msg.DeviceId,
-		Data: data,
+		To:       msg.DeviceId,
+		Data:     data,
+		Priority: "high",
 	}
 
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
