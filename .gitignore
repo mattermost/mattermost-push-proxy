@@ -60,3 +60,8 @@ api/data/*
 .agignore
 .ctags
 tags
+
+# Certificates
+*.pem
+*.cer
+*.p12

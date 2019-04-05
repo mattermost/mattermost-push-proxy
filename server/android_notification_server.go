@@ -32,6 +32,8 @@ func (me *AndroidNotificationServer) Initialize() bool {
 
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	var data map[string]interface{}
+	var pushType string
+
 	if msg.Type == PUSH_TYPE_CLEAR {
 		data = map[string]interface{}{
 			"type":              PUSH_TYPE_CLEAR,
@@ -44,6 +46,8 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			"from_webhook":      msg.FromWebhook,
 			"version":           msg.Version,
 		}
+
+		pushType = PUSH_TYPE_CLEAR
 	} else {
 		data = map[string]interface{}{
 			"type":              PUSH_TYPE_MESSAGE,
@@ -60,7 +64,10 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			"from_webhook":      msg.FromWebhook,
 			"version":           msg.Version,
 		}
+		pushType = PUSH_TYPE_MESSAGE
 	}
+
+	incrementNotificationTotal(PUSH_NOTIFY_ANDROID, pushType)
 
 	fcmMsg := &fcm.Message{
 		To:       msg.DeviceId,
@@ -71,32 +78,37 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	if len(me.AndroidPushSettings.AndroidApiKey) > 0 {
 		sender, err := fcm.NewClient(me.AndroidPushSettings.AndroidApiKey)
 		if err != nil {
+			incrementFailure(PUSH_NOTIFY_ANDROID, pushType, "invalid ApiKey")
 			return NewErrorPushResponse(err.Error())
 		}
 
 		LogInfo(fmt.Sprintf("Sending android push notification for device=%v and type=%v", me.AndroidPushSettings.Type, msg.Type))
+
 		start := time.Now()
 		resp, err := sender.SendWithRetry(fcmMsg, 2)
-		observeFCMResponse(time.Since(start).Seconds())
+		observerNotificationResponse(PUSH_NOTIFY_ANDROID, time.Since(start).Seconds())
 
 		if err != nil {
 			LogError(fmt.Sprintf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.AndroidPushSettings.Type))
-			incrementFailure(me.AndroidPushSettings.Type)
+			incrementFailure(PUSH_NOTIFY_ANDROID, pushType, "unknown transport error")
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if resp.Failure > 0 {
-			if len(resp.Results) > 0 && (resp.Results[0].Error == fcm.ErrInvalidRegistration || resp.Results[0].Error == fcm.ErrNotRegistered) {
+			fcmError := resp.Results[0].Error
+
+			if fcmError == fcm.ErrInvalidRegistration || fcmError == fcm.ErrNotRegistered || fcmError == fcm.ErrMissingRegistration {
 				LogInfo(fmt.Sprintf("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type))
-				incrementRemoval(me.AndroidPushSettings.Type)
+				incrementRemoval(PUSH_NOTIFY_ANDROID, pushType, fcmError.Error())
 				return NewRemovePushResponse()
 			}
+
 			LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
-			incrementFailure(me.AndroidPushSettings.Type)
-			return NewErrorPushResponse("unknown send response error")
+			incrementFailure(PUSH_NOTIFY_ANDROID, pushType, fcmError.Error())
+			return NewErrorPushResponse(fcmError.Error())
 		}
 	}
 
-	incrementSuccess(me.AndroidPushSettings.Type)
+	incrementSuccess(PUSH_NOTIFY_ANDROID, pushType)
 	return NewOkPushResponse()
 }
