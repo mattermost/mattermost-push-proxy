@@ -90,9 +90,6 @@ func init() {
 	prometheus.MustRegister(metricNotificationsTotal, metricSuccess, metricFailure, metricFailureWithReason, metricRemoval)
 	prometheus.MustRegister(metricBadRequest)
 	prometheus.MustRegister(metricAPNSResponse, metricFCMResponse, metricServiceResponse, metricNotificationResponse)
-
-	//metricNotificationsTotal.WithLabelValues("android", "message")
-	//metricNotificationsTotal.WithLabelValues("android", "clear")
 }
 
 func NewPrometheusHandler() http.Handler {
