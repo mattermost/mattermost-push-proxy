@@ -14,6 +14,7 @@ func TestMetricDisabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
+	pushType := PUSH_TYPE_MESSAGE
 	CfgPP.AndroidPushSettings[0].AndroidApiKey = platform
 	CfgPP.EnableMetrics = false
 	Start()
@@ -24,11 +25,12 @@ func TestMetricDisabled(t *testing.T) {
 	}()
 
 	incrementBadRequest()
-	incrementSuccess(platform)
-	incrementRemoval(platform)
-	incrementFailure(platform)
-	observeAPNSResponse(1)
-	observeFCMResponse(1)
+	incrementNotificationTotal(platform, pushType)
+	incrementSuccess(platform, pushType)
+	incrementRemoval(platform, pushType, "not registered")
+	incrementFailure(platform, pushType, "error")
+	observerNotificationResponse(PUSH_NOTIFY_APPLE, 1)
+	observerNotificationResponse(PUSH_NOTIFY_ANDROID, 1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -50,6 +52,7 @@ func TestMetricEnabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
+	pushType := PUSH_TYPE_MESSAGE
 	CfgPP.AndroidPushSettings[0].AndroidApiKey = platform
 	CfgPP.EnableMetrics = true
 	Start()
@@ -60,11 +63,12 @@ func TestMetricEnabled(t *testing.T) {
 	}()
 
 	incrementBadRequest()
-	incrementSuccess(platform)
-	incrementRemoval(platform)
-	incrementFailure(platform)
-	observeAPNSResponse(1)
-	observeFCMResponse(1)
+	incrementNotificationTotal(platform, pushType)
+	incrementSuccess(platform, pushType)
+	incrementRemoval(platform, pushType, "not registered")
+	incrementFailure(platform, pushType, "error")
+	observerNotificationResponse(PUSH_NOTIFY_APPLE, 1)
+	observerNotificationResponse(PUSH_NOTIFY_ANDROID, 1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -76,23 +80,29 @@ func TestMetricEnabled(t *testing.T) {
 	parser := &expfmt.TextParser{}
 	metrics, _ := parser.TextToMetricFamilies(resp.Body)
 
-	counters := []string{metricSuccessName, metricFailureName, metricBadRequestName}
+	counters := []string{metricSuccessName, metricFailureName, metricFailureWithReasonName, metricRemovalName, metricBadRequestName, metricNotificationsTotalName}
 	for _, cn := range counters {
 		if m, ok := metrics[cn]; !ok {
 			t.Fatalf("metric not found. name: %s", cn)
 		} else {
 			val := m.Metric[0].Counter.Value
+			result := float64(1)
+
+			if cn == metricFailureName {
+				result = float64(2)
+			}
+
 			if val == nil {
 				t.Fatalf("no metric value. name: %s", cn)
 			}
-			if *val != float64(1) {
+			if *val != result {
 				t.Fatalf("metric value does not match. mame: %s, got: %v, expected: %v",
-					cn, *val, 1)
+					cn, *val, result)
 			}
 		}
 	}
 
-	histograms := []string{metricAPNSResponseName, metricFCMResponseName, metricServiceResponseName}
+	histograms := []string{metricAPNSResponseName, metricFCMResponseName, metricServiceResponseName, metricNotificationResponseName}
 	for _, hn := range histograms {
 		if m, ok := metrics[hn]; !ok {
 			t.Fatalf("metric not found. name: %s", hn)

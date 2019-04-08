@@ -46,94 +46,98 @@ func (me *AppleNotificationServer) Initialize() bool {
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+
+	data := payload.NewPayload()
+	data.Badge(msg.Badge)
+
 	notification := &apns.Notification{}
 	notification.DeviceToken = msg.DeviceId
-	payload := payload.NewPayload()
-	notification.Payload = payload
+	notification.Payload = data
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
 
-	payload.Badge(msg.Badge)
-
+	var pushType = msg.Type
 	if msg.Type != PUSH_TYPE_CLEAR {
-		payload.Category(msg.Category)
-		payload.Sound("default")
-		payload.Custom("version", msg.Version)
-		payload.MutableContent()
+		pushType = PUSH_TYPE_MESSAGE
+		data.Category(msg.Category)
+		data.Sound("default")
+		data.Custom("version", msg.Version)
+		data.MutableContent()
 
 		if len(msg.ChannelName) > 0 && msg.Version == "v2" {
-			payload.AlertTitle(msg.ChannelName)
-			payload.AlertBody(emoji.Sprint(msg.Message))
-			payload.Custom("channel_name", msg.ChannelName)
+			data.AlertTitle(msg.ChannelName)
+			data.AlertBody(emoji.Sprint(msg.Message))
+			data.Custom("channel_name", msg.ChannelName)
 		} else {
-			payload.Alert(emoji.Sprint(msg.Message))
+			data.Alert(emoji.Sprint(msg.Message))
 
 			if len(msg.ChannelName) > 0 {
-				payload.Custom("channel_name", msg.ChannelName)
+				data.Custom("channel_name", msg.ChannelName)
 			}
 		}
 	} else {
-		payload.ContentAvailable()
+		data.ContentAvailable()
 	}
 
-	payload.Custom("type", msg.Type)
+	incrementNotificationTotal(PUSH_NOTIFY_APPLE, pushType)
+	data.Custom("type", pushType)
 
 	if len(msg.ChannelId) > 0 {
-		payload.Custom("channel_id", msg.ChannelId)
-		payload.ThreadID(msg.ChannelId)
+		data.Custom("channel_id", msg.ChannelId)
+		data.ThreadID(msg.ChannelId)
 	}
 
 	if len(msg.TeamId) > 0 {
-		payload.Custom("team_id", msg.TeamId)
+		data.Custom("team_id", msg.TeamId)
 	}
 
 	if len(msg.SenderId) > 0 {
-		payload.Custom("sender_id", msg.SenderId)
+		data.Custom("sender_id", msg.SenderId)
 	}
 
 	if len(msg.PostId) > 0 {
-		payload.Custom("post_id", msg.PostId)
+		data.Custom("post_id", msg.PostId)
 	}
 
 	if len(msg.RootId) > 0 {
-		payload.Custom("root_id", msg.RootId)
+		data.Custom("root_id", msg.RootId)
 	}
 
 	if len(msg.OverrideUsername) > 0 {
-		payload.Custom("override_username", msg.OverrideUsername)
+		data.Custom("override_username", msg.OverrideUsername)
 	}
 
 	if len(msg.OverrideIconUrl) > 0 {
-		payload.Custom("override_icon_url", msg.OverrideIconUrl)
+		data.Custom("override_icon_url", msg.OverrideIconUrl)
 	}
 
 	if len(msg.FromWebhook) > 0 {
-		payload.Custom("from_webhook", msg.FromWebhook)
+		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
 	if me.AppleClient != nil {
 		LogInfo(fmt.Sprintf("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type))
 		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
-		observeAPNSResponse(time.Since(start).Seconds())
+		observerNotificationResponse(PUSH_NOTIFY_APPLE, time.Since(start).Seconds())
 		if err != nil {
 			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerId, msg.DeviceId, err, me.ApplePushSettings.Type))
-			incrementFailure(me.ApplePushSettings.Type)
+			incrementFailure(PUSH_NOTIFY_APPLE, pushType, "RequestError")
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if !res.Sent() {
-			if res.Reason == "BadDeviceToken" || res.Reason == "Unregistered" || res.Reason == "MissingDeviceToken" || res.Reason == "DeviceTokenNotForTopic" {
+			if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
 				LogInfo(fmt.Sprintf("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
-				incrementRemoval(me.ApplePushSettings.Type)
+				incrementRemoval(PUSH_NOTIFY_APPLE, pushType, res.Reason)
 				return NewRemovePushResponse()
 			}
 
 			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
-			incrementFailure(me.ApplePushSettings.Type)
+			incrementFailure(PUSH_NOTIFY_APPLE, pushType, res.Reason)
 			return NewErrorPushResponse("unknown send response error")
 		}
 	}
 
-	incrementSuccess(me.ApplePushSettings.Type)
+	incrementSuccess(PUSH_NOTIFY_APPLE, pushType)
 	return NewOkPushResponse()
 }
