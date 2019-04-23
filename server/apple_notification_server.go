@@ -98,6 +98,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("sender_id", msg.SenderId)
 	}
 
+	if len(msg.SenderName) > 0 {
+		data.Custom("sender_name", msg.SenderName)
+	}
+
 	if len(msg.PostId) > 0 {
 		data.Custom("post_id", msg.PostId)
 	}

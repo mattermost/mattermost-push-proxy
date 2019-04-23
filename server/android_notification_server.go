@@ -39,6 +39,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"channel_id":  msg.ChannelId,
 		"team_id":     msg.TeamId,
 		"sender_id":   msg.SenderId,
+		"sender_name": msg.SenderName,
 		"version":     msg.Version,
 	}
 
