@@ -11,6 +11,8 @@ var MetricsEnabled bool
 const (
 	metricNotificationsTotalName   = "service_notifications_total"
 	metricSuccessName              = "service_success_total"
+	metricSuccessWithAckName       = "service_success_with_ack_total"
+	metricDeliveredName            = "service_delivered_total"
 	metricFailureName              = "service_failure_total"
 	metricFailureWithReasonName    = "service_failure_with_reason_total"
 	metricRemovalName              = "service_removal_total"
@@ -33,6 +35,22 @@ var metricSuccess = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: metricSuccessName,
 		Help: "Number of push success.",
+	},
+	[]string{"platform", "type"},
+)
+
+var metricSuccessWithAck = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: metricSuccessWithAckName,
+		Help: "Number of push success that contains ackId.",
+	},
+	[]string{"platform", "type"},
+)
+
+var metricDelivered = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: metricDeliveredName,
+		Help: "Number of push delivered.",
 	},
 	[]string{"platform", "type"},
 )
@@ -87,9 +105,19 @@ var metricServiceResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
 })
 
 func init() {
-	prometheus.MustRegister(metricNotificationsTotal, metricSuccess, metricFailure, metricFailureWithReason, metricRemoval)
-	prometheus.MustRegister(metricBadRequest)
-	prometheus.MustRegister(metricAPNSResponse, metricFCMResponse, metricServiceResponse, metricNotificationResponse)
+	prometheus.MustRegister(
+		metricNotificationsTotal,
+		metricSuccess,
+		metricSuccessWithAck,
+		metricFailure,
+		metricFailureWithReason,
+		metricRemoval,
+		metricBadRequest,
+		metricAPNSResponse,
+		metricFCMResponse,
+		metricServiceResponse,
+		metricNotificationResponse,
+	)
 }
 
 func NewPrometheusHandler() http.Handler {
@@ -105,6 +133,19 @@ func incrementNotificationTotal(platform, pushType string) {
 func incrementSuccess(platform, pushType string) {
 	if MetricsEnabled {
 		metricSuccess.WithLabelValues(platform, pushType).Inc()
+	}
+}
+
+func incrementSuccessWithAck(platform, pushType string) {
+	incrementSuccess(platform, pushType)
+	if MetricsEnabled {
+		metricSuccessWithAck.WithLabelValues(platform, pushType).Inc()
+	}
+}
+
+func incrementDelivered(platform, pushType string) {
+	if MetricsEnabled {
+		metricDelivered.WithLabelValues(platform, pushType).Inc()
 	}
 }
 
