@@ -31,40 +31,26 @@ func (me *AndroidNotificationServer) Initialize() bool {
 }
 
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
-	var data map[string]interface{}
-	var pushType string
+	pushType := msg.Type
+	data := map[string]interface{}{
+		"ack_id":      msg.AckId,
+		"type":        pushType,
+		"badge":       msg.Badge,
+		"channel_id":  msg.ChannelId,
+		"team_id":     msg.TeamId,
+		"sender_id":   msg.SenderId,
+		"sender_name": msg.SenderName,
+		"version":     msg.Version,
+	}
 
-	if msg.Type == PUSH_TYPE_CLEAR {
-		data = map[string]interface{}{
-			"type":              PUSH_TYPE_CLEAR,
-			"badge":             msg.Badge,
-			"channel_id":        msg.ChannelId,
-			"team_id":           msg.TeamId,
-			"sender_id":         msg.SenderId,
-			"override_username": msg.OverrideUsername,
-			"override_icon_url": msg.OverrideIconUrl,
-			"from_webhook":      msg.FromWebhook,
-			"version":           msg.Version,
-		}
-
-		pushType = PUSH_TYPE_CLEAR
-	} else {
-		data = map[string]interface{}{
-			"type":              PUSH_TYPE_MESSAGE,
-			"badge":             msg.Badge,
-			"message":           emoji.Sprint(msg.Message),
-			"channel_id":        msg.ChannelId,
-			"channel_name":      msg.ChannelName,
-			"team_id":           msg.TeamId,
-			"post_id":           msg.PostId,
-			"root_id":           msg.RootId,
-			"sender_id":         msg.SenderId,
-			"override_username": msg.OverrideUsername,
-			"override_icon_url": msg.OverrideIconUrl,
-			"from_webhook":      msg.FromWebhook,
-			"version":           msg.Version,
-		}
-		pushType = PUSH_TYPE_MESSAGE
+	if pushType == PUSH_TYPE_MESSAGE {
+		data["message"] = emoji.Sprint(msg.Message)
+		data["channel_name"] = msg.ChannelName
+		data["post_id"] = msg.PostId
+		data["root_id"] = msg.RootId
+		data["override_username"] = msg.OverrideUsername
+		data["override_icon_url"] = msg.OverrideIconUrl
+		data["from_webhook"] = msg.FromWebhook
 	}
 
 	incrementNotificationTotal(PUSH_NOTIFY_ANDROID, pushType)
@@ -109,6 +95,10 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 
-	incrementSuccess(PUSH_NOTIFY_ANDROID, pushType)
+	if len(msg.AckId) > 0 {
+		incrementSuccessWithAck(PUSH_NOTIFY_ANDROID, pushType)
+	} else {
+		incrementSuccess(PUSH_NOTIFY_ANDROID, pushType)
+	}
 	return NewOkPushResponse()
 }

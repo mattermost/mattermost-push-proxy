@@ -67,15 +67,18 @@ func Start() {
 
 	router.HandleFunc("/", root).Methods("GET")
 
-	metricCompatibleHandler := handleSendNotification
+	metricCompatibleSendNotificationHandler := handleSendNotification
+	metricCompatibleAckNotificationHandler := handleAckNotification
 	if CfgPP.EnableMetrics {
 		MetricsEnabled = true
 		metrics := NewPrometheusHandler()
 		router.Handle("/metrics", metrics).Methods("GET")
-		metricCompatibleHandler = responseTimeMiddleware(handleSendNotification)
+		metricCompatibleSendNotificationHandler = responseTimeMiddleware(handleSendNotification)
+		metricCompatibleAckNotificationHandler = responseTimeMiddleware(handleAckNotification)
 	}
 	r := router.PathPrefix("/api/v1").Subrouter()
-	r.HandleFunc("/send_push", metricCompatibleHandler).Methods("POST")
+	r.HandleFunc("/send_push", metricCompatibleSendNotificationHandler).Methods("POST")
+	r.HandleFunc("/ack", metricCompatibleAckNotificationHandler).Methods("POST")
 
 	go func() {
 		gracefulServer = &graceful.Server{
@@ -151,6 +154,46 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 		incrementBadRequest()
 		return
 	}
+}
+
+func handleAckNotification(w http.ResponseWriter, r *http.Request) {
+	ack := PushNotificationAckFromJson(r.Body)
+
+	if ack == nil {
+		rMsg := LogError("Failed to read ack body")
+		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
+		return
+	}
+
+	if len(ack.Id) == 0 {
+		rMsg := LogError("Failed because of missing ack Id")
+		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
+		return
+	}
+
+	if len(ack.Platform) == 0 {
+		rMsg := LogError("Failed because of missing ack platform")
+		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
+		return
+	}
+
+	if len(ack.Type) == 0 {
+		rMsg := LogError("Failed because of missing ack type")
+		w.Write([]byte(rMsg.ToJson()))
+		incrementBadRequest()
+		return
+	}
+
+	// Increment ACK
+	LogInfo(fmt.Sprintf("Acknowledge delivery receipt for AckId=%v", ack.Id))
+	incrementDelivered(ack.Platform, ack.Type)
+
+	rMsg := NewOkPushResponse()
+	w.Write([]byte(rMsg.ToJson()))
+	return
 }
 
 func LogInfo(msg string) {

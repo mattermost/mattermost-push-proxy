@@ -81,6 +81,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	incrementNotificationTotal(PUSH_NOTIFY_APPLE, pushType)
 	data.Custom("type", pushType)
 
+	if len(msg.AckId) > 0 {
+		data.Custom("ack_id", msg.AckId)
+	}
+
 	if len(msg.ChannelId) > 0 {
 		data.Custom("channel_id", msg.ChannelId)
 		data.ThreadID(msg.ChannelId)
@@ -92,6 +96,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if len(msg.SenderId) > 0 {
 		data.Custom("sender_id", msg.SenderId)
+	}
+
+	if len(msg.SenderName) > 0 {
+		data.Custom("sender_name", msg.SenderName)
 	}
 
 	if len(msg.PostId) > 0 {
@@ -138,6 +146,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 
-	incrementSuccess(PUSH_NOTIFY_APPLE, pushType)
+	if len(msg.AckId) > 0 {
+		incrementSuccessWithAck(PUSH_NOTIFY_APPLE, pushType)
+	} else {
+		incrementSuccess(PUSH_NOTIFY_APPLE, pushType)
+	}
 	return NewOkPushResponse()
 }
