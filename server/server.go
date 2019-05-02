@@ -167,7 +167,6 @@ func handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(ack.Id) == 0 {
-		// TODO: Do we need the ID? we are not really tracking it here
 		rMsg := LogError("Failed because of missing ack Id")
 		w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
