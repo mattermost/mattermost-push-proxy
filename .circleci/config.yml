@@ -97,6 +97,7 @@ workflows:
             branches:
               ignore: /.*/
       - publish-github-release:
+          context: matterbuild-github-token
           requires:
             - build
           filters:
@@ -105,6 +106,7 @@ workflows:
             branches:
               ignore: /.*/
       - push-docker:
+          context: matterbuild-docker
           requires:
             - publish-github-release
           filters:
