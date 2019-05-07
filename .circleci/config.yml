@@ -1,24 +1,71 @@
 version: 2.1
-jobs:
-  lint:
+executors:
+  default:
+    working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
     docker:
       - image: circleci/golang:1.12
 
-    working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
+jobs:
+  lint:
+    executor:
+      name: default
     steps:
       - checkout
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: make check-style
 
   test:
-    docker:
-      - image: circleci/golang:1.12
-
-    working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
+    executor:
+      name: default
     steps:
       - checkout
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: make test
+
+  build:
+    executor:
+      name: default
+    steps:
+      - checkout
+      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run: make build-server
+      - run: make package
+      - persist_to_workspace:
+          root: .
+          paths: ./dist/mattermost-push-proxy.tar.gz
+
+  publish-github-release:
+    docker:
+      - image: cibuilds/github:0.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${CIRCLE_TAG} ./dist/mattermost-push-proxy.tar.gz
+
+  push-docker:
+    executor:
+      name: default
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+          set -e
+          set -u
+          if [[ -z "${CIRCLE_TAG:-}" ]]; then
+            echo "not a tag, aborting..."
+            exit 1
+          else
+            echo "Pushing release $CIRCLE_TAG..."
+            TAG="${CIRCLE_TAG//v}"
+          fi
+          APP_VERSION=$TAG
+          cd docker
+          docker build --rm --no-cache -t mattermost/mattermost-push-proxy:$TAG .
+          echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+          docker push mattermost/mattermost-push-proxy:$TAG
 
 workflows:
   version: 2
@@ -26,3 +73,42 @@ workflows:
     jobs:
       - lint
       - test
+  tagged-build:
+    jobs:
+      - lint:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - build:
+          requires:
+            - lint
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - publish-github-release:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - push-docker:
+          requires:
+            - publish-github-release
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
