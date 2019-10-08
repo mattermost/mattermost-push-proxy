@@ -56,7 +56,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
 
 	var pushType = msg.Type
-	if msg.Type != PUSH_TYPE_CLEAR {
+	switch msg.Type {
+	case PUSH_TYPE_MESSAGE:
 		pushType = PUSH_TYPE_MESSAGE
 		data.Category(msg.Category)
 		data.Sound("default")
@@ -74,8 +75,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 				data.Custom("channel_name", msg.ChannelName)
 			}
 		}
-	} else {
+	case PUSH_TYPE_CLEAR:
 		data.ContentAvailable()
+	case PUSH_TYPE_UPDATE_BADGE:
+		// Handled by the apps, nothing else to do here
 	}
 
 	incrementNotificationTotal(PUSH_NOTIFY_APPLE, pushType)

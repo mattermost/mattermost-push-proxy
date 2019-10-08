@@ -11,8 +11,14 @@ import (
 const (
 	PUSH_NOTIFY_APPLE   = "apple"
 	PUSH_NOTIFY_ANDROID = "android"
-	PUSH_TYPE_MESSAGE   = "message"
-	PUSH_TYPE_CLEAR     = "clear"
+
+	PUSH_TYPE_MESSAGE      = "message"
+	PUSH_TYPE_CLEAR        = "clear"
+	PUSH_TYPE_UPDATE_BADGE = "update_badge"
+
+	PUSH_MESSAGE_V2 = "v2"
+
+	PUSH_SOUND_NONE = "none"
 )
 
 type PushNotificationAck struct {
