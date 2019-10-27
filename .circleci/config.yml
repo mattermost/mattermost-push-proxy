@@ -63,9 +63,10 @@ jobs:
           fi
           APP_VERSION=$TAG
           cd docker
-          docker build --rm --no-cache -t jaydeland/mattermost-push-proxy:latest -t jaydeland/mattermost-push-proxy:$TAG .
+          docker build --rm --no-cache -t jaydeland/mattermost-push-proxy:$TAG .
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           docker push jaydeland/mattermost-push-proxy:$TAG
+          docker push jaydeland/mattermost-push-proxy:latest
 
 workflows:
   version: 2
