@@ -63,9 +63,9 @@ jobs:
           fi
           APP_VERSION=$TAG
           cd docker
-          docker build --rm --no-cache -t jaydeland/mattermost-push-proxy:latest -t jaydeland/mattermost-push-proxy:$TAG .
+          docker build --rm --no-cache -t mattermost/mattermost-push-proxy:latest -t mattermost/mattermost-push-proxy:$TAG .
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
-          docker push jaydeland/mattermost-push-proxy
+          docker push mattermost/mattermost-push-proxy
 
 workflows:
   version: 2
@@ -97,7 +97,7 @@ workflows:
             branches:
               ignore: /.*/
       - publish-github-release:
-          # context: matterbuild-github-token
+          context: matterbuild-github-token
           requires:
             - build
           filters:
@@ -106,7 +106,7 @@ workflows:
             branches:
               ignore: /.*/
       - push-docker:
-          # context: matterbuild-docker
+          context: matterbuild-docker
           requires:
             - publish-github-release
           filters:
