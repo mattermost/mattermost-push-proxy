@@ -5,6 +5,7 @@ GOFLAGS ?= $(GOFLAGS:)
 BUILD_NUMBER ?= $(BUILD_NUMBER:)
 BUILD_DATE = $(shell date -u)
 BUILD_HASH = $(shell git rev-parse HEAD)
+CC_FOR_TARGET ?= "x86_64-linux-musl-gcc"
 
 GO=go
 

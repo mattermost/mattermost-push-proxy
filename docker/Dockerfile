@@ -6,7 +6,6 @@ ENV PATH="/mattermost-push-proxy/bin:${PATH}"
 # Install some needed packages
 RUN apk update \
     && apk add \
-      libc6-compat \
       netcat-openbsd \
       ca-certificates \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
