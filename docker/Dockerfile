@@ -1,4 +1,4 @@
-FROM alpine:3.10.3
+FROM alpine:3.10
 
 ENV APP_VERSION=5.9.0
 ENV PATH="/mattermost-push-proxy/bin:${PATH}"
