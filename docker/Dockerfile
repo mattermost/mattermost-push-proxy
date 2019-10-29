@@ -4,7 +4,7 @@ ENV APP_VERSION=5.9.0
 ENV PATH="/mattermost-push-proxy/bin:${PATH}"
 
 # Install some needed packages
-RUN apk update \
+RUN apk add --no-cache\
     && apk add \
       netcat-openbsd \
       ca-certificates \
