@@ -5,10 +5,8 @@ ENV PATH="/mattermost-push-proxy/bin:${PATH}"
 
 # Install some needed packages
 RUN apk add --no-cache\
-    && apk add \
       netcat-openbsd \
-      ca-certificates \
-    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
+      ca-certificates
 
 RUN mkdir -p /mattermost-push-proxy \
     && cd /mattermost-push-proxy \
