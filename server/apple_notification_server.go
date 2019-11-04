@@ -57,6 +57,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	var pushType = msg.Type
 	switch msg.Type {
+	case PUSH_TYPE_ID_LOADED:
+		data.MutableContent()
 	case PUSH_TYPE_MESSAGE:
 		pushType = PUSH_TYPE_MESSAGE
 		data.Category(msg.Category)
