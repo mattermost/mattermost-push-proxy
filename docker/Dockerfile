@@ -1,16 +1,12 @@
-FROM ubuntu:18.04
+FROM alpine:3.10
 
 ENV APP_VERSION=5.9.0
 ENV PATH="/mattermost-push-proxy/bin:${PATH}"
 
 # Install some needed packages
-RUN apt-get update \
-    && apt-get -y --no-install-recommends install \
-      curl \
-      wget \
-      netcat \
-      ca-certificates \
-    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin
+RUN apk add --no-cache\
+      netcat-openbsd \
+      ca-certificates
 
 RUN mkdir -p /mattermost-push-proxy \
     && cd /mattermost-push-proxy \
