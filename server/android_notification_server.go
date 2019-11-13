@@ -33,18 +33,16 @@ func (me *AndroidNotificationServer) Initialize() bool {
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	pushType := msg.Type
 	data := map[string]interface{}{
-		"ack_id":  msg.AckId,
-		"type":    pushType,
-		"badge":   msg.Badge,
-		"version": msg.Version,
+		"ack_id":     msg.AckId,
+		"type":       pushType,
+		"badge":      msg.Badge,
+		"version":    msg.Version,
+		"channel_id": msg.ChannelId,
 	}
 
 	if pushType == PUSH_TYPE_ID_LOADED {
 		data["post_id"] = msg.PostId
-	} else if pushType == PUSH_TYPE_CLEAR {
-		data["channel_id"] = msg.ChannelId
 	} else if pushType == PUSH_TYPE_MESSAGE {
-		data["channel_id"] = msg.ChannelId
 		data["team_id"] = msg.TeamId
 		data["sender_id"] = msg.SenderId
 		data["sender_name"] = msg.SenderName
