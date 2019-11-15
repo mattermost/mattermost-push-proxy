@@ -62,6 +62,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Sound("default")
 		data.Custom("version", msg.Version)
 		data.MutableContent()
+		data.AlertBody(msg.Message)
 	case PUSH_TYPE_MESSAGE:
 		data.Category(msg.Category)
 		data.Sound("default")
