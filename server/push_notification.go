@@ -12,6 +12,7 @@ const (
 	PUSH_NOTIFY_APPLE   = "apple"
 	PUSH_NOTIFY_ANDROID = "android"
 
+	PUSH_TYPE_ID_LOADED    = "id_loaded"
 	PUSH_TYPE_MESSAGE      = "message"
 	PUSH_TYPE_CLEAR        = "clear"
 	PUSH_TYPE_UPDATE_BADGE = "update_badge"
