@@ -42,6 +42,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	if pushType == PUSH_TYPE_ID_LOADED {
 		data["post_id"] = msg.PostId
+		data["message"] = msg.Message
 	} else if pushType == PUSH_TYPE_MESSAGE {
 		data["team_id"] = msg.TeamId
 		data["sender_id"] = msg.SenderId
