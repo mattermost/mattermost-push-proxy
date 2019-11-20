@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/appleboy/go-fcm"
+	fcm "github.com/appleboy/go-fcm"
 	"github.com/kyokomi/emoji"
 )
 
@@ -40,9 +40,12 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"channel_id": msg.ChannelId,
 	}
 
-	if pushType == PUSH_TYPE_ID_LOADED {
+	if msg.IsIdLoaded {
 		data["post_id"] = msg.PostId
 		data["message"] = msg.Message
+		data["id_loaded"] = true
+		data["sender_id"] = msg.SenderId
+		data["sender_name"] = "Someone"
 	} else if pushType == PUSH_TYPE_MESSAGE {
 		data["team_id"] = msg.TeamId
 		data["sender_id"] = msg.SenderId

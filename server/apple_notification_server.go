@@ -56,34 +56,37 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
 
 	var pushType = msg.Type
-	switch msg.Type {
-	case PUSH_TYPE_ID_LOADED:
+	if msg.IsIdLoaded {
 		data.Category(msg.Category)
 		data.Sound("default")
 		data.Custom("version", msg.Version)
+		data.Custom("id_loaded", true)
 		data.MutableContent()
 		data.AlertBody(msg.Message)
-	case PUSH_TYPE_MESSAGE:
-		data.Category(msg.Category)
-		data.Sound("default")
-		data.Custom("version", msg.Version)
-		data.MutableContent()
+	} else {
+		switch msg.Type {
+		case PUSH_TYPE_MESSAGE:
+			data.Category(msg.Category)
+			data.Sound("default")
+			data.Custom("version", msg.Version)
+			data.MutableContent()
 
-		if len(msg.ChannelName) > 0 && msg.Version == "v2" {
-			data.AlertTitle(msg.ChannelName)
-			data.AlertBody(emoji.Sprint(msg.Message))
-			data.Custom("channel_name", msg.ChannelName)
-		} else {
-			data.Alert(emoji.Sprint(msg.Message))
-
-			if len(msg.ChannelName) > 0 {
+			if len(msg.ChannelName) > 0 && msg.Version == "v2" {
+				data.AlertTitle(msg.ChannelName)
+				data.AlertBody(emoji.Sprint(msg.Message))
 				data.Custom("channel_name", msg.ChannelName)
+			} else {
+				data.Alert(emoji.Sprint(msg.Message))
+
+				if len(msg.ChannelName) > 0 {
+					data.Custom("channel_name", msg.ChannelName)
+				}
 			}
+		case PUSH_TYPE_CLEAR:
+			data.ContentAvailable()
+		case PUSH_TYPE_UPDATE_BADGE:
+			// Handled by the apps, nothing else to do here
 		}
-	case PUSH_TYPE_CLEAR:
-		data.ContentAvailable()
-	case PUSH_TYPE_UPDATE_BADGE:
-		// Handled by the apps, nothing else to do here
 	}
 
 	incrementNotificationTotal(PUSH_NOTIFY_APPLE, pushType)
