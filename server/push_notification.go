@@ -12,7 +12,6 @@ const (
 	PUSH_NOTIFY_APPLE   = "apple"
 	PUSH_NOTIFY_ANDROID = "android"
 
-	PUSH_TYPE_ID_LOADED    = "id_loaded"
 	PUSH_TYPE_MESSAGE      = "message"
 	PUSH_TYPE_CLEAR        = "clear"
 	PUSH_TYPE_UPDATE_BADGE = "update_badge"
@@ -51,6 +50,7 @@ type PushNotification struct {
 	OverrideIconUrl  string `json:"override_icon_url"`
 	FromWebhook      string `json:"from_webhook"`
 	Version          string `json:"version"`
+	IsIdLoaded       bool   `json:"is_id_loaded"`
 }
 
 func (me *PushNotification) ToJson() string {
