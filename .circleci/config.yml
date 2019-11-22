@@ -1,4 +1,8 @@
 version: 2.1
+
+orbs:
+  aws-s3: circleci/aws-s3@1.0.11
+
 executors:
   default:
     working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
@@ -41,6 +45,25 @@ jobs:
           name: "Publish Release on GitHub"
           command: |
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${CIRCLE_TAG} ./dist/mattermost-push-proxy.tar.gz
+
+  publish-release-s3:
+    docker:
+    - image: 'circleci/python:2.7'
+    steps:
+      - attach_workspace:
+          at: .
+      - run: |
+          set -e
+          set -u
+          if [[ -z "${CIRCLE_TAG:-}" ]]; then
+            echo "not a tag, aborting..."
+            exit 1
+          fi
+      - aws-s3/copy:
+          from: ./dist/mattermost-push-proxy.tar.gz
+          to: s3://releases.mattermost.com/mattermost-push-proxy/$CIRCLE_TAG/
+          arguments: --acl public-read --cache-control "no-cache"
+
 
   push-docker:
     executor:
@@ -95,6 +118,15 @@ workflows:
               ignore: /.*/
       - publish-github-release:
           context: matterbuild-github-token
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - publish-release-s3:
+          context: mattermost-ci-s3
           requires:
             - build
           filters:
