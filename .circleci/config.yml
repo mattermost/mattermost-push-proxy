@@ -126,7 +126,7 @@ workflows:
             branches:
               ignore: /.*/
       - publish-release-s3:
-          context: mattermost-ci-s3
+          context: mattermost-release-s3
           requires:
             - build
           filters:
