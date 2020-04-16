@@ -1,6 +1,6 @@
-.PHONY: all dist build-server package test clean run update-dependencies-after-release gofmt govet check-style
+.PHONY: all dist build-server package test clean run update-dependencies gofmt govet check-style
 
-GOPATH ?= $(GOPATH:)
+GOPATH ?= $(HOME)/go
 GOFLAGS ?= $(GOFLAGS:)
 BUILD_NUMBER ?= $(BUILD_NUMBER:)
 BUILD_DATE = $(shell date -u)
@@ -24,18 +24,15 @@ check-style: gofmt govet
 
 dist: | gofmt govet build-server test package
 
-update-dependencies-after-release:
-	@echo Run this to updated the go lang dependencies after a major release
-	dep ensure -update
+update-dependencies:
+	$(go) get -u ./...
+	$(go) mod tidy
 
 build-server: gofmt govet
 	@echo Building proxy push server
 
-	rm -Rf $(DIST_ROOT)
-	$(GO) clean $(GOFLAGS) -i ./...
-
-	$(GO) build $(GOFLAGS) ./...
-	$(GO) install $(GOFLAGS) ./...
+	$(GO) build $(GOFLAGS)
+	$(GO) install $(GOFLAGS)
 
 gofmt:
 	@echo GOFMT

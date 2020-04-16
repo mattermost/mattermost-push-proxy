@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var MetricsEnabled bool
@@ -121,7 +122,7 @@ func init() {
 }
 
 func NewPrometheusHandler() http.Handler {
-	return prometheus.Handler()
+	return promhttp.Handler()
 }
 
 func incrementNotificationTotal(platform, pushType string) {
