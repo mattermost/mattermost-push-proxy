@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -36,6 +37,15 @@ var gracefulServer *graceful.Server
 
 func Start() {
 	LogInfo("Push proxy server is initializing...")
+
+	if CfgPP.ProxyServer != "" {
+		LogInfo(fmt.Sprintf("Proxy server detected. Routing all requests through: %s", CfgPP.ProxyServer))
+		if strings.HasPrefix(CfgPP.ProxyServer, "https") {
+			os.Setenv("HTTPS_PROXY", CfgPP.ProxyServer)
+		} else {
+			os.Setenv("HTTP_PROXY", CfgPP.ProxyServer)
+		}
+	}
 
 	for _, settings := range CfgPP.ApplePushSettings {
 		server := NewAppleNotificationServer(settings)
