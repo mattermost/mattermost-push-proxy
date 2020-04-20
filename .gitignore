@@ -65,3 +65,6 @@ tags
 *.pem
 *.cer
 *.p12
+
+# Ignore binary
+/mattermost-push-proxy
