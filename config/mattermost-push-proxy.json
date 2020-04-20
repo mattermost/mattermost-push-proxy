@@ -4,7 +4,6 @@
     "ThrottleMemoryStoreSize":50000,
     "ThrottleVaryByHeader":"X-Forwarded-For",
     "EnableMetrics": false,
-    "ProxyServer": "",
     "ApplePushSettings":[
         {
             "Type":"apple",

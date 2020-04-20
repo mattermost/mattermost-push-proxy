@@ -43,7 +43,8 @@ func (me *AppleNotificationServer) Initialize() bool {
 		}
 
 		// Override the native transport.
-		if CfgPP.ProxyServer != "" {
+		proxyServer := getProxyServer()
+		if proxyServer != "" {
 			tlsConfig := &tls.Config{
 				Certificates: []tls.Certificate{appleCert},
 			}
@@ -55,7 +56,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 			transport := &http.Transport{
 				TLSClientConfig: tlsConfig,
 				Proxy: func(request *http.Request) (*url.URL, error) {
-					return url.Parse(CfgPP.ProxyServer)
+					return url.Parse(proxyServer)
 				},
 				IdleConnTimeout: apns.HTTPClientTimeout,
 			}

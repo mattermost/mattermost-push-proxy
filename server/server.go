@@ -38,13 +38,9 @@ var gracefulServer *graceful.Server
 func Start() {
 	LogInfo("Push proxy server is initializing...")
 
-	if CfgPP.ProxyServer != "" {
-		LogInfo(fmt.Sprintf("Proxy server detected. Routing all requests through: %s", CfgPP.ProxyServer))
-		if strings.HasPrefix(CfgPP.ProxyServer, "https") {
-			os.Setenv("HTTPS_PROXY", CfgPP.ProxyServer)
-		} else {
-			os.Setenv("HTTP_PROXY", CfgPP.ProxyServer)
-		}
+	proxyServer := getProxyServer()
+	if proxyServer != "" {
+		LogInfo(fmt.Sprintf("Proxy server detected. Routing all requests through: %s", proxyServer))
 	}
 
 	for _, settings := range CfgPP.ApplePushSettings {
@@ -236,4 +232,13 @@ func GetIpAddress(r *http.Request) string {
 	}
 
 	return address
+}
+
+func getProxyServer() string {
+	// HTTPS_PROXY gets the higher priority.
+	proxyServer := os.Getenv("HTTPS_PROXY")
+	if proxyServer == "" {
+		proxyServer = os.Getenv("HTTP_PROXY")
+	}
+	return proxyServer
 }
