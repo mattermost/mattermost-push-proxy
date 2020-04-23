@@ -4,13 +4,17 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/kyokomi/emoji"
 	apns "github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
+	"golang.org/x/net/http2"
 )
 
 type AppleNotificationServer struct {
@@ -36,6 +40,33 @@ func (me *AppleNotificationServer) Initialize() bool {
 			me.AppleClient = apns.NewClient(appleCert).Development()
 		} else {
 			me.AppleClient = apns.NewClient(appleCert).Production()
+		}
+
+		// Override the native transport.
+		proxyServer := getProxyServer()
+		if proxyServer != "" {
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{appleCert},
+			}
+
+			if len(appleCert.Certificate) > 0 {
+				tlsConfig.BuildNameToCertificate()
+			}
+
+			transport := &http.Transport{
+				TLSClientConfig: tlsConfig,
+				Proxy: func(request *http.Request) (*url.URL, error) {
+					return url.Parse(proxyServer)
+				},
+				IdleConnTimeout: apns.HTTPClientTimeout,
+			}
+			err := http2.ConfigureTransport(transport)
+			if err != nil {
+				LogError(fmt.Sprintf("Transport Error: %v", err))
+				return false
+			}
+
+			me.AppleClient.HTTPClient.Transport = transport
 		}
 
 		return true
