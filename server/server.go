@@ -117,7 +117,7 @@ func Stop() {
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
+	_, _ = w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
 }
 
 func responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -133,21 +133,21 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 
 	if msg == nil {
 		rMsg := LogError("Failed to read message body")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
-	if len(msg.ServerId) == 0 {
+	if len(msg.ServerID) == 0 {
 		rMsg := LogError("Failed because of missing server Id")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
-	if len(msg.DeviceId) == 0 {
-		rMsg := LogError(fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId))
-		w.Write([]byte(rMsg.ToJson()))
+	if len(msg.DeviceID) == 0 {
+		rMsg := LogError(fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerID))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
@@ -158,54 +158,53 @@ func handleSendNotification(w http.ResponseWriter, r *http.Request) {
 
 	if server, ok := servers[msg.Platform]; ok {
 		rMsg := server.SendNotification(msg)
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		return
 	} else {
-		rMsg := LogError(fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerId))
-		w.Write([]byte(rMsg.ToJson()))
+		rMsg := LogError(fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerID))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 }
 
 func handleAckNotification(w http.ResponseWriter, r *http.Request) {
-	ack := PushNotificationAckFromJson(r.Body)
+	ack := PushNotificationAckFromJSON(r.Body)
 
 	if ack == nil {
 		rMsg := LogError("Failed to read ack body")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
-	if len(ack.Id) == 0 {
+	if len(ack.ID) == 0 {
 		rMsg := LogError("Failed because of missing ack Id")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
 	if len(ack.Platform) == 0 {
 		rMsg := LogError("Failed because of missing ack platform")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
 	if len(ack.Type) == 0 {
 		rMsg := LogError("Failed because of missing ack type")
-		w.Write([]byte(rMsg.ToJson()))
+		_, _ = w.Write([]byte(rMsg.ToJson()))
 		incrementBadRequest()
 		return
 	}
 
 	// Increment ACK
-	LogInfo(fmt.Sprintf("Acknowledge delivery receipt for AckId=%v", ack.Id))
+	LogInfo(fmt.Sprintf("Acknowledge delivery receipt for AckId=%v", ack.ID))
 	incrementDelivered(ack.Platform, ack.Type)
 
 	rMsg := NewOkPushResponse()
-	w.Write([]byte(rMsg.ToJson()))
-	return
+	_, _ = w.Write([]byte(rMsg.ToJson()))
 }
 
 func LogInfo(msg string) {
@@ -228,13 +227,17 @@ func Log(level string, msg string) {
 
 func GetIpAddress(r *http.Request) string {
 	address := r.Header.Get(HEADER_FORWARDED)
+	var err error
 
 	if len(address) == 0 {
 		address = r.Header.Get(HEADER_REAL_IP)
 	}
 
 	if len(address) == 0 {
-		address, _, _ = net.SplitHostPort(r.RemoteAddr)
+		address, _, err = net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			LogError(fmt.Sprintf("error in getting IP address: %v", err))
+		}
 	}
 
 	return address

@@ -29,7 +29,7 @@ type ApplePushSettings struct {
 
 type AndroidPushSettings struct {
 	Type          string
-	AndroidApiKey string
+	AndroidAPIKey string `json:"AndroidApiKey"`
 }
 
 var CfgPP *ConfigPushProxy = &ConfigPushProxy{}

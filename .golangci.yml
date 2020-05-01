@@ -1,0 +1,33 @@
+run:
+  timeout: 5m
+
+linters-settings:
+  gofmt:
+    simplify: true
+  govet:
+    check-shadowing: true
+    enable-all: true
+
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - gofmt
+    # - golint Enable it later.
+    - gosimple
+    - govet
+    - ineffassign
+    - scopelint
+    - structcheck
+    - unconvert
+    - unused
+    - varcheck
+    - errcheck
+    - staticcheck
+
+issues:
+  exclude-rules:
+    - linters:
+      - scopelint
+      # ignore warnings from table tests. https://github.com/kyoh86/scopelint/issues/4
+      path: ".*_test.go"
