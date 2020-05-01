@@ -1,13 +1,7 @@
 
 logs
 .DS_Store
-node_modules
 dist
-npm-debug.log
-
-web/static/js/bundle*.js
-web/static/js/bundle*.js.map
-web/static/js/libs*.js
 
 # Build Targets
 .prebuild
@@ -26,12 +20,6 @@ _test
 # Architecture specific extensions/prefixes
 [568vq].out
 
-*.cgo1.go
-*.cgo2.c
-_cgo_defun.c
-_cgo_gotypes.go
-_cgo_export.*
-
 _testmain.go
 
 *.exe
@@ -40,18 +28,9 @@ _testmain.go
 
 # Log files
 *mattermost.log
-*npm-debug.log*
 
 # Vim temporary files
 *.swp
-
-# Build files
-*bundle.js
-
-web/sass-files/sass/.sass-cache/
-*config.codekit
-*.sass-cache
-*styles.css
 
 # Default local file storage
 data/*

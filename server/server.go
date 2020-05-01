@@ -26,6 +26,12 @@ const (
 	CONNECTION_TIMEOUT_SECONDS = 60
 )
 
+var (
+	BuildNumber string
+	BuildDate   string
+	BuildHash   string
+)
+
 type NotificationServer interface {
 	SendNotification(msg *PushNotification) PushResponse
 	Initialize() bool
@@ -36,7 +42,7 @@ var servers map[string]NotificationServer = make(map[string]NotificationServer)
 var gracefulServer *graceful.Server
 
 func Start() {
-	LogInfo("Push proxy server is initializing...")
+	LogInfo(fmt.Sprintf("Push proxy server is initializing. BuildNumber: %s, BuildDate: %s, BuildHash: %s", BuildNumber, BuildDate, BuildHash))
 
 	proxyServer := getProxyServer()
 	if proxyServer != "" {
