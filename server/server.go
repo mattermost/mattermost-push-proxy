@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/tylerb/graceful"
 	"gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 )
@@ -39,7 +39,7 @@ type NotificationServer interface {
 
 var servers map[string]NotificationServer = make(map[string]NotificationServer)
 
-var gracefulServer *graceful.Server
+var server *http.Server
 
 func Start() {
 	LogInfo(fmt.Sprintf("Push proxy server is initializing. BuildNumber: %s, BuildDate: %s, BuildHash: %s", BuildNumber, BuildDate, BuildHash))
@@ -92,18 +92,15 @@ func Start() {
 	r.HandleFunc("/send_push", metricCompatibleSendNotificationHandler).Methods("POST")
 	r.HandleFunc("/ack", metricCompatibleAckNotificationHandler).Methods("POST")
 
+	server = &http.Server{
+		Addr:         CfgPP.ListenAddress,
+		Handler:      handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(handler),
+		ReadTimeout:  time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
+		WriteTimeout: time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
+	}
 	go func() {
-		gracefulServer = &graceful.Server{
-			Timeout: WAIT_FOR_SERVER_SHUTDOWN,
-			Server: &http.Server{
-				Addr:         CfgPP.ListenAddress,
-				Handler:      handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(handler),
-				ReadTimeout:  time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
-				WriteTimeout: time.Duration(CONNECTION_TIMEOUT_SECONDS) * time.Second,
-			},
-		}
-		err := gracefulServer.ListenAndServe()
-		if err != nil {
+		err := server.ListenAndServe()
+		if err != http.ErrServerClosed {
 			LogCritical(err.Error())
 		}
 	}()
@@ -113,7 +110,13 @@ func Start() {
 
 func Stop() {
 	LogInfo("Stopping Server...")
-	gracefulServer.Stop(WAIT_FOR_SERVER_SHUTDOWN)
+	ctx, cancel := context.WithTimeout(context.Background(), WAIT_FOR_SERVER_SHUTDOWN)
+	defer cancel()
+	// Close shop
+	err := server.Shutdown(ctx)
+	if err != nil {
+		LogError(err.Error())
+	}
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
