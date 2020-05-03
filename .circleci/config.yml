@@ -7,7 +7,7 @@ executors:
   default:
     working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
     docker:
-      - image: circleci/golang:1.13
+      - image: mattermost/mattermost-build-server:20200322_golang-1.14.1
 
 jobs:
   lint:
