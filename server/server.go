@@ -64,7 +64,6 @@ func Start() {
 	}
 
 	router := mux.NewRouter()
-	var handler http.Handler = router
 	vary := throttled.VaryBy{}
 	vary.RemoteAddr = false
 	vary.Headers = strings.Fields(CfgPP.ThrottleVaryByHeader)
@@ -75,7 +74,7 @@ func Start() {
 		throttled.DefaultDeniedHandler.ServeHTTP(w, r)
 	})
 
-	handler = th.Throttle(router)
+	handler := th.Throttle(router)
 
 	router.HandleFunc("/", root).Methods("GET")
 
