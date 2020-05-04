@@ -1,22 +1,24 @@
 .PHONY: all dist build-server package test clean run update-dependencies gofmt govet check-style
 
-GOPATH ?= $(HOME)/go
 GOFLAGS ?= $(GOFLAGS:)
 BUILD_NUMBER ?= $(BUILD_NUMBER:)
 BUILD_DATE = $(shell date -u)
 BUILD_HASH = $(shell git rev-parse HEAD)
-CC_FOR_TARGET ?= "x86_64-linux-musl-gcc"
+LDFLAGS ?= $(LDFLAGS:)
 
+export GOBIN = $(PWD)/bin
 GO=go
 
 ifeq ($(BUILD_NUMBER),)
 	BUILD_NUMBER := dev
 endif
 
+LDFLAGS += -X "github.com/mattermost/mattermost-push-proxy/server.BuildNumber=$(BUILD_NUMBER)"
+LDFLAGS += -X "github.com/mattermost/mattermost-push-proxy/server.BuildDate=$(BUILD_DATE)"
+LDFLAGS += -X "github.com/mattermost/mattermost-push-proxy/server.BuildHash=$(BUILD_HASH)"
+
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
-
-TESTS=.
 
 all: dist
 
@@ -25,14 +27,13 @@ check-style: gofmt govet
 dist: | gofmt govet build-server test package
 
 update-dependencies:
-	$(go) get -u ./...
-	$(go) mod tidy
+	$(GO) get -u ./...
+	$(GO) mod tidy
 
 build-server: gofmt govet
 	@echo Building proxy push server
 
-	$(GO) build $(GOFLAGS)
-	$(GO) install $(GOFLAGS)
+	$(GO) build -o $(GOBIN) -ldflags '$(LDFLAGS)' $(GOFLAGS)
 
 gofmt:
 	@echo GOFMT
@@ -47,16 +48,16 @@ gofmt:
 
 govet:
 	@echo Running govet
-	$(GO) get golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+	env GO111MODULE=off $(GO) get golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
 	$(GO) vet $$(go list ./...) .
-	$(GO) vet -vettool=$(GOPATH)/bin/shadow $$(go list ./...)
+	$(GO) vet -vettool=$(GOBIN)/shadow $$(go list ./...)
 	@echo Govet success
 
 package:
 	@ echo Packaging push proxy
 
 	mkdir -p $(DIST_PATH)/bin
-	cp $(GOPATH)/bin/mattermost-push-proxy $(DIST_PATH)/bin
+	cp $(GOBIN)/mattermost-push-proxy $(DIST_PATH)/bin
 
 	cp -RL config $(DIST_PATH)/config
 	touch $(DIST_PATH)/config/build.txt
@@ -71,7 +72,7 @@ package:
 	tar -C dist -czf $(DIST_PATH).tar.gz mattermost-push-proxy
 
 test:
-	$(GO) test $(GOFLAGS) -run=$(TESTS) -test.v -test.timeout=180s ./server || exit 1
+	$(GO) test $(GOFLAGS) -v -timeout=180s ./...
 
 clean:
 	@echo Cleaning
@@ -80,4 +81,4 @@ clean:
 
 run:
 	@echo Starting go web server
-	$(GO) run $(GOFLAGS) main.go
+	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' main.go
