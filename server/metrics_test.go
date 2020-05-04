@@ -14,8 +14,8 @@ func TestMetricDisabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
-	pushType := PUSH_TYPE_MESSAGE
-	CfgPP.AndroidPushSettings[0].AndroidApiKey = platform
+	pushType := PushTypeMessage
+	CfgPP.AndroidPushSettings[0].AndroidAPIKey = platform
 	CfgPP.EnableMetrics = false
 	Start()
 	time.Sleep(time.Second * 2)
@@ -29,8 +29,8 @@ func TestMetricDisabled(t *testing.T) {
 	incrementSuccess(platform, pushType)
 	incrementRemoval(platform, pushType, "not registered")
 	incrementFailure(platform, pushType, "error")
-	observerNotificationResponse(PUSH_NOTIFY_APPLE, 1)
-	observerNotificationResponse(PUSH_NOTIFY_ANDROID, 1)
+	observerNotificationResponse(PushNotifyApple, 1)
+	observerNotificationResponse(PushNotifyAndroid, 1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -52,8 +52,8 @@ func TestMetricEnabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
-	pushType := PUSH_TYPE_MESSAGE
-	CfgPP.AndroidPushSettings[0].AndroidApiKey = platform
+	pushType := PushTypeMessage
+	CfgPP.AndroidPushSettings[0].AndroidAPIKey = platform
 	CfgPP.EnableMetrics = true
 	Start()
 	time.Sleep(time.Second * 2)
@@ -67,8 +67,8 @@ func TestMetricEnabled(t *testing.T) {
 	incrementSuccess(platform, pushType)
 	incrementRemoval(platform, pushType, "not registered")
 	incrementFailure(platform, pushType, "error")
-	observerNotificationResponse(PUSH_NOTIFY_APPLE, 1)
-	observerNotificationResponse(PUSH_NOTIFY_ANDROID, 1)
+	observerNotificationResponse(PushNotifyApple, 1)
+	observerNotificationResponse(PushNotifyAndroid, 1)
 	observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")

@@ -1,4 +1,4 @@
-.PHONY: all dist build-server package test clean run update-dependencies gofmt govet check-style
+.PHONY: all dist build-server package test clean run update-dependencies gofmt govet golangci-lint
 
 GOFLAGS ?= $(GOFLAGS:)
 BUILD_NUMBER ?= $(BUILD_NUMBER:)
@@ -20,9 +20,9 @@ LDFLAGS += -X "github.com/mattermost/mattermost-push-proxy/server.BuildHash=$(BU
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
 
-all: dist
+include build/*.mk
 
-check-style: gofmt govet
+all: dist
 
 dist: | gofmt govet build-server test package
 
@@ -30,28 +30,20 @@ update-dependencies:
 	$(GO) get -u ./...
 	$(GO) mod tidy
 
-build-server: gofmt govet
+build-server: gofmt golangci-lint
 	@echo Building proxy push server
 
 	$(GO) build -o $(GOBIN) -ldflags '$(LDFLAGS)' $(GOFLAGS)
 
-gofmt:
-	@echo GOFMT
-	$(eval GOFMT_OUTPUT := $(shell gofmt -d -s server/ main.go 2>&1))
-	@echo "$(GOFMT_OUTPUT)"
-	@if [ ! "$(GOFMT_OUTPUT)" ]; then \
-		echo "gofmt sucess"; \
-	else \
-		echo "gofmt failure"; \
+golangci-lint: ## Run golangci-lint on codebase
+# https://stackoverflow.com/a/677212/1027058 (check if a command exists or not)
+	@if ! [ -x "$$(command -v golangci-lint)" ]; then \
+		echo "golangci-lint is not installed. Please see https://github.com/golangci/golangci-lint#install for installation instructions."; \
 		exit 1; \
-	fi
+	fi; \
 
-govet:
-	@echo Running govet
-	env GO111MODULE=off $(GO) get golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
-	$(GO) vet $$(go list ./...) .
-	$(GO) vet -vettool=$(GOBIN)/shadow $$(go list ./...)
-	@echo Govet success
+	@echo Running golangci-lint
+	golangci-lint run ./...
 
 package:
 	@ echo Packaging push proxy

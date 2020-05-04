@@ -7,7 +7,7 @@ executors:
   default:
     working_directory: /go/src/github.com/mattermost/mattermost-push-proxy
     docker:
-      - image: circleci/golang:1.13
+      - image: mattermost/mattermost-build-server:20200322_golang-1.14.1
 
 jobs:
   lint:
@@ -15,7 +15,11 @@ jobs:
       name: default
     steps:
       - checkout
-      - run: make check-style
+      - run:
+          command: |
+            echo "Installing golangci-lint"
+            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b /usr/local/bin v1.25.1
+            make golangci-lint
 
   test:
     executor:

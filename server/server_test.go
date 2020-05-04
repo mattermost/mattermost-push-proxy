@@ -18,7 +18,7 @@ func TestBasicServer(t *testing.T) {
 	msg := PushNotification{}
 	msg.Message = "test"
 	msg.Badge = 1
-	msg.DeviceId = "test"
+	msg.DeviceID = "test"
 
 	// Test for missing server Id
 	client := http.Client{}
@@ -33,7 +33,7 @@ func TestBasicServer(t *testing.T) {
 	}
 
 	// Test for missing platform type
-	msg.ServerId = "test"
+	msg.ServerID = "test"
 	client = http.Client{}
 	rq, _ = http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))
 	if resp, err := client.Do(rq); err != nil {
@@ -64,16 +64,16 @@ func TestBasicServer(t *testing.T) {
 
 func TestAndroidSend(t *testing.T) {
 	LoadConfig("mattermost-push-proxy.json")
-	CfgPP.AndroidPushSettings[0].AndroidApiKey = "junk"
+	CfgPP.AndroidPushSettings[0].AndroidAPIKey = "junk"
 	Start()
 	time.Sleep(time.Second * 2)
 
 	msg := PushNotification{}
 	msg.Message = "test"
 	msg.Badge = 1
-	msg.Platform = PUSH_NOTIFY_ANDROID
-	msg.ServerId = "test"
-	msg.DeviceId = "test"
+	msg.Platform = PushNotifyAndroid
+	msg.ServerID = "test"
+	msg.DeviceID = "test"
 
 	client := http.Client{}
 	rq, _ := http.NewRequest("POST", "http://localhost:8066/api/v1/send_push", strings.NewReader(msg.ToJson()))

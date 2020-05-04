@@ -195,12 +195,10 @@ func observerNotificationResponse(platform string, dur float64) {
 		metricNotificationResponse.WithLabelValues(platform).Observe(dur)
 
 		switch platform {
-		case PUSH_NOTIFY_APPLE:
+		case PushNotifyApple:
 			observeAPNSResponse(dur)
-			break
-		case PUSH_NOTIFY_ANDROID:
+		case PushNotifyAndroid:
 			observeFCMResponse(dur)
-			break
 		}
 	}
 }
