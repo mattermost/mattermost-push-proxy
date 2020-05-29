@@ -34,7 +34,7 @@ func main() {
 
 	// wait for kill signal before attempting to gracefully shutdown
 	// the running service
-	stopChan := make(chan os.Signal)
+	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-stopChan
 
