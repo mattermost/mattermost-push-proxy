@@ -3,6 +3,7 @@ module github.com/mattermost/mattermost-push-proxy
 go 1.13
 
 require (
+	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/PuerkitoBio/boom v0.0.0-20140219125548-fecdef1c97ca // indirect
 	github.com/appleboy/go-fcm v0.1.5
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
@@ -18,9 +19,11 @@ require (
 	github.com/prometheus/procfs v0.0.11 // indirect
 	github.com/rakyll/pb v0.0.0-20160123035540-8d46b8b097ef // indirect
 	github.com/sideshow/apns2 v0.20.0
+	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20200414173820-0848c9571904 // indirect
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	golang.org/x/text v0.3.2 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/throttled/throttled.v1 v1.0.0
 )

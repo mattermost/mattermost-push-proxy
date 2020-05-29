@@ -4,7 +4,6 @@
 package server
 
 import (
-	"fmt"
 	"time"
 
 	fcm "github.com/appleboy/go-fcm"
@@ -13,17 +12,21 @@ import (
 
 type AndroidNotificationServer struct {
 	AndroidPushSettings AndroidPushSettings
+	logger              *Logger
 }
 
-func NewAndroideNotificationServer(settings AndroidPushSettings) NotificationServer {
-	return &AndroidNotificationServer{AndroidPushSettings: settings}
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger) NotificationServer {
+	return &AndroidNotificationServer{
+		AndroidPushSettings: settings,
+		logger:              logger,
+	}
 }
 
 func (me *AndroidNotificationServer) Initialize() bool {
-	LogInfo(fmt.Sprintf("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type))
+	me.logger.Infof("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type)
 
 	if len(me.AndroidPushSettings.AndroidAPIKey) == 0 {
-		LogError("Android push notifications not configured.  Missing AndroidAPIKey.")
+		me.logger.Error("Android push notifications not configured.  Missing AndroidAPIKey.")
 		return false
 	}
 
@@ -74,14 +77,14 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			return NewErrorPushResponse(err.Error())
 		}
 
-		LogInfo(fmt.Sprintf("Sending android push notification for device=%v and type=%v", me.AndroidPushSettings.Type, msg.Type))
+		me.logger.Infof("Sending android push notification for device=%v and type=%v", me.AndroidPushSettings.Type, msg.Type)
 
 		start := time.Now()
 		resp, err := sender.SendWithRetry(fcmMsg, 2)
 		observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
 
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type))
+			me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
 			incrementFailure(PushNotifyAndroid, pushType, "unknown transport error")
 			return NewErrorPushResponse("unknown transport error")
 		}
@@ -90,12 +93,12 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			fcmError := resp.Results[0].Error
 
 			if fcmError == fcm.ErrInvalidRegistration || fcmError == fcm.ErrNotRegistered || fcmError == fcm.ErrMissingRegistration {
-				LogInfo(fmt.Sprintf("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type))
+				me.logger.Infof("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type)
 				incrementRemoval(PushNotifyAndroid, pushType, fcmError.Error())
 				return NewRemovePushResponse()
 			}
 
-			LogError(fmt.Sprintf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type))
+			me.logger.Errorf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type)
 			incrementFailure(PushNotifyAndroid, pushType, fcmError.Error())
 			return NewErrorPushResponse(fcmError.Error())
 		}

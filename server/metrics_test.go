@@ -8,19 +8,27 @@ import (
 	"time"
 
 	"github.com/prometheus/common/expfmt"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMetricDisabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
-	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
 	pushType := PushTypeMessage
-	CfgPP.AndroidPushSettings[0].AndroidAPIKey = platform
-	CfgPP.EnableMetrics = false
-	Start()
+
+	fileName := FindConfigFile("mattermost-push-proxy.json")
+	cfg, err := LoadConfig(fileName)
+	require.NoError(t, err)
+	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
+	cfg.EnableMetrics = false
+
+	logger := NewLogger(cfg)
+	srv := New(cfg, logger)
+	srv.Start()
+
 	time.Sleep(time.Second * 2)
 	defer func() {
-		Stop()
+		srv.Stop()
 		time.Sleep(time.Second * 2)
 	}()
 
@@ -50,15 +58,22 @@ func TestMetricDisabled(t *testing.T) {
 
 func TestMetricEnabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
-	LoadConfig("mattermost-push-proxy.json")
 	platform := "junk"
 	pushType := PushTypeMessage
-	CfgPP.AndroidPushSettings[0].AndroidAPIKey = platform
-	CfgPP.EnableMetrics = true
-	Start()
+
+	fileName := FindConfigFile("mattermost-push-proxy.json")
+	cfg, err := LoadConfig(fileName)
+	require.NoError(t, err)
+	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
+	cfg.EnableMetrics = true
+
+	logger := NewLogger(cfg)
+	srv := New(cfg, logger)
+	srv.Start()
+
 	time.Sleep(time.Second * 2)
 	defer func() {
-		Stop()
+		srv.Stop()
 		time.Sleep(time.Second * 2)
 	}()
 
