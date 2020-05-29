@@ -5,7 +5,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -79,7 +78,15 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 	}
 	if cfg.EnableFileLog {
 		if cfg.LogFileLocation == "" {
-			return nil, errors.New("log file location not specified")
+			// We just do an mkdir -p equivalent.
+			// Otherwise, it would need 2 steps of statting and creating.
+			err := os.MkdirAll("./logs", 0755)
+			if err != nil {
+				// If it fails, we log in the current directory itself
+				cfg.LogFileLocation = "./push_proxy.log"
+			} else {
+				cfg.LogFileLocation = "./logs/push_proxy.log"
+			}
 		}
 		// if file does not exist, create it.
 		if _, err := os.Stat(cfg.LogFileLocation); os.IsNotExist(err) {
