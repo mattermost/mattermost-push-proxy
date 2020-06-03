@@ -5,7 +5,6 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -20,19 +19,23 @@ import (
 type AppleNotificationServer struct {
 	ApplePushSettings ApplePushSettings
 	AppleClient       *apns.Client
+	logger            *Logger
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings) NotificationServer {
-	return &AppleNotificationServer{ApplePushSettings: settings}
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger) NotificationServer {
+	return &AppleNotificationServer{
+		ApplePushSettings: settings,
+		logger:            logger,
+	}
 }
 
 func (me *AppleNotificationServer) Initialize() bool {
-	LogInfo(fmt.Sprintf("Initializing apple notification server for type=%v", me.ApplePushSettings.Type))
+	me.logger.Infof("Initializing apple notification server for type=%v", me.ApplePushSettings.Type)
 
 	if len(me.ApplePushSettings.ApplePushCertPrivate) > 0 {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
 		if appleCertErr != nil {
-			LogCritical(fmt.Sprintf("Failed to load the apple pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type))
+			me.logger.Panicf("Failed to load the apple pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 			return false
 		}
 
@@ -58,7 +61,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 			}
 			err := http2.ConfigureTransport(transport)
 			if err != nil {
-				LogError(fmt.Sprintf("Transport Error: %v", err))
+				me.logger.Errorf("Transport Error: %v", err)
 				return false
 			}
 
@@ -67,7 +70,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 
 		return true
 	} else {
-		LogError(fmt.Sprintf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type))
+		me.logger.Errorf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type)
 		return false
 	}
 }
@@ -161,24 +164,24 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if me.AppleClient != nil {
-		LogInfo(fmt.Sprintf("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type))
+		me.logger.Infof("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type)
 		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
 		observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
 		if err != nil {
-			LogError(fmt.Sprintf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type))
+			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
 			incrementFailure(PushNotifyApple, pushType, "RequestError")
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if !res.Sent() {
 			if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
-				LogInfo(fmt.Sprintf("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
+				me.logger.Infof("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
 				incrementRemoval(PushNotifyApple, pushType, res.Reason)
 				return NewRemovePushResponse()
 			}
 
-			LogError(fmt.Sprintf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type))
+			me.logger.Errorf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
 			incrementFailure(PushNotifyApple, pushType, res.Reason)
 			return NewErrorPushResponse("unknown send response error")
 		}

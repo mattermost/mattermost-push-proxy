@@ -5,6 +5,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,19 +15,28 @@ import (
 
 var flagConfigFile string
 
-var stopChan chan os.Signal = make(chan os.Signal)
-
 func main() {
 	flag.StringVar(&flagConfigFile, "config", "mattermost-push-proxy.json", "")
 	flag.Parse()
-	server.LoadConfig(flagConfigFile)
 
-	server.Start()
+	fileName := server.FindConfigFile(flagConfigFile)
+	cfg, err := server.LoadConfig(fileName)
+	if err != nil {
+		// We just do a hard exit, because the app won't be able to start without a config.
+		log.Fatal(err)
+	}
+
+	logger := server.NewLogger(cfg)
+	logger.Info("Loading " + fileName)
+
+	srv := server.New(cfg, logger)
+	srv.Start()
 
 	// wait for kill signal before attempting to gracefully shutdown
 	// the running service
+	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-stopChan
 
-	server.Stop()
+	srv.Stop()
 }

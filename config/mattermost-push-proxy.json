@@ -29,5 +29,8 @@
             "Type":"android_rn",
             "AndroidApiKey":""
         }
-    ]
+    ],
+    "EnableConsoleLog": true,
+    "EnableFileLog": false,
+    "LogFileLocation": ""
 }

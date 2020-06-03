@@ -8,11 +8,19 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestBasicServer(t *testing.T) {
-	LoadConfig("mattermost-push-proxy.json")
-	Start()
+	fileName := FindConfigFile("mattermost-push-proxy.json")
+	cfg, err := LoadConfig(fileName)
+	require.NoError(t, err)
+
+	logger := NewLogger(cfg)
+	srv := New(cfg, logger)
+	srv.Start()
+
 	time.Sleep(time.Second * 2)
 
 	msg := PushNotification{}
@@ -58,14 +66,20 @@ func TestBasicServer(t *testing.T) {
 		}
 	}
 
-	Stop()
+	srv.Stop()
 	time.Sleep(time.Second * 2)
 }
 
 func TestAndroidSend(t *testing.T) {
-	LoadConfig("mattermost-push-proxy.json")
-	CfgPP.AndroidPushSettings[0].AndroidAPIKey = "junk"
-	Start()
+	fileName := FindConfigFile("mattermost-push-proxy.json")
+	cfg, err := LoadConfig(fileName)
+	require.NoError(t, err)
+
+	cfg.AndroidPushSettings[0].AndroidAPIKey = "junk"
+	logger := NewLogger(cfg)
+	srv := New(cfg, logger)
+	srv.Start()
+
 	time.Sleep(time.Second * 2)
 
 	msg := PushNotification{}
@@ -86,6 +100,6 @@ func TestAndroidSend(t *testing.T) {
 		}
 	}
 
-	Stop()
+	srv.Stop()
 	time.Sleep(time.Second * 2)
 }

@@ -5,6 +5,8 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -17,6 +19,9 @@ type ConfigPushProxy struct {
 	EnableMetrics           bool
 	ApplePushSettings       []ApplePushSettings
 	AndroidPushSettings     []AndroidPushSettings
+	EnableConsoleLog        bool
+	EnableFileLog           bool
+	LogFileLocation         string
 }
 
 type ApplePushSettings struct {
@@ -32,8 +37,8 @@ type AndroidPushSettings struct {
 	AndroidAPIKey string `json:"AndroidApiKey"`
 }
 
-var CfgPP *ConfigPushProxy = &ConfigPushProxy{}
-
+// FindConfigFile searches for the filepath in a list of directories
+// and then returns the absolute path to that file.
 func FindConfigFile(fileName string) string {
 	if _, err := os.Stat("/tmp/" + fileName); err == nil {
 		fileName, _ = filepath.Abs("/tmp/" + fileName)
@@ -48,18 +53,52 @@ func FindConfigFile(fileName string) string {
 	return fileName
 }
 
-func LoadConfig(fileName string) {
-	fileName = FindConfigFile(fileName)
-	LogInfo("Loading " + fileName)
-
+// LoadConfig loads the config from the given file path.
+func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		LogCritical("Error opening config file=" + fileName + ", err=" + err.Error())
+		return nil, err
+	}
+	defer file.Close()
+
+	buf, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
 	}
 
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(CfgPP)
+	var cfg *ConfigPushProxy
+	err = json.Unmarshal(buf, &cfg)
 	if err != nil {
-		LogCritical("Error decoding config file=" + fileName + ", err=" + err.Error())
+		fmt.Println(buf, err)
+		return nil, err
 	}
+	// If both are disabled, that means an old config file is being used. Atleast enable console log.
+	if !cfg.EnableConsoleLog && !cfg.EnableFileLog {
+		cfg.EnableConsoleLog = true
+	}
+	if cfg.EnableFileLog {
+		if cfg.LogFileLocation == "" {
+			// We just do an mkdir -p equivalent.
+			// Otherwise, it would need 2 steps of statting and creating.
+			err := os.MkdirAll("./logs", 0755)
+			if err != nil {
+				// If it fails, we log in the current directory itself
+				cfg.LogFileLocation = "./push_proxy.log"
+			} else {
+				cfg.LogFileLocation = "./logs/push_proxy.log"
+			}
+		}
+		// if file does not exist, create it.
+		if _, err := os.Stat(cfg.LogFileLocation); os.IsNotExist(err) {
+			f, err := os.Create(cfg.LogFileLocation)
+			if err != nil {
+				return nil, err
+			}
+			if err := f.Close(); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return cfg, nil
 }
