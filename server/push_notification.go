@@ -15,6 +15,7 @@ const (
 	PushTypeMessage     = "message"
 	PushTypeClear       = "clear"
 	PushTypeUpdateBadge = "update_badge"
+	PushTypeSession     = "session"
 
 	PushMessageV2 = "v2"
 
