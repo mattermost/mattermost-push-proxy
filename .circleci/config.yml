@@ -68,7 +68,6 @@ jobs:
           to: s3://releases.mattermost.com/mattermost-push-proxy/$CIRCLE_TAG/
           arguments: --acl public-read --cache-control "no-cache"
 
-
   push-docker:
     executor:
       name: default
@@ -85,9 +84,9 @@ jobs:
             echo "Pushing release $CIRCLE_TAG..."
             TAG="${CIRCLE_TAG//v}"
           fi
-          APP_VERSION=$TAG
+          MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/$TAG/mattermost-push-proxy.tar.gz
           cd docker
-          docker build --rm --no-cache -t mattermost/mattermost-push-proxy:latest -t mattermost/mattermost-push-proxy:$TAG .
+          docker build --rm --no-cache --build-arg MM_PROXY_PACKAGE=$MM_PROXY_PACKAGE -t mattermost/mattermost-push-proxy:latest -t mattermost/mattermost-push-proxy:$TAG .
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
           docker push mattermost/mattermost-push-proxy
 
