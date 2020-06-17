@@ -49,7 +49,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["id_loaded"] = true
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = "Someone"
-	} else if pushType == PushTypeMessage {
+	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
 		data["team_id"] = msg.TeamID
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = msg.SenderName

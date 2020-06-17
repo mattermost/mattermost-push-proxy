@@ -95,7 +95,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.AlertBody(msg.Message)
 	} else {
 		switch msg.Type {
-		case PushTypeMessage:
+		case PushTypeMessage, PushTypeSession:
 			data.Category(msg.Category)
 			data.Sound("default")
 			data.Custom("version", msg.Version)
