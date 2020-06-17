@@ -69,6 +69,8 @@ jobs:
           arguments: --acl public-read --cache-control "no-cache"
 
   push-docker:
+    docker:
+      - image: circleci/golang:1.14
     executor:
       name: default
     steps:
