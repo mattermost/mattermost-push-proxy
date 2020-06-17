@@ -30,7 +30,7 @@ update-dependencies:
 	$(GO) get -u ./...
 	$(GO) mod tidy
 
-build-server: gofmt golangci-lint
+build-server: gofmt
 	@echo Building proxy push server
 
 	$(GO) build -o $(GOBIN) -ldflags '$(LDFLAGS)' $(GOFLAGS)
