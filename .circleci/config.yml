@@ -70,7 +70,7 @@ jobs:
 
   push-docker:
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/buildpack-deps:stable
     executor:
       name: default
     steps:
@@ -86,7 +86,7 @@ jobs:
             echo "Pushing release $CIRCLE_TAG..."
             TAG="${CIRCLE_TAG//v}"
           fi
-          MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/$TAG/mattermost-push-proxy.tar.gz
+          MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/$CIRCLE_TAG/mattermost-push-proxy.tar.gz
           cd docker
           docker build --rm --no-cache --build-arg MM_PROXY_PACKAGE=$MM_PROXY_PACKAGE -t mattermost/mattermost-push-proxy:latest -t mattermost/mattermost-push-proxy:$TAG .
           echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
