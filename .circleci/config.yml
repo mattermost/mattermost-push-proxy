@@ -71,8 +71,6 @@ jobs:
   push-docker:
     docker:
       - image: circleci/buildpack-deps:stable
-    executor:
-      name: default
     steps:
       - checkout
       - setup_remote_docker
