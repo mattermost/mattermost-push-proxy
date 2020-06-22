@@ -9,7 +9,7 @@ Automate steps for certificate creation or renewal for apple push notification s
 ### Result:
 2 scripts, 2 manual steps: 
 1. scripted creation of CSR via create_csr.go
-1. manual upload of generated `certs/csr/*.go` file
+1. manual upload of generated `certs/csr/*.csr` file
 1. manual download of signed `aps.cer` file from apple portal
 1. scripted extraction + conversion from `aps.cer` to `certs/converted/*_priv.pem` to be then usable for mattermost-push-proxy
 
