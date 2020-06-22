@@ -24,6 +24,8 @@ type inputCSR struct {
 	email          string
 }
 
+const fileMode = 0600
+
 func newInputCSR(app string, applePushTopic string, country string, province string, locality string, organization string, email string) (i *inputCSR) {
 	i = &inputCSR{
 		app:            app,
@@ -52,7 +54,7 @@ func main() {
 	for _, dir := range dirs {
 		_, err = os.Stat(dir)
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0644)
+			err = os.MkdirAll(dir, fileMode)
 			if err != nil {
 				panic(err)
 			}
@@ -92,7 +94,7 @@ func createAndWritePrivateKey(app string, dirCsr string) (key *rsa.PrivateKey, e
 			Bytes: marshaledKey,
 		},
 	)
-	err = ioutil.WriteFile(dirCsr+"/"+app+".key", pemPrivateKey, 0644)
+	err = ioutil.WriteFile(dirCsr+"/"+app+".key", pemPrivateKey, fileMode)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +128,7 @@ func createAndWriteCSR(i *inputCSR, key *rsa.PrivateKey, dirCsr string) (err err
 		return err
 	}
 	cr := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes})
-	err = ioutil.WriteFile(dirCsr+"/"+i.app+".csr", cr, 0644)
+	err = ioutil.WriteFile(dirCsr+"/"+i.app+".csr", cr, fileMode)
 	if err != nil {
 		return err
 	}

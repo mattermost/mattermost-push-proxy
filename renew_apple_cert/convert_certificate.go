@@ -38,7 +38,7 @@ func main() {
 	for _, dir := range dirs {
 		_, err = os.Stat(dir)
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0644)
+			err = os.MkdirAll(dir, 0600)
 			if err != nil {
 				panic(err)
 			}
