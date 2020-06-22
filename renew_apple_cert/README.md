@@ -20,10 +20,6 @@ $ openssl version
  OpenSSL 1.1.1  11 Sep 2018
 ```
 
-```
-$ GO111MODULE=on go get github.com/mattermost/push-proxy-apple-cert
-```
-
 ### Steps
 1. `$ cp .env.example .env`
 1. Fill in input information in `.env`
