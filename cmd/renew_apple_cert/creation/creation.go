@@ -85,8 +85,8 @@ func Creation() {
 	}
 }
 
-func createAndWritePrivateKey(app string, dirCSR string) (key *rsa.PrivateKey, err error) {
-	key, err = rsa.GenerateKey(rand.Reader, 2048)
+func createAndWritePrivateKey(app string, dirCSR string) (*rsa.PrivateKey, error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func createAndWritePrivateKey(app string, dirCSR string) (key *rsa.PrivateKey, e
 	return key, err
 }
 
-func createAndWriteCSR(i *input, key *rsa.PrivateKey, dirCSR string) (err error) {
+func createAndWriteCSR(i *input, key *rsa.PrivateKey, dirCSR string) error {
 	subj := pkix.Name{
 		CommonName:   i.applePushTopic,
 		Country:      []string{i.country},
