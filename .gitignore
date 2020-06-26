@@ -43,7 +43,11 @@ tags
 # Certificates
 *.pem
 *.cer
+*.p8
 *.p12
+*.key
+certs
+*.env
 
 # Ignore binary
 /mattermost-push-proxy

@@ -1,4 +1,4 @@
-package main
+package creation
 
 import (
 	"crypto/rand"
@@ -10,11 +10,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	"github.com/joho/godotenv"
 )
 
-type inputCSR struct {
+const fileMode = 0700
+
+type input struct {
 	app            string
 	applePushTopic string
 	country        string
@@ -24,10 +27,8 @@ type inputCSR struct {
 	email          string
 }
 
-const fileMode = 0600
-
-func newInputCSR(app string, applePushTopic string, country string, province string, locality string, organization string, email string) (i *inputCSR) {
-	i = &inputCSR{
+func newInput(app string, applePushTopic string, country string, province string, locality string, organization string, email string) *input {
+	return &input{
 		app:            app,
 		applePushTopic: applePushTopic,
 		country:        country,
@@ -36,19 +37,18 @@ func newInputCSR(app string, applePushTopic string, country string, province str
 		organization:   organization,
 		email:          email,
 	}
-	return i
 }
 
-func main() {
+func init() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(err.Error())
 	}
 
-	dirCsr := os.Getenv("DIR_CSR")
+	dirCSR := os.Getenv("DIR_CSR")
 	dirDownloaded := os.Getenv("DIR_DOWNLOADED")
 	dirs := []string{
-		dirCsr,
+		dirCSR,
 		dirDownloaded,
 	}
 	for _, dir := range dirs {
@@ -56,12 +56,14 @@ func main() {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, fileMode)
 			if err != nil {
-				panic(err)
+				log.Fatal(err.Error())
 			}
 		}
 	}
+}
 
-	i := newInputCSR(
+func Creation() {
+	i := newInput(
 		os.Getenv("APP"),
 		os.Getenv("APPLE_PUSH_TOPIC"),
 		os.Getenv("COUNTRY"),
@@ -70,19 +72,20 @@ func main() {
 		os.Getenv("ORGANIZATION"),
 		os.Getenv("EMAIL"),
 	)
+	dirCSR := os.Getenv("DIR_CSR")
 
-	key, err := createAndWritePrivateKey(i.app, dirCsr)
+	key, err := createAndWritePrivateKey(i.app, dirCSR)
 	if err != nil {
-		panic(err)
+		log.Fatal(err.Error())
 	}
 
-	err = createAndWriteCSR(i, key, dirCsr)
+	err = createAndWriteCSR(i, key, dirCSR)
 	if err != nil {
-		panic(err)
+		log.Fatal(err.Error())
 	}
 }
 
-func createAndWritePrivateKey(app string, dirCsr string) (key *rsa.PrivateKey, err error) {
+func createAndWritePrivateKey(app string, dirCSR string) (key *rsa.PrivateKey, err error) {
 	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -94,14 +97,14 @@ func createAndWritePrivateKey(app string, dirCsr string) (key *rsa.PrivateKey, e
 			Bytes: marshaledKey,
 		},
 	)
-	err = ioutil.WriteFile(dirCsr+"/"+app+".key", pemPrivateKey, fileMode)
+	err = ioutil.WriteFile(path.Join(dirCSR, app+".key"), pemPrivateKey, fileMode)
 	if err != nil {
 		return nil, err
 	}
 	return key, err
 }
 
-func createAndWriteCSR(i *inputCSR, key *rsa.PrivateKey, dirCsr string) (err error) {
+func createAndWriteCSR(i *input, key *rsa.PrivateKey, dirCSR string) (err error) {
 	subj := pkix.Name{
 		CommonName:   i.applePushTopic,
 		Country:      []string{i.country},
@@ -128,7 +131,7 @@ func createAndWriteCSR(i *inputCSR, key *rsa.PrivateKey, dirCsr string) (err err
 		return err
 	}
 	cr := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes})
-	err = ioutil.WriteFile(dirCsr+"/"+i.app+".csr", cr, fileMode)
+	err = ioutil.WriteFile(path.Join(dirCSR, i.app+".csr"), cr, fileMode)
 	if err != nil {
 		return err
 	}
