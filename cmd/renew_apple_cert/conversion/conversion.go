@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	err := godotenv.Load()
+	err := godotenv.Load(".env", "testdata/.env.testdata")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
