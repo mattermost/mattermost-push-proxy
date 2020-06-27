@@ -10,29 +10,50 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const fileMode = 0700
+
 func init() {
-	err := godotenv.Load(".env", "testdata/.env.testdata")
+	env := os.Getenv("ENV_PUSH_PROXY")
+	fmt.Printf("Using environment %v", env)
+	switch env {
+	case "production":
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	case "development":
+		err := godotenv.Load(".env.example")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	default:
+		err := godotenv.Load("testdata/.env.testdata")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+
+	err := createDirs([]string{
+		os.Getenv("DIR_CSR"),
+		os.Getenv("DIR_DOWNLOADED"),
+		os.Getenv("DIR_CONVERTED"),
+	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+}
 
-	dirCSR := os.Getenv("DIR_CSR")
-	dirDownloaded := os.Getenv("DIR_DOWNLOADED")
-	dirConverted := os.Getenv("DIR_CONVERTED")
-	dirs := []string{
-		dirCSR,
-		dirDownloaded,
-		dirConverted,
-	}
+func createDirs(dirs []string) error {
 	for _, dir := range dirs {
-		_, err = os.Stat(dir)
+		_, err := os.Stat(dir)
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0600)
+			err = os.MkdirAll(dir, fileMode)
 			if err != nil {
-				log.Fatal(err.Error())
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 func Conversion() {

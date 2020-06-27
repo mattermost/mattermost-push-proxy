@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -40,26 +41,46 @@ func newInput(app string, applePushTopic string, country string, province string
 }
 
 func init() {
-	err := godotenv.Load(".env", "testdata/.env.testdata")
+	env := os.Getenv("ENV_PUSH_PROXY")
+	fmt.Printf("Using environment %v", env)
+	switch env {
+	case "production":
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	case "development":
+		err := godotenv.Load(".env.example")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	default:
+		err := godotenv.Load("testdata/.env.testdata")
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+
+	err := createDirs([]string{
+		os.Getenv("DIR_CSR"),
+		os.Getenv("DIR_DOWNLOADED"),
+	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+}
 
-	dirCSR := os.Getenv("DIR_CSR")
-	dirDownloaded := os.Getenv("DIR_DOWNLOADED")
-	dirs := []string{
-		dirCSR,
-		dirDownloaded,
-	}
+func createDirs(dirs []string) error {
 	for _, dir := range dirs {
-		_, err = os.Stat(dir)
+		_, err := os.Stat(dir)
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, fileMode)
 			if err != nil {
-				log.Fatal(err.Error())
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 func Creation() {

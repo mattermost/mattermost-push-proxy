@@ -5,30 +5,20 @@ import (
 	"os"
 	"path"
 	"testing"
-
-	"github.com/joho/godotenv"
 )
 
 func TestMain(m *testing.M) {
-	err := godotenv.Overload(path.Join("testdata", ".env.testdata"))
+	err := os.Unsetenv("ENV_PUSH_PROXY")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	dirCSR := os.Getenv("DIR_CSR")
-	dirDownloaded := os.Getenv("DIR_DOWNLOADED")
-	dirs := []string{
-		dirCSR,
-		dirDownloaded,
-	}
-	for _, dir := range dirs {
-		_, err = os.Stat(dir)
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, fileMode)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-		}
+	err = createDirs([]string{
+		os.Getenv("DIR_CSR"),
+		os.Getenv("DIR_DOWNLOADED"),
+	})
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 	defer os.RemoveAll(path.Join("testdata", "certs"))
 	os.Exit(m.Run())
