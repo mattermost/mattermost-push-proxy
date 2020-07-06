@@ -32,7 +32,7 @@ func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger) Noti
 func (me *AppleNotificationServer) Initialize() bool {
 	me.logger.Infof("Initializing apple notification server for type=%v", me.ApplePushSettings.Type)
 
-	if len(me.ApplePushSettings.ApplePushCertPrivate) > 0 {
+	if me.ApplePushSettings.ApplePushCertPrivate != "" {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
 		if appleCertErr != nil {
 			me.logger.Panicf("Failed to load the apple pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
@@ -101,14 +101,14 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			data.Custom("version", msg.Version)
 			data.MutableContent()
 
-			if len(msg.ChannelName) > 0 && msg.Version == "v2" {
+			if msg.ChannelName != "" && msg.Version == "v2" {
 				data.AlertTitle(msg.ChannelName)
 				data.AlertBody(emoji.Sprint(msg.Message))
 				data.Custom("channel_name", msg.ChannelName)
 			} else {
 				data.Alert(emoji.Sprint(msg.Message))
 
-				if len(msg.ChannelName) > 0 {
+				if msg.ChannelName != "" {
 					data.Custom("channel_name", msg.ChannelName)
 				}
 			}
@@ -122,44 +122,44 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	incrementNotificationTotal(PushNotifyApple, pushType)
 	data.Custom("type", pushType)
 
-	if len(msg.AckID) > 0 {
+	if msg.AckID != "" {
 		data.Custom("ack_id", msg.AckID)
 	}
 
-	if len(msg.ChannelID) > 0 {
+	if msg.ChannelID != "" {
 		data.Custom("channel_id", msg.ChannelID)
 		data.ThreadID(msg.ChannelID)
 	}
 
-	if len(msg.TeamID) > 0 {
+	if msg.TeamID != "" {
 		data.Custom("team_id", msg.TeamID)
 	}
 
-	if len(msg.SenderID) > 0 {
+	if msg.SenderID != "" {
 		data.Custom("sender_id", msg.SenderID)
 	}
 
-	if len(msg.SenderName) > 0 {
+	if msg.SenderName != "" {
 		data.Custom("sender_name", msg.SenderName)
 	}
 
-	if len(msg.PostID) > 0 {
+	if msg.PostID != "" {
 		data.Custom("post_id", msg.PostID)
 	}
 
-	if len(msg.RootID) > 0 {
+	if msg.RootID != "" {
 		data.Custom("root_id", msg.RootID)
 	}
 
-	if len(msg.OverrideUsername) > 0 {
+	if msg.OverrideUsername != "" {
 		data.Custom("override_username", msg.OverrideUsername)
 	}
 
-	if len(msg.OverrideIconURL) > 0 {
+	if msg.OverrideIconURL != "" {
 		data.Custom("override_icon_url", msg.OverrideIconURL)
 	}
 
-	if len(msg.FromWebhook) > 0 {
+	if msg.FromWebhook != "" {
 		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
@@ -187,7 +187,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 
-	if len(msg.AckID) > 0 {
+	if msg.AckID != "" {
 		incrementSuccessWithAck(PushNotifyApple, pushType)
 	} else {
 		incrementSuccess(PushNotifyApple, pushType)
