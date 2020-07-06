@@ -19,12 +19,14 @@ import (
 type AppleNotificationServer struct {
 	ApplePushSettings ApplePushSettings
 	AppleClient       *apns.Client
+	metrics           *metrics
 	logger            *Logger
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger) NotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) NotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
+		metrics:           metrics,
 		logger:            logger,
 	}
 }
@@ -118,8 +120,9 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			// Handled by the apps, nothing else to do here
 		}
 	}
-
-	incrementNotificationTotal(PushNotifyApple, pushType)
+	if me.metrics != nil {
+		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType)
+	}
 	data.Custom("type", pushType)
 
 	if len(msg.AckID) > 0 {
@@ -167,30 +170,39 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		me.logger.Infof("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type)
 		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
-		observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+		}
 		if err != nil {
 			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
-			incrementFailure(PushNotifyApple, pushType, "RequestError")
+			if me.metrics != nil {
+				me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
+			}
 			return NewErrorPushResponse("unknown transport error")
 		}
 
 		if !res.Sent() {
 			if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
 				me.logger.Infof("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
-				incrementRemoval(PushNotifyApple, pushType, res.Reason)
+				if me.metrics != nil {
+					me.metrics.incrementRemoval(PushNotifyApple, pushType, res.Reason)
+				}
 				return NewRemovePushResponse()
 			}
 
 			me.logger.Errorf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
-			incrementFailure(PushNotifyApple, pushType, res.Reason)
+			if me.metrics != nil {
+				me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
+			}
 			return NewErrorPushResponse("unknown send response error")
 		}
 	}
-
-	if len(msg.AckID) > 0 {
-		incrementSuccessWithAck(PushNotifyApple, pushType)
-	} else {
-		incrementSuccess(PushNotifyApple, pushType)
+	if me.metrics != nil {
+		if len(msg.AckID) > 0 {
+			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType)
+		} else {
+			me.metrics.incrementSuccess(PushNotifyApple, pushType)
+		}
 	}
 	return NewOkPushResponse()
 }

@@ -41,6 +41,7 @@ type Server struct {
 	cfg         *ConfigPushProxy
 	httpServer  *http.Server
 	pushTargets map[string]NotificationServer
+	metrics     *metrics
 	logger      *Logger
 }
 
@@ -62,15 +63,21 @@ func (s *Server) Start() {
 		s.logger.Infof("Proxy server detected. Routing all requests through: %s", proxyServer)
 	}
 
+	var m *metrics
+	if s.cfg.EnableMetrics {
+		m = newMetrics()
+		s.metrics = m
+	}
+
 	for _, settings := range s.cfg.ApplePushSettings {
-		server := NewAppleNotificationServer(settings, s.logger)
+		server := NewAppleNotificationServer(settings, s.logger, m)
 		if server.Initialize() {
 			s.pushTargets[settings.Type] = server
 		}
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
-		server := NewAndroidNotificationServer(settings, s.logger)
+		server := NewAndroidNotificationServer(settings, s.logger, m)
 		if server.Initialize() {
 			s.pushTargets[settings.Type] = server
 		}
@@ -94,11 +101,10 @@ func (s *Server) Start() {
 	metricCompatibleSendNotificationHandler := s.handleSendNotification
 	metricCompatibleAckNotificationHandler := s.handleAckNotification
 	if s.cfg.EnableMetrics {
-		MetricsEnabled = true
 		metrics := NewPrometheusHandler()
 		router.Handle("/metrics", metrics).Methods("GET")
-		metricCompatibleSendNotificationHandler = responseTimeMiddleware(s.handleSendNotification)
-		metricCompatibleAckNotificationHandler = responseTimeMiddleware(s.handleAckNotification)
+		metricCompatibleSendNotificationHandler = s.responseTimeMiddleware(s.handleSendNotification)
+		metricCompatibleAckNotificationHandler = s.responseTimeMiddleware(s.handleAckNotification)
 	}
 	r := router.PathPrefix("/api/v1").Subrouter()
 	r.HandleFunc("/send_push", metricCompatibleSendNotificationHandler).Methods("POST")
@@ -136,11 +142,13 @@ func root(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
 }
 
-func responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		f(w, r)
-		observeServiceResponse(time.Since(start).Seconds())
+		if s.metrics != nil {
+			s.metrics.observeServiceResponse(time.Since(start).Seconds())
+		}
 	}
 }
 
@@ -152,7 +160,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -161,7 +171,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -170,7 +182,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -187,7 +201,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 }
@@ -200,7 +216,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -209,7 +227,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -218,7 +238,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -227,13 +249,17 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
 	// Increment ACK
 	s.logger.Infof("Acknowledge delivery receipt for AckId=%v", ack.ID)
-	incrementDelivered(ack.Platform, ack.Type)
+	if s.metrics != nil {
+		s.metrics.incrementDelivered(ack.Platform, ack.Type)
+	}
 
 	rMsg := NewOkPushResponse()
 	_, _ = w.Write([]byte(rMsg.ToJson()))

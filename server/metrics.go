@@ -7,8 +7,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var MetricsEnabled bool
-
 const (
 	metricNotificationsTotalName   = "service_notifications_total"
 	metricSuccessName              = "service_success_total"
@@ -24,181 +22,168 @@ const (
 	metricNotificationResponseName = "service_notification_duration_seconds"
 )
 
-var metricNotificationsTotal = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricNotificationsTotalName,
-		Help: "Number of notifications sent",
-	},
-	[]string{"platform", "type"},
-)
-
-var metricSuccess = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricSuccessName,
-		Help: "Number of push success.",
-	},
-	[]string{"platform", "type"},
-)
-
-var metricSuccessWithAck = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricSuccessWithAckName,
-		Help: "Number of push success that contains ackId.",
-	},
-	[]string{"platform", "type"},
-)
-
-var metricDelivered = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricDeliveredName,
-		Help: "Number of push delivered.",
-	},
-	[]string{"platform", "type"},
-)
-
-var metricFailure = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricFailureName,
-		Help: "Number of push errors.",
-	},
-	[]string{"platform", "type"},
-)
-
-var metricFailureWithReason = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricFailureWithReasonName,
-		Help: "Number of push errors with reasons.",
-	},
-	[]string{"platform", "type", "reason"},
-)
-
-var metricRemoval = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: metricRemovalName,
-		Help: "Number of device token errors.",
-	},
-	[]string{"platform", "reason"},
-)
-
-var metricBadRequest = prometheus.NewCounter(prometheus.CounterOpts{
-	Name: metricBadRequestName,
-	Help: "Request to push proxy was a bad request",
-})
-
-var metricAPNSResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
-	Name: metricAPNSResponseName,
-	Help: "Request latency distribution",
-})
-
-var metricFCMResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
-	Name: metricFCMResponseName,
-	Help: "Request latency distribution",
-})
-
-var metricNotificationResponse = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-	Name: metricNotificationResponseName,
-	Help: "Notifiction request latency distribution",
-}, []string{"platform"})
-
-var metricServiceResponse = prometheus.NewHistogram(prometheus.HistogramOpts{
-	Name: metricServiceResponseName,
-	Help: "Request latency distribution",
-})
-
-func init() {
-	prometheus.MustRegister(
-		metricNotificationsTotal,
-		metricSuccess,
-		metricSuccessWithAck,
-		metricFailure,
-		metricFailureWithReason,
-		metricRemoval,
-		metricBadRequest,
-		metricAPNSResponse,
-		metricFCMResponse,
-		metricServiceResponse,
-		metricNotificationResponse,
-	)
-}
-
 func NewPrometheusHandler() http.Handler {
 	return promhttp.Handler()
 }
 
-func incrementNotificationTotal(platform, pushType string) {
-	if MetricsEnabled {
-		metricNotificationsTotal.WithLabelValues(platform, pushType).Inc()
-	}
+type metrics struct {
+	metricNotificationsTotal   *prometheus.CounterVec
+	metricSuccess              *prometheus.CounterVec
+	metricSuccessWithAck       *prometheus.CounterVec
+	metricDelivered            *prometheus.CounterVec
+	metricFailure              *prometheus.CounterVec
+	metricFailureWithReason    *prometheus.CounterVec
+	metricRemoval              *prometheus.CounterVec
+	metricBadRequest           prometheus.Counter
+	metricAPNSResponse         prometheus.Histogram
+	metricFCMResponse          prometheus.Histogram
+	metricNotificationResponse *prometheus.HistogramVec
+	metricServiceResponse      prometheus.Histogram
 }
 
-func incrementSuccess(platform, pushType string) {
-	if MetricsEnabled {
-		metricSuccess.WithLabelValues(platform, pushType).Inc()
+// newMetrics initializes the metrics and registers them
+func newMetrics() *metrics {
+	m := &metrics{
+		metricNotificationsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricNotificationsTotalName,
+			Help: "Number of notifications sent"},
+			[]string{"platform", "type"}),
+		metricSuccess: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricSuccessName,
+			Help: "Number of push success."},
+			[]string{"platform", "type"}),
+		metricSuccessWithAck: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricSuccessWithAckName,
+			Help: "Number of push success that contains ackId."},
+			[]string{"platform", "type"},
+		),
+		metricDelivered: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricDeliveredName,
+			Help: "Number of push delivered."},
+			[]string{"platform", "type"},
+		),
+		metricFailure: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricFailureName,
+			Help: "Number of push errors."},
+			[]string{"platform", "type"}),
+		metricFailureWithReason: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricFailureWithReasonName,
+			Help: "Number of push errors with reasons."},
+			[]string{"platform", "type", "reason"}),
+		metricRemoval: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricRemovalName,
+			Help: "Number of device token errors."},
+			[]string{"platform", "reason"}),
+		metricBadRequest: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: metricBadRequestName,
+			Help: "Request to push proxy was a bad request",
+		}),
+		metricAPNSResponse: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name: metricAPNSResponseName,
+			Help: "Request latency distribution",
+		}),
+		metricFCMResponse: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name: metricFCMResponseName,
+			Help: "Request latency distribution",
+		}),
+		metricNotificationResponse: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name: metricNotificationResponseName,
+			Help: "Notifiction request latency distribution"},
+			[]string{"platform"}),
+		metricServiceResponse: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name: metricServiceResponseName,
+			Help: "Request latency distribution",
+		}),
 	}
+
+	prometheus.MustRegister(
+		m.metricNotificationsTotal,
+		m.metricSuccess,
+		m.metricSuccessWithAck,
+		m.metricFailure,
+		m.metricFailureWithReason,
+		m.metricRemoval,
+		m.metricBadRequest,
+		m.metricAPNSResponse,
+		m.metricFCMResponse,
+		m.metricServiceResponse,
+		m.metricNotificationResponse,
+	)
+
+	return m
 }
 
-func incrementSuccessWithAck(platform, pushType string) {
-	incrementSuccess(platform, pushType)
-	if MetricsEnabled {
-		metricSuccessWithAck.WithLabelValues(platform, pushType).Inc()
-	}
-}
-
-func incrementDelivered(platform, pushType string) {
-	if MetricsEnabled {
-		metricDelivered.WithLabelValues(platform, pushType).Inc()
-	}
-}
-
-func incrementFailure(platform, pushType, reason string) {
-	if MetricsEnabled {
-		metricFailure.WithLabelValues(platform, pushType).Inc()
-		if len(reason) > 0 {
-			metricFailureWithReason.WithLabelValues(platform, pushType, reason).Inc()
+func (m *metrics) shutdown() {
+	func(cs ...prometheus.Collector) {
+		for _, c := range cs {
+			prometheus.Unregister(c)
 		}
+	}(
+		m.metricNotificationsTotal,
+		m.metricSuccess,
+		m.metricSuccessWithAck,
+		m.metricFailure,
+		m.metricFailureWithReason,
+		m.metricRemoval,
+		m.metricBadRequest,
+		m.metricAPNSResponse,
+		m.metricFCMResponse,
+		m.metricServiceResponse,
+		m.metricNotificationResponse,
+	)
+}
+
+func (m *metrics) incrementNotificationTotal(platform, pushType string) {
+	m.metricNotificationsTotal.WithLabelValues(platform, pushType).Inc()
+}
+
+func (m *metrics) incrementSuccess(platform, pushType string) {
+	m.metricSuccess.WithLabelValues(platform, pushType).Inc()
+}
+
+func (m *metrics) incrementSuccessWithAck(platform, pushType string) {
+	m.incrementSuccess(platform, pushType)
+	m.metricSuccessWithAck.WithLabelValues(platform, pushType).Inc()
+}
+
+func (m *metrics) incrementDelivered(platform, pushType string) {
+	m.metricDelivered.WithLabelValues(platform, pushType).Inc()
+}
+
+func (m *metrics) incrementFailure(platform, pushType, reason string) {
+	m.metricFailure.WithLabelValues(platform, pushType).Inc()
+	if len(reason) > 0 {
+		m.metricFailureWithReason.WithLabelValues(platform, pushType, reason).Inc()
 	}
 }
 
-func incrementRemoval(platform, pushType, reason string) {
-	if MetricsEnabled {
-		metricRemoval.WithLabelValues(platform, reason).Inc()
-		incrementFailure(platform, pushType, reason)
-	}
+func (m *metrics) incrementRemoval(platform, pushType, reason string) {
+	m.metricRemoval.WithLabelValues(platform, reason).Inc()
+	m.incrementFailure(platform, pushType, reason)
 }
 
-func incrementBadRequest() {
-	if MetricsEnabled {
-		metricBadRequest.Inc()
-	}
+func (m *metrics) incrementBadRequest() {
+	m.metricBadRequest.Inc()
 }
 
-func observeAPNSResponse(dur float64) {
-	if MetricsEnabled {
-		metricAPNSResponse.Observe(dur)
-	}
+func (m *metrics) observeAPNSResponse(dur float64) {
+	m.metricAPNSResponse.Observe(dur)
 }
 
-func observeFCMResponse(dur float64) {
-	if MetricsEnabled {
-		metricFCMResponse.Observe(dur)
-	}
+func (m *metrics) observeFCMResponse(dur float64) {
+	m.metricFCMResponse.Observe(dur)
 }
 
-func observeServiceResponse(dur float64) {
-	if MetricsEnabled {
-		metricServiceResponse.Observe(dur)
-	}
+func (m *metrics) observeServiceResponse(dur float64) {
+	m.metricServiceResponse.Observe(dur)
 }
 
-func observerNotificationResponse(platform string, dur float64) {
-	if MetricsEnabled {
-		metricNotificationResponse.WithLabelValues(platform).Observe(dur)
-
-		switch platform {
-		case PushNotifyApple:
-			observeAPNSResponse(dur)
-		case PushNotifyAndroid:
-			observeFCMResponse(dur)
-		}
+func (m *metrics) observerNotificationResponse(platform string, dur float64) {
+	m.metricNotificationResponse.WithLabelValues(platform).Observe(dur)
+	switch platform {
+	case PushNotifyApple:
+		m.observeAPNSResponse(dur)
+	case PushNotifyAndroid:
+		m.observeFCMResponse(dur)
 	}
 }

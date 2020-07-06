@@ -12,12 +12,14 @@ import (
 
 type AndroidNotificationServer struct {
 	AndroidPushSettings AndroidPushSettings
+	metrics             *metrics
 	logger              *Logger
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger) NotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) NotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
+		metrics:             metrics,
 		logger:              logger,
 	}
 }
@@ -62,8 +64,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["from_webhook"] = msg.FromWebhook
 	}
 
-	incrementNotificationTotal(PushNotifyAndroid, pushType)
-
+	if me.metrics != nil {
+		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType)
+	}
 	fcmMsg := &fcm.Message{
 		To:       msg.DeviceID,
 		Data:     data,
@@ -73,7 +76,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	if len(me.AndroidPushSettings.AndroidAPIKey) > 0 {
 		sender, err := fcm.NewClient(me.AndroidPushSettings.AndroidAPIKey)
 		if err != nil {
-			incrementFailure(PushNotifyAndroid, pushType, "invalid ApiKey")
+			if me.metrics != nil {
+				me.metrics.incrementFailure(PushNotifyAndroid, pushType, "invalid ApiKey")
+			}
 			return NewErrorPushResponse(err.Error())
 		}
 
@@ -81,11 +86,15 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 		start := time.Now()
 		resp, err := sender.SendWithRetry(fcmMsg, 2)
-		observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+		}
 
 		if err != nil {
 			me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
-			incrementFailure(PushNotifyAndroid, pushType, "unknown transport error")
+			if me.metrics != nil {
+				me.metrics.incrementFailure(PushNotifyAndroid, pushType, "unknown transport error")
+			}
 			return NewErrorPushResponse("unknown transport error")
 		}
 
@@ -94,20 +103,26 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 			if fcmError == fcm.ErrInvalidRegistration || fcmError == fcm.ErrNotRegistered || fcmError == fcm.ErrMissingRegistration {
 				me.logger.Infof("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type)
-				incrementRemoval(PushNotifyAndroid, pushType, fcmError.Error())
+				if me.metrics != nil {
+					me.metrics.incrementRemoval(PushNotifyAndroid, pushType, fcmError.Error())
+				}
 				return NewRemovePushResponse()
 			}
 
 			me.logger.Errorf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type)
-			incrementFailure(PushNotifyAndroid, pushType, fcmError.Error())
+			if me.metrics != nil {
+				me.metrics.incrementFailure(PushNotifyAndroid, pushType, fcmError.Error())
+			}
 			return NewErrorPushResponse(fcmError.Error())
 		}
 	}
 
-	if len(msg.AckID) > 0 {
-		incrementSuccessWithAck(PushNotifyAndroid, pushType)
-	} else {
-		incrementSuccess(PushNotifyAndroid, pushType)
+	if me.metrics != nil {
+		if len(msg.AckID) > 0 {
+			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType)
+		} else {
+			me.metrics.incrementSuccess(PushNotifyAndroid, pushType)
+		}
 	}
 	return NewOkPushResponse()
 }
