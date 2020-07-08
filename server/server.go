@@ -131,6 +131,9 @@ func (s *Server) Stop() {
 	s.logger.Info("Stopping Server...")
 	ctx, cancel := context.WithTimeout(context.Background(), WAIT_FOR_SERVER_SHUTDOWN)
 	defer cancel()
+	if s.metrics != nil {
+		s.metrics.shutdown()
+	}
 	// Close shop
 	err := s.httpServer.Shutdown(ctx)
 	if err != nil {
