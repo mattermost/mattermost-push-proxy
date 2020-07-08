@@ -22,6 +22,7 @@ const (
 	metricNotificationResponseName = "service_notification_duration_seconds"
 )
 
+// NewPrometheusHandler returns the http.Handler to expose Prometheus metrics
 func NewPrometheusHandler() http.Handler {
 	return promhttp.Handler()
 }
