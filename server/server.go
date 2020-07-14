@@ -156,7 +156,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if len(msg.ServerID) == 0 {
+	if msg.ServerID == "" {
 		rMsg := "Failed because of missing server Id"
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
@@ -165,7 +165,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if len(msg.DeviceID) == 0 {
+	if msg.DeviceID == "" {
 		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerID)
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
@@ -204,7 +204,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(ack.ID) == 0 {
+	if ack.ID == "" {
 		msg := "Failed because of missing ack Id"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -213,7 +213,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(ack.Platform) == 0 {
+	if ack.Platform == "" {
 		msg := "Failed because of missing ack platform"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -222,7 +222,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(ack.Type) == 0 {
+	if ack.Type == "" {
 		msg := "Failed because of missing ack type"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -243,11 +243,11 @@ func (s *Server) getIpAddress(r *http.Request) string {
 	address := r.Header.Get(HEADER_FORWARDED)
 	var err error
 
-	if len(address) == 0 {
+	if address == "" {
 		address = r.Header.Get(HEADER_REAL_IP)
 	}
 
-	if len(address) == 0 {
+	if address == "" {
 		address, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			s.logger.Errorf("error in getting IP address: %v", err)

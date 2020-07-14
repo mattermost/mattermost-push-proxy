@@ -25,7 +25,7 @@ func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger) 
 func (me *AndroidNotificationServer) Initialize() bool {
 	me.logger.Infof("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type)
 
-	if len(me.AndroidPushSettings.AndroidAPIKey) == 0 {
+	if me.AndroidPushSettings.AndroidAPIKey == "" {
 		me.logger.Error("Android push notifications not configured.  Missing AndroidAPIKey.")
 		return false
 	}
@@ -70,7 +70,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		Priority: "high",
 	}
 
-	if len(me.AndroidPushSettings.AndroidAPIKey) > 0 {
+	if me.AndroidPushSettings.AndroidAPIKey != "" {
 		sender, err := fcm.NewClient(me.AndroidPushSettings.AndroidAPIKey)
 		if err != nil {
 			incrementFailure(PushNotifyAndroid, pushType, "invalid ApiKey")
@@ -104,7 +104,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 
-	if len(msg.AckID) > 0 {
+	if msg.AckID != "" {
 		incrementSuccessWithAck(PushNotifyAndroid, pushType)
 	} else {
 		incrementSuccess(PushNotifyAndroid, pushType)
