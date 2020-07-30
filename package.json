@@ -1,0 +1,26 @@
+{
+  "name": "mattermost-push-proxy",
+  "version": "1.0.0",
+  "description": "Repository for mattermost push proxy",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "validate": "swagger-cli validate ./swagger/spec.yaml",
+    "build": "redoc-cli bundle -t ./swagger/template.hbs ./swagger/spec.yaml -o index.html --options.suppressWarnings",
+    "serve": "redoc-cli serve -t ./swagger/template.hbs ./swagger/spec.yaml -o index.html --options.suppressWarnings --ssr --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattermost/mattermost-push-proxy.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mattermost/mattermost-push-proxy/issues"
+  },
+  "homepage": "https://github.com/mattermost/mattermost-push-proxy#readme",
+  "dependencies": {
+    "redoc-cli": "^0.9.9",
+    "swagger-cli": "^4.0.4"
+  }
+}

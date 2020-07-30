@@ -1,0 +1,166 @@
+openapi: 3.0.1
+info:
+  title: Mattermost Push Proxy
+  description: 'This is the OpenAPI documentation for Mattermost Push Proxy REST API'
+  version: 1.0.0
+servers:
+- url: http://url-to-push-proxy.com/api/v1
+paths:
+  /send_push:
+    post:
+      summary: Send push notification
+      requestBody:
+        description: Push notification request body
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PushNotification'
+            example:
+              type: "update_badge"
+              version: "v2"
+              sound: "none"
+              cont_ava: 1
+        required: true
+      responses:
+        default:
+          description: response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PushResponseOK'
+                  - $ref: '#/components/schemas/PushResponseRemove'
+                  - $ref: '#/components/schemas/PushResponseError'
+              example:
+                status: OK
+  /ack:
+    post:
+      summary: Send acknowledgement of a push notification
+      requestBody:
+        description: Send acknowledgement request body
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PushNotificationAck'
+            example:
+              id: "abcxyz"
+              platform: "android"
+              type: "message"
+        required: true
+      responses:
+        default:
+          description: response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PushResponseOK'
+                  - $ref: '#/components/schemas/PushResponseError'
+              example:
+                status: OK
+components:
+  schemas:
+    PushNotification:
+      type: object
+      properties:
+        id:
+          type: string
+        ack_id:
+          type: string
+        platform:
+          type: string
+          enum:
+          - apple
+          - android
+          - apple_rn
+          - android_rn
+        server_id:
+          type: string
+        device_id:
+          type: string
+        category:
+          type: string
+        sound:
+          type: string
+        message:
+          type: string
+        badge:
+          type: integer
+          format: int64
+        cont_ava:
+          description: "content available"
+          type: integer
+          format: int64
+        team_id:
+          type: string
+        channel_id:
+          type: string
+        root_id:
+          type: string
+        post_id:
+          type: string
+        channel_name:
+          type: string
+        type:
+          type: string
+          enum:
+          - message
+          - clear
+          - update_badge
+          - session
+        sender_name:
+          type: string
+        sender_id:
+          type: string
+        override_username:
+          type: string
+        override_icon_url:
+          type: string
+        from_webhook:
+          type: string
+        version:
+          type: string
+          default: "v2"
+        is_id_loaded:
+          type: boolean
+    PushNotificationAck:
+      type: object
+      properties:
+        id:
+          type: string
+        platform:
+          type: string
+          enum:
+          - apple
+          - android
+          - apple_rn
+          - android_rn
+        type:
+          type: string
+          enum:
+          - message
+          - clear
+          - update_badge
+          - session
+      xml:
+        name: User
+    PushResponseOK:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "OK"
+    PushResponseRemove:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "REMOVE"
+    PushResponseError:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "FAIL"
+        error:
+          type: string
