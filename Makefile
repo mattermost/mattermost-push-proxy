@@ -74,3 +74,11 @@ clean:
 run:
 	@echo Starting go web server
 	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' main.go
+
+build-swagger:
+	npm run validate
+	npm run build
+
+serve-swagger:
+	npm run validate
+	npm run serve

@@ -47,3 +47,7 @@ tags
 
 # Ignore binary
 /mattermost-push-proxy
+
+node_modules
+# Swagger output file
+index.html
