@@ -1,0 +1,190 @@
+openapi: 3.0.1
+info:
+  title: Mattermost Push Proxy
+  description: 'This is the OpenAPI documentation for Mattermost Push Proxy REST API'
+  version: 1.0.0
+servers:
+- url: http://url-to-push-proxy.com/api/v1
+paths:
+  /send_push:
+    post:
+      summary: Send push notification
+      requestBody:
+        description: Push notification request body
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PushNotification'
+            example:
+              type: "update_badge"
+              device_id: "ackljrfoegdflghdg"
+              platform: "android"
+              ack_id: "kfs095jsdsdfjslj"
+              version: "v2"
+              sound: "none"
+              cont_ava: 1
+              badge: 2
+        required: true
+      responses:
+        default:
+          description: response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PushResponseOK'
+                  - $ref: '#/components/schemas/PushResponseRemove'
+                  - $ref: '#/components/schemas/PushResponseError'
+              example:
+                status: OK
+  /ack:
+    post:
+      summary: Send acknowledgement of a push notification
+      requestBody:
+        description: Send acknowledgement request body
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PushNotificationAck'
+            example:
+              id: "abcxyz"
+              platform: "android"
+              type: "message"
+        required: true
+      responses:
+        default:
+          description: response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PushResponseOK'
+                  - $ref: '#/components/schemas/PushResponseError'
+              example:
+                status: OK
+components:
+  schemas:
+    PushNotification:
+      type: object
+      properties:
+        ack_id:
+          type: string
+          description: "id of the acknowledgement"
+        platform:
+          type: string
+          description: "type of the platform"
+          enum:
+          - apple
+          - android
+          - apple_rn
+          - android_rn
+        server_id:
+          type: string
+          description: "id of the server"
+        device_id:
+          type: string
+          description: "id of the device"
+        category:
+          type: string
+          description: "category of the message"
+        sound:
+          type: string
+          description: "type of sound to make when message arrives"
+        message:
+          type: string
+          description: "contents of the message"
+        badge:
+          type: integer
+          description: "badge count"
+          format: int64
+        cont_ava:
+          description: "content available"
+          type: integer
+          format: int64
+        team_id:
+          description: "id of the team"
+          type: string
+        channel_id:
+          description: "id of the channel"
+          type: string
+        root_id:
+          description: "id of the root of the post"
+          type: string
+        post_id:
+          description: "id of the post"
+          type: string
+        channel_name:
+          description: "name of the channel"
+          type: string
+        type:
+          type: string
+          description: "type of the message"
+          enum:
+          - message
+          - clear
+          - update_badge
+          - session
+        sender_name:
+          description: "name of the sender"
+          type: string
+        sender_id:
+          description: "id of the sender"
+          type: string
+        override_username:
+          description: "override the default username"
+          type: string
+        override_icon_url:
+          description: "override the default icon url"
+          type: string
+        from_webhook:
+          description: "name of the webhook"
+          type: string
+        version:
+          type: string
+          description: "version of the message"
+          default: "v2"
+        is_id_loaded:
+          description: "whether the message is id_loaded or not"
+          type: boolean
+    PushNotificationAck:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "id of the acknowledgement"
+        platform:
+          type: string
+          description: "type of the platform"
+          enum:
+          - apple
+          - android
+          - apple_rn
+          - android_rn
+        type:
+          type: string
+          description: "type of the message"
+          enum:
+          - message
+          - clear
+          - update_badge
+          - session
+    PushResponseOK:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "OK"
+    PushResponseRemove:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "REMOVE"
+    PushResponseError:
+      type: object
+      properties:
+        status:
+          type: string
+          default: "FAIL"
+        error:
+          type: string

@@ -41,6 +41,7 @@ type Server struct {
 	cfg         *ConfigPushProxy
 	httpServer  *http.Server
 	pushTargets map[string]NotificationServer
+	metrics     *metrics
 	logger      *Logger
 }
 
@@ -62,15 +63,21 @@ func (s *Server) Start() {
 		s.logger.Infof("Proxy server detected. Routing all requests through: %s", proxyServer)
 	}
 
+	var m *metrics
+	if s.cfg.EnableMetrics {
+		m = newMetrics()
+		s.metrics = m
+	}
+
 	for _, settings := range s.cfg.ApplePushSettings {
-		server := NewAppleNotificationServer(settings, s.logger)
+		server := NewAppleNotificationServer(settings, s.logger, m)
 		if server.Initialize() {
 			s.pushTargets[settings.Type] = server
 		}
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
-		server := NewAndroidNotificationServer(settings, s.logger)
+		server := NewAndroidNotificationServer(settings, s.logger, m)
 		if server.Initialize() {
 			s.pushTargets[settings.Type] = server
 		}
@@ -94,11 +101,10 @@ func (s *Server) Start() {
 	metricCompatibleSendNotificationHandler := s.handleSendNotification
 	metricCompatibleAckNotificationHandler := s.handleAckNotification
 	if s.cfg.EnableMetrics {
-		MetricsEnabled = true
 		metrics := NewPrometheusHandler()
 		router.Handle("/metrics", metrics).Methods("GET")
-		metricCompatibleSendNotificationHandler = responseTimeMiddleware(s.handleSendNotification)
-		metricCompatibleAckNotificationHandler = responseTimeMiddleware(s.handleAckNotification)
+		metricCompatibleSendNotificationHandler = s.responseTimeMiddleware(s.handleSendNotification)
+		metricCompatibleAckNotificationHandler = s.responseTimeMiddleware(s.handleAckNotification)
 	}
 	r := router.PathPrefix("/api/v1").Subrouter()
 	r.HandleFunc("/send_push", metricCompatibleSendNotificationHandler).Methods("POST")
@@ -125,6 +131,9 @@ func (s *Server) Stop() {
 	s.logger.Info("Stopping Server...")
 	ctx, cancel := context.WithTimeout(context.Background(), WAIT_FOR_SERVER_SHUTDOWN)
 	defer cancel()
+	if s.metrics != nil {
+		s.metrics.shutdown()
+	}
 	// Close shop
 	err := s.httpServer.Shutdown(ctx)
 	if err != nil {
@@ -136,11 +145,13 @@ func root(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
 }
 
-func responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		f(w, r)
-		observeServiceResponse(time.Since(start).Seconds())
+		if s.metrics != nil {
+			s.metrics.observeServiceResponse(time.Since(start).Seconds())
+		}
 	}
 }
 
@@ -152,25 +163,31 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
-	if len(msg.ServerID) == 0 {
+	if msg.ServerID == "" {
 		rMsg := "Failed because of missing server Id"
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
-	if len(msg.DeviceID) == 0 {
+	if msg.DeviceID == "" {
 		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerID)
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
@@ -187,7 +204,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 }
@@ -200,40 +219,50 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
-	if len(ack.ID) == 0 {
+	if ack.ID == "" {
 		msg := "Failed because of missing ack Id"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
-	if len(ack.Platform) == 0 {
+	if ack.Platform == "" {
 		msg := "Failed because of missing ack platform"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
-	if len(ack.Type) == 0 {
+	if ack.Type == "" {
 		msg := "Failed because of missing ack type"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		_, _ = w.Write([]byte(resp.ToJson()))
-		incrementBadRequest()
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
 		return
 	}
 
 	// Increment ACK
 	s.logger.Infof("Acknowledge delivery receipt for AckId=%v", ack.ID)
-	incrementDelivered(ack.Platform, ack.Type)
+	if s.metrics != nil {
+		s.metrics.incrementDelivered(ack.Platform, ack.Type)
+	}
 
 	rMsg := NewOkPushResponse()
 	_, _ = w.Write([]byte(rMsg.ToJson()))
@@ -243,11 +272,11 @@ func (s *Server) getIpAddress(r *http.Request) string {
 	address := r.Header.Get(HEADER_FORWARDED)
 	var err error
 
-	if len(address) == 0 {
+	if address == "" {
 		address = r.Header.Get(HEADER_REAL_IP)
 	}
 
-	if len(address) == 0 {
+	if address == "" {
 		address, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			s.logger.Errorf("error in getting IP address: %v", err)
