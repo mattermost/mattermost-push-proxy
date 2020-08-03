@@ -23,11 +23,11 @@ func TestMain(m *testing.M) {
 
 func TestCSRCreation(t *testing.T) {
 	main()
-	if _, err := os.Stat(path.Join("testdata", "certs", "csr", "mattermost.key")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join("testdata", "certs", "mattermost", "csr", "mattermost.key")); os.IsNotExist(err) {
 		t.Fatalf(err.Error())
 	}
 
-	if _, err := os.Stat(path.Join("testdata", "certs", "csr", "mattermost.csr")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join("testdata", "certs", "mattermost", "csr", "mattermost.csr")); os.IsNotExist(err) {
 		t.Fatalf(err.Error())
 	}
 }
