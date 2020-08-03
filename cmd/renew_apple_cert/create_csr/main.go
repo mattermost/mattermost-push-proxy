@@ -1,4 +1,4 @@
-package creation
+package main
 
 import (
 	"crypto/rand"
@@ -61,16 +61,17 @@ func init() {
 		}
 	}
 
-	err := createDirs([]string{
-		os.Getenv("DIR_CSR"),
-		os.Getenv("DIR_DOWNLOADED"),
-	})
+	err := createDirs(path.Join(os.Getenv("CERT_DIR"), os.Getenv("APP")))
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 }
 
-func createDirs(dirs []string) error {
+func createDirs(dir string) error {
+	dirs := []string{
+		path.Join(dir, "csr"),
+		path.Join(dir, "downloaded"),
+	}
 	for _, dir := range dirs {
 		_, err := os.Stat(dir)
 		if os.IsNotExist(err) {
@@ -83,7 +84,7 @@ func createDirs(dirs []string) error {
 	return nil
 }
 
-func Creation() {
+func main() {
 	i := newInput(
 		os.Getenv("APP"),
 		os.Getenv("APPLE_PUSH_TOPIC"),
@@ -93,8 +94,7 @@ func Creation() {
 		os.Getenv("ORGANIZATION"),
 		os.Getenv("EMAIL"),
 	)
-	dirCSR := os.Getenv("DIR_CSR")
-
+	dirCSR := path.Join(os.Getenv("CERT_DIR"), i.app, "csr")
 	key, err := createAndWritePrivateKey(i.app, dirCSR)
 	if err != nil {
 		log.Fatal(err.Error())

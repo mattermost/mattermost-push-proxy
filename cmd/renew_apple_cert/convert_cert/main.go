@@ -1,4 +1,4 @@
-package conversion
+package main
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 
 	"github.com/joho/godotenv"
 )
@@ -33,17 +34,18 @@ func init() {
 		}
 	}
 
-	err := createDirs([]string{
-		os.Getenv("DIR_CSR"),
-		os.Getenv("DIR_DOWNLOADED"),
-		os.Getenv("DIR_CONVERTED"),
-	})
+	err := createDirs(path.Join(os.Getenv("CERT_DIR"), os.Getenv("APP")))
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 }
 
-func createDirs(dirs []string) error {
+func createDirs(dir string) error {
+	dirs := []string{
+		path.Join(dir, "csr"),
+		path.Join(dir, "converted"),
+		path.Join(dir, "downloaded"),
+	}
 	for _, dir := range dirs {
 		_, err := os.Stat(dir)
 		if os.IsNotExist(err) {
@@ -56,12 +58,12 @@ func createDirs(dirs []string) error {
 	return nil
 }
 
-func Conversion() {
+func main() {
 	app := os.Getenv("APP")
 
-	dirCSR := os.Getenv("DIR_CSR")
-	dirDownloaded := os.Getenv("DIR_DOWNLOADED")
-	dirConverted := os.Getenv("DIR_CONVERTED")
+	dirCSR := path.Join(os.Getenv("CERT_DIR"), app, "csr")
+	dirDownloaded := path.Join(os.Getenv("CERT_DIR"), app, "downloaded")
+	dirConverted := path.Join(os.Getenv("CERT_DIR"), app, "converted")
 
 	_, lookErr := exec.LookPath("openssl")
 	if lookErr != nil {

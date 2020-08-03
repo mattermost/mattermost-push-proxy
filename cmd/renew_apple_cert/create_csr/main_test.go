@@ -1,4 +1,4 @@
-package creation
+package main
 
 import (
 	"log"
@@ -13,10 +13,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err.Error())
 	}
 
-	err = createDirs([]string{
-		os.Getenv("DIR_CSR"),
-		os.Getenv("DIR_DOWNLOADED"),
-	})
+	err = createDirs(os.Getenv("CERT_DIR"))
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -25,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCSRCreation(t *testing.T) {
-	Creation()
+	main()
 	if _, err := os.Stat(path.Join("testdata", "certs", "csr", "mattermost.key")); os.IsNotExist(err) {
 		t.Fatalf(err.Error())
 	}
