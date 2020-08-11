@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/golang/mock/gomock"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"gopkg.in/throttled/throttled.v1"

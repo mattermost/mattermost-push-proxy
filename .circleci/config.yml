@@ -107,6 +107,9 @@ workflows:
       - lint
       - check-dependencies
       - test
+        requires:
+          - lint
+          - check-dependencies
   tagged-build:
     jobs:
       - lint:
