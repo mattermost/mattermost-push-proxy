@@ -21,6 +21,16 @@ jobs:
             curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b /usr/local/bin v1.25.1
             make golangci-lint
 
+  check-dependencies:
+    executor:
+      name: default
+    steps:
+      - checkout
+      - run:
+          command: |
+            go mod tidy -v
+            if [[ -n $(git --no-pager diff --exit-code go.mod go.sum) ]]; then echo "There are unused dependencies that should be removed. Please execute `go mod tidy` to fix it."; exit 1; fi
+
   test:
     executor:
       name: default
@@ -95,6 +105,7 @@ workflows:
   untagged-build:
     jobs:
       - lint
+      - check-dependencies
       - test
   tagged-build:
     jobs:
