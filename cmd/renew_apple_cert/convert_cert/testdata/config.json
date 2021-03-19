@@ -1,0 +1,5 @@
+{
+	"App": "mattermost",
+	"CertDir": "testdata/certs",
+	"AppleGateway": "gateway.push.apple.com:2195"
+}

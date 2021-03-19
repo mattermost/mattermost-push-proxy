@@ -7,106 +7,65 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
-
-	"github.com/joho/godotenv"
 )
 
-const fileMode = 0700
+const (
+	csrSubDir        = "csr"
+	downloadedSubDir = "downloaded"
+)
 
-type input struct {
-	app            string
-	applePushTopic string
-	country        string
-	province       string
-	locality       string
-	organization   string
-	email          string
+func main() {
+	var configFile string
+	flag.StringVar(&configFile, "config", "config/config.json", "Configuration file for create_csr.")
+	flag.Parse()
+
+	runJob(configFile)
 }
 
-func newInput(app string, applePushTopic string, country string, province string, locality string, organization string, email string) *input {
-	return &input{
-		app:            app,
-		applePushTopic: applePushTopic,
-		country:        country,
-		province:       province,
-		locality:       locality,
-		organization:   organization,
-		email:          email,
-	}
-}
-
-func init() {
-	env := os.Getenv("ENV_PUSH_PROXY")
-	fmt.Printf("Using environment %v", env)
-	switch env {
-	case "production":
-		err := godotenv.Load(".env")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	case "development":
-		err := godotenv.Load(".env.example")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	default:
-		err := godotenv.Load("testdata/.env.testdata")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	}
-
-	err := createDirs(path.Join(os.Getenv("CERT_DIR"), os.Getenv("APP")))
+// runJob is an externalized version of main to facilitate testing.
+func runJob(configFile string) {
+	cfg, err := parseConfig(configFile)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
+	}
+
+	err = createDirs(path.Join(cfg.CertDir, cfg.App))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dirCSR := path.Join(cfg.CertDir, cfg.App, csrSubDir)
+	key, err := createAndWritePrivateKey(cfg.App, dirCSR)
+	if err != nil {
+		log.Fatal("createAndWritePrivateKey:", err)
+	}
+
+	err = createAndWriteCSR(cfg, key, dirCSR)
+	if err != nil {
+		log.Fatal("createAndWriteCSR:", err)
 	}
 }
 
 func createDirs(dir string) error {
 	dirs := []string{
-		path.Join(dir, "csr"),
-		path.Join(dir, "downloaded"),
+		path.Join(dir, csrSubDir),
+		path.Join(dir, downloadedSubDir),
 	}
 	for _, dir := range dirs {
-		_, err := os.Stat(dir)
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, fileMode)
-			if err != nil {
-				return err
-			}
+		err := os.MkdirAll(dir, 0700)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func main() {
-	i := newInput(
-		os.Getenv("APP"),
-		os.Getenv("APPLE_PUSH_TOPIC"),
-		os.Getenv("COUNTRY"),
-		os.Getenv("PROVINCE"),
-		os.Getenv("LOCALITY"),
-		os.Getenv("ORGANIZATION"),
-		os.Getenv("EMAIL"),
-	)
-	dirCSR := path.Join(os.Getenv("CERT_DIR"), i.app, "csr")
-	key, err := createAndWritePrivateKey(i.app, dirCSR)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = createAndWriteCSR(i, key, dirCSR)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-}
-
-func createAndWritePrivateKey(app string, dirCSR string) (*rsa.PrivateKey, error) {
+func createAndWritePrivateKey(app, dirCSR string) (*rsa.PrivateKey, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -118,27 +77,26 @@ func createAndWritePrivateKey(app string, dirCSR string) (*rsa.PrivateKey, error
 			Bytes: marshaledKey,
 		},
 	)
-	err = ioutil.WriteFile(path.Join(dirCSR, app+".key"), pemPrivateKey, fileMode)
+	err = ioutil.WriteFile(path.Join(dirCSR, app+".key"), pemPrivateKey, 0664)
 	if err != nil {
 		return nil, err
 	}
 	return key, err
 }
 
-func createAndWriteCSR(i *input, key *rsa.PrivateKey, dirCSR string) error {
+func createAndWriteCSR(cfg config, key *rsa.PrivateKey, dirCSR string) error {
 	subj := pkix.Name{
-		CommonName:   i.applePushTopic,
-		Country:      []string{i.country},
-		Province:     []string{i.province},
-		Locality:     []string{i.locality},
-		Organization: []string{i.organization},
-
+		CommonName:   cfg.ApplePushTopic,
+		Country:      []string{cfg.Country},
+		Province:     []string{cfg.Province},
+		Locality:     []string{cfg.Locality},
+		Organization: []string{cfg.Organization},
 		ExtraNames: []pkix.AttributeTypeAndValue{
 			{
 				Type: asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1},
 				Value: asn1.RawValue{
 					Tag:   asn1.TagIA5String,
-					Bytes: []byte(i.email),
+					Bytes: []byte(cfg.Email),
 				},
 			},
 		},
@@ -152,7 +110,7 @@ func createAndWriteCSR(i *input, key *rsa.PrivateKey, dirCSR string) error {
 		return err
 	}
 	cr := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes})
-	err = ioutil.WriteFile(path.Join(dirCSR, i.app+".csr"), cr, fileMode)
+	err = ioutil.WriteFile(path.Join(dirCSR, cfg.App+".csr"), cr, 0664)
 	if err != nil {
 		return err
 	}

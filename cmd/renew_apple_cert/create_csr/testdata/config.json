@@ -1,0 +1,10 @@
+{
+	"App": "mattermost",
+	"CertDir": "testdata/certs",
+	"ApplePushTopic": "com.mattermost.Mattermost",
+	"Country": "US",
+	"Province": "California",
+	"Locality": "Palo Alto",
+	"Organization": "Mattermost, Inc.",
+	"Email": "email@example.com"
+}

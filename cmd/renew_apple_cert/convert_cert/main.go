@@ -1,99 +1,91 @@
+// Copyright (c) 2015 Mattermost, Inc. All Rights Reserved.
+// See License.txt for license information.
+
 package main
 
 import (
-	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path"
-
-	"github.com/joho/godotenv"
 )
 
-const fileMode = 0700
+const (
+	csrSubDir        = "csr"
+	downloadedSubDir = "downloaded"
+	convertedSubDir  = "converted"
 
-func init() {
-	env := os.Getenv("ENV_PUSH_PROXY")
-	fmt.Printf("Using environment %v", env)
-	switch env {
-	case "production":
-		err := godotenv.Load(".env")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	case "development":
-		err := godotenv.Load(".env.example")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	default:
-		err := godotenv.Load("testdata/.env.testdata")
-		if err != nil {
-			log.Fatal(err.Error())
-		}
+	// Important files
+	apsP12 = "aps.p12"
+	apsPem = "aps.pem"
+	apsCer = "aps.cer"
+)
+
+func main() {
+	var configFile string
+	flag.StringVar(&configFile, "config", "config/config.json", "Configuration file for convert_cert.")
+	flag.Parse()
+
+	cfg, err := parseConfig(configFile)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	err := createDirs(path.Join(os.Getenv("CERT_DIR"), os.Getenv("APP")))
+	err = createDirs(path.Join(cfg.CertDir, cfg.App))
 	if err != nil {
 		log.Fatal(err.Error())
+	}
+
+	dirCSR := path.Join(cfg.CertDir, cfg.App, csrSubDir)
+	dirConverted := path.Join(cfg.CertDir, cfg.App, convertedSubDir)
+	dirDownloaded := path.Join(cfg.CertDir, cfg.App, downloadedSubDir)
+
+	err = convertCerToPem(dirDownloaded, dirConverted)
+	if err != nil {
+		log.Fatal("convertCerToPem:", err.Error())
+	}
+
+	err = convertPemToP12(dirCSR, dirConverted, cfg.App)
+	if err != nil {
+		log.Fatal("convertPemToP12:", err.Error())
+	}
+
+	err = extractPrivateKey(dirConverted, cfg.App)
+	if err != nil {
+		log.Fatal("extractPrivateKey:", err.Error())
+	}
+
+	err = verify(dirConverted, cfg.App, cfg.AppleGateway)
+	if err != nil {
+		log.Fatal("verify:", err.Error())
 	}
 }
 
 func createDirs(dir string) error {
 	dirs := []string{
-		path.Join(dir, "csr"),
-		path.Join(dir, "converted"),
-		path.Join(dir, "downloaded"),
+		path.Join(dir, csrSubDir),
+		path.Join(dir, convertedSubDir),
+		path.Join(dir, downloadedSubDir),
 	}
 	for _, dir := range dirs {
-		_, err := os.Stat(dir)
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, fileMode)
-			if err != nil {
-				return err
-			}
+		err := os.MkdirAll(dir, 0700)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func main() {
-	app := os.Getenv("APP")
-
-	dirCSR := path.Join(os.Getenv("CERT_DIR"), app, "csr")
-	dirDownloaded := path.Join(os.Getenv("CERT_DIR"), app, "downloaded")
-	dirConverted := path.Join(os.Getenv("CERT_DIR"), app, "converted")
-
-	_, lookErr := exec.LookPath("openssl")
-	if lookErr != nil {
-		log.Fatal(lookErr.Error())
-	}
-
-	err := convertCerToPem(dirDownloaded, dirConverted)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = convertPemToP12(dirCSR, dirConverted, app)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = extractPrivateKey(dirConverted, app)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = verify(dirConverted, app)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-}
-
-func convertCerToPem(dirDownloaded string, dirConverted string) error {
+func convertCerToPem(dirDownloaded, dirConverted string) error {
 	// openssl x509 -inform=der -in=certs/downloaded/aps.cer -outform=pem -out=certs/converted/aps.pem
-	cmd := exec.Command("openssl", "x509", "-inform=der", "-in="+dirDownloaded+"/aps.cer", "-outform=pem", "-out="+dirConverted+"/aps.pem")
+	cmd := exec.Command("openssl", "x509",
+		"-inform=der",
+		"-in="+path.Join(dirDownloaded, apsCer),
+		"-outform=pem",
+		"-out="+path.Join(dirConverted, apsPem),
+	)
 	err := execCommand(cmd)
 	if err != nil {
 		return err
@@ -101,9 +93,16 @@ func convertCerToPem(dirDownloaded string, dirConverted string) error {
 	return nil
 }
 
-func convertPemToP12(dirCSR string, dirConverted string, app string) error {
-	// openssl pkcs12 -export -inkey=certs/csr/classic.key -in=certs/converted/aps.pem -out=certs/converted/aps.p12 -clcerts -passout=pass:
-	cmd := exec.Command("openssl", "pkcs12", "-export", "-inkey="+dirCSR+"/"+app+".key", "-in="+dirConverted+"/aps.pem", "-out="+dirConverted+"/aps.p12", "-clcerts", "-passout=pass:")
+func convertPemToP12(dirCSR, dirConverted, app string) error {
+	// openssl pkcs12 -export -inkey=certs/csr/mattermost.key -in=certs/converted/aps.pem -out=certs/converted/aps.p12 -clcerts -passout=pass:
+	cmd := exec.Command("openssl", "pkcs12",
+		"-export",
+		"-inkey="+path.Join(dirCSR, app+".key"),
+		"-in="+path.Join(dirConverted, apsPem),
+		"-out="+path.Join(dirConverted, apsP12),
+		"-clcerts",
+		"-passout=pass:",
+	)
 	err := execCommand(cmd)
 	if err != nil {
 		return err
@@ -111,9 +110,15 @@ func convertPemToP12(dirCSR string, dirConverted string, app string) error {
 	return nil
 }
 
-func extractPrivateKey(dirConverted string, app string) error {
+func extractPrivateKey(dirConverted, app string) error {
 	// openssl pkcs12 -in=certs/converted/aps.p12 -out=certs/converted/classic_priv.pem -nodes -clcerts -passin=pass:
-	cmd := exec.Command("openssl", "pkcs12", "-in="+dirConverted+"/aps.p12", "-out="+dirConverted+"/"+app+"_priv.pem", "-nodes", "-clcerts", "-passin=pass:")
+	cmd := exec.Command("openssl", "pkcs12",
+		"-in="+path.Join(dirConverted, apsP12),
+		"-out="+path.Join(dirConverted, app+"_priv.pem"),
+		"-nodes",
+		"-clcerts",
+		"-passin=pass:",
+	)
 	err := execCommand(cmd)
 	if err != nil {
 		return err
@@ -121,9 +126,13 @@ func extractPrivateKey(dirConverted string, app string) error {
 	return nil
 }
 
-func verify(dirConverted string, app string) error {
+func verify(dirConverted, app, gateway string) error {
 	// openssl s_client -connect=gateway.push.apple.com:2195 -cert=certs/converted/aps.pem -key=certs/converted/classic_priv.pem
-	cmd := exec.Command("openssl", "s_client", "-connect=gateway.push.apple.com:2195", "-cert="+dirConverted+"/aps.pem", "-key="+dirConverted+"/"+app+"_priv.pem")
+	cmd := exec.Command("openssl", "s_client",
+		"-connect="+gateway,
+		"-cert="+path.Join(dirConverted, apsPem),
+		"-key="+path.Join(dirConverted, app+"_priv.pem"),
+	)
 	err := execCommand(cmd)
 	if err != nil {
 		return err
@@ -132,15 +141,10 @@ func verify(dirConverted string, app string) error {
 }
 
 func execCommand(cmd *exec.Cmd) error {
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	buf, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		return err
+		return fmt.Errorf("%s: %w", string(buf), err)
 	}
-	fmt.Println("Result: " + out.String())
+	log.Printf("Result: %s\n" + string(buf))
 	return nil
 }
