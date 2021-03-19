@@ -12,7 +12,6 @@ require (
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
-	github.com/joho/godotenv v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kyokomi/emoji v2.2.2+incompatible
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0 // indirect
