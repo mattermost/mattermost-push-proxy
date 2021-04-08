@@ -79,7 +79,7 @@ func createDirs(dir string) error {
 }
 
 func convertCerToPem(dirDownloaded, dirConverted string) error {
-	// openssl x509 -inform=der -in=certs/downloaded/aps.cer -outform=pem -out=certs/converted/aps.pem
+	// openssl x509 -inform=der -in=certs/mattermost/downloaded/aps.cer -outform=pem -out=certs/mattermost/converted/aps.pem
 	cmd := exec.Command("openssl", "x509",
 		"-inform=der",
 		"-in="+path.Join(dirDownloaded, apsCer),
@@ -94,7 +94,7 @@ func convertCerToPem(dirDownloaded, dirConverted string) error {
 }
 
 func convertPemToP12(dirCSR, dirConverted, app string) error {
-	// openssl pkcs12 -export -inkey=certs/csr/mattermost.key -in=certs/converted/aps.pem -out=certs/converted/aps.p12 -clcerts -passout=pass:
+	// openssl pkcs12 -export -inkey=certs/mattermost/csr/mattermost.key -in=certs/mattermost/converted/aps.pem -out=certs/mattermost/converted/aps.p12 -clcerts -passout=pass:
 	cmd := exec.Command("openssl", "pkcs12",
 		"-export",
 		"-inkey="+path.Join(dirCSR, app+".key"),
@@ -111,7 +111,7 @@ func convertPemToP12(dirCSR, dirConverted, app string) error {
 }
 
 func extractPrivateKey(dirConverted, app string) error {
-	// openssl pkcs12 -in=certs/converted/aps.p12 -out=certs/converted/classic_priv.pem -nodes -clcerts -passin=pass:
+	// openssl pkcs12 -in=certs/mattermost/converted/aps.p12 -out=certs/mattermost/mattermost/converted/classic_priv.pem -nodes -clcerts -passin=pass:
 	cmd := exec.Command("openssl", "pkcs12",
 		"-in="+path.Join(dirConverted, apsP12),
 		"-out="+path.Join(dirConverted, app+"_priv.pem"),
@@ -127,7 +127,7 @@ func extractPrivateKey(dirConverted, app string) error {
 }
 
 func verify(dirConverted, app, gateway string) error {
-	// openssl s_client -connect=gateway.push.apple.com:2195 -cert=certs/converted/aps.pem -key=certs/converted/classic_priv.pem
+	// openssl s_client -connect=gateway.push.apple.com:2195 -cert=certs/mattermost/mattermost/converted/aps.pem -key=certs/mattermost/mattermost/converted/classic_priv.pem
 	cmd := exec.Command("openssl", "s_client",
 		"-connect="+gateway,
 		"-cert="+path.Join(dirConverted, apsPem),
@@ -145,6 +145,9 @@ func execCommand(cmd *exec.Cmd) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", string(buf), err)
 	}
-	log.Printf("Result: %s\n" + string(buf))
+	if len(buf) == 0 {
+		return nil
+	}
+	log.Printf("Result: %s\n", string(buf))
 	return nil
 }
