@@ -47,6 +47,7 @@ tags
 *.p12
 *.key
 certs
+certs.bak
 *.env
 
 # Ignore binary
@@ -57,5 +58,7 @@ node_modules
 index.html
 
 # Ignore config.json
+cmd/renew_apple_cert/convert_cert/config/**
 cmd/renew_apple_cert/convert_cert/config.json
+cmd/renew_apple_cert/create_csr/config/**
 cmd/renew_apple_cert/create_csr/config.json
