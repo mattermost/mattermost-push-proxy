@@ -167,7 +167,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if me.AppleClient != nil {
-		me.logger.Infof("Sending apple push notification for device=%v and type=%v", me.ApplePushSettings.Type, msg.Type)
+		me.logger.Infof("Sending apple push notification device=%v did=%v type=%v", me.ApplePushSettings.Type, msg.DeviceID, msg.Type)
 		start := time.Now()
 		res, err := me.AppleClient.Push(notification)
 		if me.metrics != nil {
