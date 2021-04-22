@@ -82,7 +82,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			return NewErrorPushResponse(err.Error())
 		}
 
-		me.logger.Infof("Sending android push notification for device=%v and type=%v", me.AndroidPushSettings.Type, msg.Type)
+		me.logger.Infof("Sending android push notification for device=%v did%v type=%v", me.AndroidPushSettings.Type, msg.DeviceID, msg.Type)
 
 		start := time.Now()
 		resp, err := sender.SendWithRetry(fcmMsg, 2)
