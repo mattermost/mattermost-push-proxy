@@ -43,6 +43,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"badge":          msg.Badge,
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
+		"root_id":        msg.RootID,
 		"is_crt_enabled": msg.IsCRTEnabled,
 	}
 
@@ -52,7 +53,6 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["id_loaded"] = true
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = "Someone"
-		data["root_id"] = msg.RootID
 	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
 		data["team_id"] = msg.TeamID
 		data["sender_id"] = msg.SenderID
@@ -60,7 +60,6 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["message"] = emoji.Sprint(msg.Message)
 		data["channel_name"] = msg.ChannelName
 		data["post_id"] = msg.PostID
-		data["root_id"] = msg.RootID
 		data["override_username"] = msg.OverrideUsername
 		data["override_icon_url"] = msg.OverrideIconURL
 		data["from_webhook"] = msg.FromWebhook
