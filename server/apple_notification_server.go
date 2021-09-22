@@ -129,11 +129,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("ack_id", msg.AckID)
 	}
 
-	if msg.IsCRTEnabled {
-		data.Custom("is_crt_enabled", "true")
-	} else {
-		data.Custom("is_crt_enabled", "false")
-	}
+	data.Custom("is_crt_enabled", msg.IsCRTEnabled)
 
 	if msg.ChannelID != "" {
 		data.Custom("channel_id", msg.ChannelID)
