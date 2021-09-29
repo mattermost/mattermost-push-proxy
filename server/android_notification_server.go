@@ -43,8 +43,11 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"badge":          msg.Badge,
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
-		"root_id":        msg.RootID,
 		"is_crt_enabled": msg.IsCRTEnabled,
+	}
+
+	if msg.RootID != "" {
+		data["root_id"] = msg.RootID
 	}
 
 	if msg.IsIDLoaded {
