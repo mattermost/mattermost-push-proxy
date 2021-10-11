@@ -38,11 +38,16 @@ func (me *AndroidNotificationServer) Initialize() bool {
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	pushType := msg.Type
 	data := map[string]interface{}{
-		"ack_id":     msg.AckID,
-		"type":       pushType,
-		"badge":      msg.Badge,
-		"version":    msg.Version,
-		"channel_id": msg.ChannelID,
+		"ack_id":         msg.AckID,
+		"type":           pushType,
+		"badge":          msg.Badge,
+		"version":        msg.Version,
+		"channel_id":     msg.ChannelID,
+		"is_crt_enabled": msg.IsCRTEnabled,
+	}
+
+	if msg.RootID != "" {
+		data["root_id"] = msg.RootID
 	}
 
 	if msg.IsIDLoaded {
@@ -58,7 +63,6 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["message"] = emoji.Sprint(msg.Message)
 		data["channel_name"] = msg.ChannelName
 		data["post_id"] = msg.PostID
-		data["root_id"] = msg.RootID
 		data["override_username"] = msg.OverrideUsername
 		data["override_icon_url"] = msg.OverrideIconURL
 		data["from_webhook"] = msg.FromWebhook
