@@ -11,9 +11,9 @@ import (
 )
 
 type AndroidNotificationServer struct {
-	AndroidPushSettings AndroidPushSettings
 	metrics             *metrics
 	logger              *Logger
+	AndroidPushSettings AndroidPushSettings
 }
 
 func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) NotificationServer {

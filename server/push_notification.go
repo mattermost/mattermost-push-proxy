@@ -37,8 +37,6 @@ type PushNotification struct {
 	Category         string `json:"category"`
 	Sound            string `json:"sound"`
 	Message          string `json:"message"`
-	Badge            int    `json:"badge"`
-	ContentAvailable int    `json:"cont_ava"`
 	TeamID           string `json:"team_id"`
 	ChannelID        string `json:"channel_id"`
 	PostID           string `json:"post_id"`
@@ -51,6 +49,8 @@ type PushNotification struct {
 	OverrideIconURL  string `json:"override_icon_url"`
 	FromWebhook      string `json:"from_webhook"`
 	Version          string `json:"version"`
+	Badge            int    `json:"badge"`
+	ContentAvailable int    `json:"cont_ava"`
 	IsCRTEnabled     bool   `json:"is_crt_enabled"`
 	IsIDLoaded       bool   `json:"is_id_loaded"`
 }
