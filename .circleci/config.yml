@@ -40,7 +40,6 @@ jobs:
       name: default
     steps:
       - checkout
-      - run: make build-server
       - run: make package
       - persist_to_workspace:
           root: .
