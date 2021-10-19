@@ -1,4 +1,4 @@
-.PHONY: all dist build-server package test clean run update-dependencies gofmt govet golangci-lint
+.PHONY: all dist build build-server package test clean run update-dependencies gofmt govet golangci-lint
 
 GOFLAGS ?= $(GOFLAGS:)
 LDFLAGS ?= $(LDFLAGS:)
@@ -42,7 +42,8 @@ update-dependencies:
 build-server: gofmt
 	@echo Building proxy push server
 
-	$(GO) build -o $(GOBIN) -ldflags '$(LDFLAGS)' $(GOFLAGS)
+	env GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
+	env GOOS=linux GOARCH=arm64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-arm64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 
 build:
 	@echo Building proxy push server
@@ -59,11 +60,12 @@ golangci-lint: ## Run golangci-lint on codebase
 	@echo Running golangci-lint
 	golangci-lint run ./...
 
-package:
-	@ echo Packaging push proxy
+
+package-linux-amd64:
+	@ echo Packaging push proxy for linux amd64
 
 	mkdir -p $(DIST_PATH)/bin
-	cp $(GOBIN)/mattermost-push-proxy $(DIST_PATH)/bin
+	cp $(GOBIN)/mattermost-push-proxy-linux-amd64 $(DIST_PATH)/bin/mattermost-push-proxy
 
 	cp -RL config $(DIST_PATH)/config
 	touch $(DIST_PATH)/config/build.txt
@@ -75,7 +77,68 @@ package:
 	cp NOTICE.txt $(DIST_PATH)
 	cp README.md $(DIST_PATH)
 
-	tar -C dist -czf $(DIST_PATH).tar.gz mattermost-push-proxy
+	tar -C dist -czf $(DIST_PATH)-linux-amd64.tar.gz mattermost-push-proxy
+	rm -rf $(DIST_PATH)
+
+package-linux-arm64:
+	@ echo Packaging push proxy for linux arm64
+
+	mkdir -p $(DIST_PATH)/bin
+	cp $(GOBIN)/mattermost-push-proxy-linux-arm64 $(DIST_PATH)/bin/mattermost-push-proxy
+
+	cp -RL config $(DIST_PATH)/config
+	touch $(DIST_PATH)/config/build.txt
+	echo $(BUILD_NUMBER) | tee -a $(DIST_PATH)/config/build.txt
+
+	mkdir -p $(DIST_PATH)/logs
+
+	cp LICENSE.txt $(DIST_PATH)
+	cp NOTICE.txt $(DIST_PATH)
+	cp README.md $(DIST_PATH)
+
+	tar -C dist -czf $(DIST_PATH)-linux-arm64.tar.gz mattermost-push-proxy
+
+package: build-server package-linux-arm64 package-linux-amd64
+
+
+PLATFORMS ?= linux/amd64 linux/arm64
+ARCHS = $(patsubst linux/%,%,$(PLATFORMS))
+IMAGE ?= mattermost/mattermost-push-proxy
+TAG ?= $(shell git describe --tags --always --dirty)
+# build with buildx
+.PHONY: container
+container: init-docker-buildx
+	@for platform in $(PLATFORMS); do \
+		echo "Starting build for $${platform} platform"; \
+		docker buildx build \
+			--load \
+			--progress plain \
+			--platform $${platform} \
+			--tag $(IMAGE)-$${platform##*/}:$(TAG) \
+			--tag $(IMAGE)-$${platform##*/}:latest \
+			--file docker/Dockerfile \
+			.; \
+	done
+
+.PHONY: push
+push: container
+	echo "Pushing $(IMGNAME) tags"
+	@for platform in $(PLATFORMS); do \
+		echo "Pushing tags for $${platform} platform"; \
+		docker push $(IMAGE)-$${platform##*/}:$(TAG); \
+		docker push $(IMAGE)-$${platform##*/}:latest; \
+	done
+
+.PHONY: manifest
+manifest: push
+	docker manifest create --amend $(IMAGE):$(TAG) $(shell echo $(ARCHS) | sed -e "s~[^ ]*~$(IMAGE)\-&:$(TAG)~g")
+	@for platform in $(ARCHS); do docker manifest annotate --arch "$${platform}" ${IMAGE}:${TAG} ${IMAGE}-$${platform}:${TAG}; done
+	docker manifest push --purge $(IMAGE):$(TAG)
+
+# enable buildx
+.PHONY: init-docker-buildx
+init-docker-buildx:
+	./hack/init-buildx.sh
 
 test:
 	$(GO) test $(GOFLAGS) -v -timeout=180s ./...

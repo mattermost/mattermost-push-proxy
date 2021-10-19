@@ -1,8 +1,16 @@
-FROM alpine:3.11 AS downloader
+FROM alpine:3.14
 
-ARG MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/v5.21/mattermost-push-proxy.tar.gz
+ARG MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/v5.22.5
 
-RUN apk add --no-cache \
+ARG TARGETPLATFORM
+
+RUN targetArch=$(echo $TARGETPLATFORM | cut -f2 -d '/') \
+  && if [ ${targetArch} = "amd64" ]; then \
+  PUSH_PACKAGE="mattermost-push-proxy-linux-amd64.tar.gz"; \
+elif [ ${targetArch} = "arm64" ]; then \
+  PUSH_PACKAGE="mattermost-push-proxy-linux-arm64.tar.gz"; \
+fi \
+    && apk add --no-cache \
     ca-certificates \
     libc6-compat \
     libffi-dev \
@@ -11,9 +19,9 @@ RUN apk add --no-cache \
     tzdata \
     && rm -rf /tmp/* \
     && mkdir -p /mattermost-push-proxy \
-    && wget $MM_PROXY_PACKAGE \
-    && tar -xzvf mattermost-push-proxy.tar.gz \
-    && rm mattermost-push-proxy.tar.gz \
+    && wget $MM_PROXY_PACKAGE/"${PUSH_PACKAGE}" \
+    && tar -xzvf "${PUSH_PACKAGE}" \
+    && rm "${PUSH_PACKAGE}" \
     && chown -R nobody:nogroup /mattermost-push-proxy
 
 USER nobody
@@ -22,7 +30,7 @@ WORKDIR /mattermost-push-proxy
 
 ENV PUSH_PROXY=/mattermost-push-proxy/bin/mattermost-push-proxy
 
-COPY entrypoint /usr/local/bin/
+COPY docker/entrypoint /usr/local/bin/
 
 EXPOSE 8066
 
