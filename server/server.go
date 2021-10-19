@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	"gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
+
+	"github.com/mattermost/mattermost-push-proxy/internal/version"
 )
 
 const (
@@ -23,12 +25,6 @@ const (
 	HEADER_REAL_IP             = "X-Real-IP"
 	WAIT_FOR_SERVER_SHUTDOWN   = time.Second * 5
 	CONNECTION_TIMEOUT_SECONDS = 60
-)
-
-var (
-	BuildNumber string
-	BuildDate   string
-	BuildHash   string
 )
 
 type NotificationServer interface {
@@ -56,7 +52,8 @@ func New(cfg *ConfigPushProxy, logger *Logger) *Server {
 
 // Start starts the server.
 func (s *Server) Start() {
-	s.logger.Infof("Push proxy server is initializing. BuildNumber: %s, BuildDate: %s, BuildHash: %s", BuildNumber, BuildDate, BuildHash)
+	v := version.VersionInfo()
+	s.logger.Infof("Push proxy server is initializing...\n%s\n", v.String())
 
 	proxyServer := getProxyServer()
 	if proxyServer != "" {
