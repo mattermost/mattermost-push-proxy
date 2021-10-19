@@ -1,4 +1,4 @@
-.PHONY: all dist build build-server package test clean run update-dependencies gofmt govet golangci-lint
+.PHONY: all dist build build-server package test clean run update-dependencies golangci-lint
 
 GOFLAGS ?= $(GOFLAGS:)
 LDFLAGS ?= $(LDFLAGS:)
@@ -29,19 +29,16 @@ LDFLAGS="-X $(PP_PKG).gitVersion=$(GIT_VERSION) -X $(PP_PKG).gitCommit=$(GIT_HAS
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
 
-include build/*.mk
-
 all: dist
 
-dist: | gofmt govet build-server test package
+dist: | build-server test package
 
 update-dependencies:
 	$(GO) get -u ./...
 	$(GO) mod tidy
 
-build-server: gofmt
+build-server:
 	@echo Building proxy push server
-
 	env GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 	env GOOS=linux GOARCH=arm64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-arm64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 
@@ -99,7 +96,6 @@ package-linux-arm64:
 	tar -C dist -czf $(DIST_PATH)-linux-arm64.tar.gz mattermost-push-proxy
 
 package: build-server package-linux-arm64 package-linux-amd64
-
 
 PLATFORMS ?= linux/amd64 linux/arm64
 ARCHS = $(patsubst linux/%,%,$(PLATFORMS))
