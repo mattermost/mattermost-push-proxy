@@ -95,6 +95,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("id_loaded", true)
 		data.MutableContent()
 		data.AlertBody(msg.Message)
+		data.ContentAvailable()
 	} else {
 		switch msg.Type {
 		case PushTypeMessage, PushTypeSession:
@@ -102,6 +103,9 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			data.Sound("default")
 			data.Custom("version", msg.Version)
 			data.MutableContent()
+			if msg.Type == PushTypeMessage {
+				data.ContentAvailable()
+			}
 
 			if msg.ChannelName != "" && msg.Version == "v2" {
 				data.AlertTitle(msg.ChannelName)
@@ -124,6 +128,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType)
 	}
 	data.Custom("type", pushType)
+	data.Custom("server_id", msg.ServerID)
 
 	if msg.AckID != "" {
 		data.Custom("ack_id", msg.AckID)
@@ -203,6 +208,9 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			}
 			return NewErrorPushResponse("unknown send response error")
 		}
+
+		json, _ := notification.MarshalJSON()
+		me.logger.Info("Payload %v", string(json[:]))
 	}
 	if me.metrics != nil {
 		if msg.AckID != "" {
