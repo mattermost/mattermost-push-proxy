@@ -208,9 +208,6 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			}
 			return NewErrorPushResponse("unknown send response error")
 		}
-
-		json, _ := notification.MarshalJSON()
-		me.logger.Info("Payload %v", string(json[:]))
 	}
 	if me.metrics != nil {
 		if msg.AckID != "" {
