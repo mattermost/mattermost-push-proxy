@@ -46,6 +46,8 @@ jobs:
           paths:
             - ./dist/mattermost-push-proxy-linux-amd64.tar.gz
             - ./dist/mattermost-push-proxy-linux-arm64.tar.gz
+      - store_artifacts:
+          path: ./dist/
 
   publish-github-release:
     docker:
@@ -76,13 +78,30 @@ jobs:
           to: s3://releases.mattermost.com/mattermost-push-proxy/$CIRCLE_TAG/
           arguments: --acl public-read --cache-control "no-cache" --recursive
 
+  build-image:
+    executor:
+      name: default
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.7
+      - run: |
+          set -e
+          set -u
+          TAG=dirty make container
+      - run:
+          name: Test image
+          command: |
+            docker run docker.io/mattermost/mattermost-push-proxy-amd64:dirty --version
+            docker run --platform linux/arm64 docker.io/mattermost/mattermost-push-proxy-arm64:dirty --version
+
   push-docker:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.9
+          version: 20.10.7
       - run: |
           set -e
           set -u
@@ -91,11 +110,9 @@ jobs:
             exit 1
           else
             echo "Pushing release $CIRCLE_TAG..."
-            TAG="${CIRCLE_TAG//v}"
+            echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+            TAG="${CIRCLE_TAG//v}" make manifest
           fi
-          MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/$CIRCLE_TAG
-          echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
-          make manifest
 
 workflows:
   version: 2
@@ -107,6 +124,7 @@ workflows:
           requires:
             - lint
             - check-dependencies
+      - build-image
   tagged-build:
     jobs:
       - lint:

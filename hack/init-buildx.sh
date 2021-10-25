@@ -63,6 +63,8 @@ if [ "$(uname)" == 'Linux' ]; then
 fi
 
 # Ensure we use a builder that can leverage it (the default on linux will not)
+docker context rm release-multiarch || true
 docker buildx rm release-multiarch || true
-docker buildx create --use --name=release-multiarch
+docker context create release-multiarch
+docker buildx create release-multiarch
 docker buildx inspect --bootstrap

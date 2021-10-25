@@ -39,13 +39,12 @@ update-dependencies:
 
 build-release:
 	@echo Building proxy push server
-	env GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
-	env GOOS=linux GOARCH=arm64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-arm64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
+	env CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-arm64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 
 build-local: # build push proxy for the current arch
 	@echo Building proxy push server
-
-	$(GO) build -o $(GOBIN) -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
+	env CGO_ENABLED=0 $(GO) build -o $(GOBIN) -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 
 golangci-lint: ## Run golangci-lint on codebase
 # https://stackoverflow.com/a/677212/1027058 (check if a command exists or not)
@@ -97,19 +96,34 @@ package-linux-arm64:
 
 package: build-release package-linux-arm64 package-linux-amd64
 
+package-image: build-release
+	mkdir -p $(DIST_PATH)/bin
+
+	cp -RL config $(DIST_PATH)/config
+	touch $(DIST_PATH)/config/build.txt
+	echo $(BUILD_NUMBER) | tee -a $(DIST_PATH)/config/build.txt
+
+	mkdir -p $(DIST_PATH)/logs
+
+	cp LICENSE.txt $(DIST_PATH)
+	cp NOTICE.txt $(DIST_PATH)
+	cp README.md $(DIST_PATH)
+
 PLATFORMS ?= linux/amd64 linux/arm64
 ARCHS = $(patsubst linux/%,%,$(PLATFORMS))
 IMAGE ?= mattermost/mattermost-push-proxy
 TAG ?= $(shell git describe --tags --always --dirty)
+
 # build with buildx
 .PHONY: container
-container: init-docker-buildx
+container: package-image init-docker-buildx
 	@for platform in $(PLATFORMS); do \
 		echo "Starting build for $${platform} platform"; \
 		docker buildx build \
 			--load \
 			--progress plain \
 			--platform $${platform} \
+			--build-arg=ARCH=$${platform##*/} \
 			--tag $(IMAGE)-$${platform##*/}:$(TAG) \
 			--tag $(IMAGE)-$${platform##*/}:latest \
 			--file docker/Dockerfile \

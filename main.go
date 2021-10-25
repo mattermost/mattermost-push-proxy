@@ -25,10 +25,10 @@ func main() {
 	flag.Parse()
 
 	if falgVersion {
-		err := version.GetVersion()
-		if err != nil {
+		if err := version.GetVersion(); err != nil {
 			log.Fatal(err)
 		}
+
 		os.Exit(0)
 	}
 
