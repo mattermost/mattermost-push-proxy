@@ -1,28 +1,35 @@
-FROM alpine:3.11 AS downloader
+FROM alpine:3.14 AS TMP
 
-ARG MM_PROXY_PACKAGE=https://github.com/mattermost/mattermost-push-proxy/releases/download/v5.21/mattermost-push-proxy.tar.gz
+WORKDIR /mattermost-push-proxy
+
+COPY dist/ dist/
+COPY docker/entrypoint .
+
+ARG ARCH
+COPY bin/mattermost-push-proxy-linux-$ARCH bin/mattermost-push-proxy
+
+FROM alpine:3.14
 
 RUN apk add --no-cache \
-    ca-certificates \
-    libc6-compat \
-    libffi-dev \
-    linux-headers \
-    netcat-openbsd \
-    tzdata \
-    && rm -rf /tmp/* \
-    && mkdir -p /mattermost-push-proxy \
-    && wget $MM_PROXY_PACKAGE \
-    && tar -xzvf mattermost-push-proxy.tar.gz \
-    && rm mattermost-push-proxy.tar.gz \
-    && chown -R nobody:nogroup /mattermost-push-proxy
+  ca-certificates \
+  libc6-compat \
+  libffi-dev \
+  linux-headers \
+  netcat-openbsd \
+  tzdata \
+  && rm -rf /tmp/* \
+  && mkdir -p mattermost-push-proxy/bin \
+  && chown -R nobody:nogroup /mattermost-push-proxy
+
+COPY --from=TMP /mattermost-push-proxy/dist /
+COPY --from=TMP /mattermost-push-proxy/bin/ /mattermost-push-proxy/bin/
+COPY --from=TMP /mattermost-push-proxy/entrypoint /usr/local/bin/
 
 USER nobody
 
 WORKDIR /mattermost-push-proxy
 
 ENV PUSH_PROXY=/mattermost-push-proxy/bin/mattermost-push-proxy
-
-COPY entrypoint /usr/local/bin/
 
 EXPOSE 8066
 

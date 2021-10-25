@@ -12,24 +12,24 @@ import (
 )
 
 type ConfigPushProxy struct {
-	ListenAddress           string
-	ThrottlePerSec          int
-	ThrottleMemoryStoreSize int
-	ThrottleVaryByHeader    string
-	EnableMetrics           bool
-	ApplePushSettings       []ApplePushSettings
 	AndroidPushSettings     []AndroidPushSettings
+	ListenAddress           string
+	ThrottleVaryByHeader    string
+	LogFileLocation         string
+	ApplePushSettings       []ApplePushSettings
+	EnableMetrics           bool
 	EnableConsoleLog        bool
 	EnableFileLog           bool
-	LogFileLocation         string
+	ThrottlePerSec          int
+	ThrottleMemoryStoreSize int
 }
 
 type ApplePushSettings struct {
 	Type                    string
-	ApplePushUseDevelopment bool
 	ApplePushCertPrivate    string
 	ApplePushCertPassword   string
 	ApplePushTopic          string
+	ApplePushUseDevelopment bool
 }
 
 type AndroidPushSettings struct {
