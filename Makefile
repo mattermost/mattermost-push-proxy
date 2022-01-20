@@ -36,6 +36,13 @@ update-dependencies:
 	$(GO) get -u ./...
 	$(GO) mod tidy
 
+check-deps:
+	$(GO) mod tidy -v
+	@if [ -n "$$(command git --no-pager diff --exit-code go.mod go.sum)" ]; then \
+		echo "There are unused dependencies that should be removed. Please execute `go mod tidy` to fix it."; \
+		exit 1; \
+	fi
+
 build-release:
 	@echo Building proxy push server
 	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)

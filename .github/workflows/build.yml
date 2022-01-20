@@ -23,9 +23,7 @@ jobs:
         go-version: 1.17.x
 
     - name: check dependencies
-      run: |
-        go mod tidy -v
-        if [[ -n $(git --no-pager diff --exit-code go.mod go.sum) ]]; then echo "There are unused dependencies that should be removed. Please execute `go mod tidy` to fix it."; exit 1; fi
+      run: make check-deps
 
     - name: Run build
       run: make package
