@@ -10,14 +10,27 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mattermost/mattermost-push-proxy/internal/version"
 	"github.com/mattermost/mattermost-push-proxy/server"
 )
 
-var flagConfigFile string
+var (
+	flagConfigFile string
+	falgVersion    bool
+)
 
 func main() {
 	flag.StringVar(&flagConfigFile, "config", "mattermost-push-proxy.json", "")
+	flag.BoolVar(&falgVersion, "version", false, "")
 	flag.Parse()
+
+	if falgVersion {
+		if err := version.GetVersion(); err != nil {
+			log.Fatal(err)
+		}
+
+		os.Exit(0)
+	}
 
 	fileName := server.FindConfigFile(flagConfigFile)
 	cfg, err := server.LoadConfig(fileName)

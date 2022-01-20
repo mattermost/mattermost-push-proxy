@@ -17,10 +17,10 @@ import (
 )
 
 type AppleNotificationServer struct {
-	ApplePushSettings ApplePushSettings
 	AppleClient       *apns.Client
 	metrics           *metrics
 	logger            *Logger
+	ApplePushSettings ApplePushSettings
 }
 
 func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) NotificationServer {

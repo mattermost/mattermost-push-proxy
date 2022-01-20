@@ -17,7 +17,7 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - scopelint
+    - exportloopref
     - structcheck
     - unconvert
     - unused
