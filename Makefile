@@ -25,7 +25,6 @@ endif
 PP_PKG=github.com/mattermost/mattermost-push-proxy/internal/version
 LDFLAGS="-X $(PP_PKG).gitVersion=$(GIT_VERSION) -X $(PP_PKG).gitCommit=$(GIT_HASH) -X $(PP_PKG).gitTreeState=$(GIT_TREESTATE) -X $(PP_PKG).buildDate=$(BUILD_DATE)"
 
-
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
 
@@ -55,7 +54,6 @@ golangci-lint: ## Run golangci-lint on codebase
 
 	@echo Running golangci-lint
 	golangci-lint run ./...
-
 
 package-linux-amd64:
 	@ echo Packaging push proxy for linux amd64
@@ -95,6 +93,9 @@ package-linux-arm64:
 	tar -C dist -czf $(DIST_PATH)-linux-arm64.tar.gz mattermost-push-proxy
 
 package: build-release package-linux-arm64 package-linux-amd64
+	cd dist \
+	sha256sum mattermost-push-proxy-linux-amd64.tar.gz >> checksums.txt \
+	&& sha256sum mattermost-push-proxy-linux-arm64.tar.gz >> checksums.txt
 
 package-image: build-release
 	mkdir -p $(DIST_PATH)/bin
@@ -125,7 +126,6 @@ container: package-image init-docker-buildx
 			--platform $${platform} \
 			--build-arg=ARCH=$${platform##*/} \
 			--tag $(IMAGE)-$${platform##*/}:$(TAG) \
-			--tag $(IMAGE)-$${platform##*/}:latest \
 			--file docker/Dockerfile \
 			.; \
 	done
@@ -136,7 +136,6 @@ push: container
 	@for platform in $(PLATFORMS); do \
 		echo "Pushing tags for $${platform} platform"; \
 		docker push $(IMAGE)-$${platform##*/}:$(TAG); \
-		docker push $(IMAGE)-$${platform##*/}:latest; \
 	done
 
 .PHONY: manifest

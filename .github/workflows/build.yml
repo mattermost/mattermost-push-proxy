@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.x
+
+    - name: check dependencies
+      run: |
+        go mod tidy -v
+        if [[ -n $(git --no-pager diff --exit-code go.mod go.sum) ]]; then echo "There are unused dependencies that should be removed. Please execute `go mod tidy` to fix it."; exit 1; fi
+
+    - name: Run build
+      run: make package
+
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: push-proxy-binaries
+        retention-days: 5
+        path: |
+          ./dist/*.tar.gz
+          ./dist/checksums.txt
+
+  image:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Build image
+      run: TAG=dirty make container
+
+    - name: Test image
+      run: |
+        docker run docker.io/mattermost/mattermost-push-proxy-amd64:dirty --version
+        docker run --platform linux/arm64 docker.io/mattermost/mattermost-push-proxy-arm64:dirty --version

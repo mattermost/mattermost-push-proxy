@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.x
+
+    - name: Run tests
+      run: |
+        go install gotest.tools/gotestsum@latest
+        mkdir -p test-reports
+        gotestsum --junitfile test-reports/unit-tests.xml
+
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v1
+      if: always()
+      with:
+        files: test-reports/unit-tests.xml

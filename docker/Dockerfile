@@ -1,4 +1,4 @@
-FROM alpine:3.14 AS TMP
+FROM alpine:3.15 AS TMP
 
 WORKDIR /mattermost-push-proxy
 
@@ -8,7 +8,7 @@ COPY docker/entrypoint .
 ARG ARCH
 COPY bin/mattermost-push-proxy-linux-$ARCH bin/mattermost-push-proxy
 
-FROM alpine:3.14
+FROM alpine:3.15
 
 RUN apk add --no-cache \
   ca-certificates \
