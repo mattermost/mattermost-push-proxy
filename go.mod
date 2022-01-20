@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/appleboy/go-fcm v0.1.5
 	github.com/gorilla/handlers v1.4.2
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/prometheus/client_golang v1.5.1
