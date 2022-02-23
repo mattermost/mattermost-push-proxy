@@ -80,7 +80,9 @@ func (me *AppleNotificationServer) Initialize() bool {
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 
 	data := payload.NewPayload()
-	data.Badge(msg.Badge)
+	if msg.Badge != -1 {
+		data.Badge(msg.Badge)
+	}
 
 	notification := &apns.Notification{}
 	notification.DeviceToken = msg.DeviceID
@@ -114,7 +116,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 					data.Custom("channel_name", msg.ChannelName)
 				}
 			}
-		case PushTypeClear:
+		case PushTypeClear, PushTypeTest:
 			data.ContentAvailable()
 		case PushTypeUpdateBadge:
 			// Handled by the apps, nothing else to do here
