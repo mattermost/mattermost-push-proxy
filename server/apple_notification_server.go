@@ -86,6 +86,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	notification.DeviceToken = msg.DeviceID
 	notification.Payload = data
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
+	notification.Priority = apns.PriorityHigh
 
 	var pushType = msg.Type
 	if msg.IsIDLoaded {
