@@ -10,7 +10,7 @@ require (
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.32.1
-	github.com/sideshow/apns2 v0.20.0
+	github.com/sideshow/apns2 v0.22.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
@@ -22,9 +22,9 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/garyburd/redigo v1.6.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
