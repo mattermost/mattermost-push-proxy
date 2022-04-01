@@ -86,6 +86,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	notification.DeviceToken = msg.DeviceID
 	notification.Payload = data
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
+	notification.Priority = apns.PriorityHigh
 
 	var pushType = msg.Type
 	if msg.IsIDLoaded {
@@ -95,6 +96,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("id_loaded", true)
 		data.MutableContent()
 		data.AlertBody(msg.Message)
+		data.ContentAvailable()
 	} else {
 		switch msg.Type {
 		case PushTypeMessage, PushTypeSession:
@@ -102,6 +104,9 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 			data.Sound("default")
 			data.Custom("version", msg.Version)
 			data.MutableContent()
+			if msg.Type == PushTypeMessage {
+				data.ContentAvailable()
+			}
 
 			if msg.ChannelName != "" && msg.Version == "v2" {
 				data.AlertTitle(msg.ChannelName)
@@ -124,6 +129,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType)
 	}
 	data.Custom("type", pushType)
+	data.Custom("server_id", msg.ServerID)
 
 	if msg.AckID != "" {
 		data.Custom("ack_id", msg.AckID)

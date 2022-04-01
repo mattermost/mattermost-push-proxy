@@ -44,6 +44,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
 		"is_crt_enabled": msg.IsCRTEnabled,
+		"server_id":      msg.ServerID,
 	}
 
 	if msg.RootID != "" {
@@ -56,6 +57,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["id_loaded"] = true
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = "Someone"
+		data["team_id"] = msg.TeamID
 	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
 		data["team_id"] = msg.TeamID
 		data["sender_id"] = msg.SenderID
