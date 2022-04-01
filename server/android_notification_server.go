@@ -40,11 +40,14 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	data := map[string]interface{}{
 		"ack_id":         msg.AckID,
 		"type":           pushType,
-		"badge":          msg.Badge,
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
 		"is_crt_enabled": msg.IsCRTEnabled,
 		"server_id":      msg.ServerID,
+	}
+
+	if msg.Badge != -1 {
+		data["badge"] = msg.Badge
 	}
 
 	if msg.RootID != "" {
