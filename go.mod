@@ -9,10 +9,10 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/prometheus/client_golang v1.12.1
-	github.com/prometheus/common v0.32.1
+	github.com/prometheus/common v0.33.0
 	github.com/sideshow/apns2 v0.20.0
 	github.com/stretchr/testify v1.7.1
-	golang.org/x/net v0.0.0-20210525063256-abc453219eb5
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/throttled/throttled.v1 v1.0.0
 )
@@ -35,7 +35,7 @@ require (
 	github.com/rakyll/pb v0.0.0-20160123035540-8d46b8b097ef // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
-	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
