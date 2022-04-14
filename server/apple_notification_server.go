@@ -13,6 +13,7 @@ import (
 	apns "github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/certificate"
 	"github.com/sideshow/apns2/payload"
+	"github.com/sideshow/apns2/token"
 	"golang.org/x/net/http2"
 )
 
@@ -32,12 +33,49 @@ func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metr
 }
 
 func (me *AppleNotificationServer) Initialize() bool {
-	me.logger.Infof("Initializing apple notification server for type=%v", me.ApplePushSettings.Type)
+	if me.ApplePushSettings.AppleAuthKeyFile != "" && me.ApplePushSettings.AppleAuthKeyID != "" && me.ApplePushSettings.AppleTeamID != "" {
+		authKey, err := token.AuthKeyFromFile(me.ApplePushSettings.AppleAuthKeyFile)
+		if err != nil {
+			me.logger.Panicf("Failed to initialize apple notification service with AuthKey file err=%v ", err)
+		}
 
-	if me.ApplePushSettings.ApplePushCertPrivate != "" {
+		appleToken := &token.Token{
+			AuthKey: authKey,
+			KeyID:   me.ApplePushSettings.AppleAuthKeyID,
+			TeamID:  me.ApplePushSettings.AppleTeamID,
+		}
+
+		if me.ApplePushSettings.ApplePushUseDevelopment {
+			me.AppleClient = apns.NewTokenClient(appleToken).Development()
+		} else {
+			me.AppleClient = apns.NewTokenClient(appleToken).Production()
+		}
+
+		// Override the native transport.
+		proxyServer := getProxyServer()
+		if proxyServer != "" {
+			transport := &http.Transport{
+				Proxy: func(request *http.Request) (*url.URL, error) {
+					return url.Parse(proxyServer)
+				},
+				IdleConnTimeout: apns.HTTPClientTimeout,
+			}
+			err := http2.ConfigureTransport(transport)
+			if err != nil {
+				me.logger.Errorf("Transport Error: %v", err)
+				return false
+			}
+
+			me.AppleClient.HTTPClient.Transport = transport
+		}
+
+		me.logger.Infof("Initializing apple notification server for type=%v with AuthKey", me.ApplePushSettings.Type)
+
+		return true
+	} else if me.ApplePushSettings.ApplePushCertPrivate != "" {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
 		if appleCertErr != nil {
-			me.logger.Panicf("Failed to load the apple pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
+			me.logger.Panicf("Failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 			return false
 		}
 
@@ -69,6 +107,8 @@ func (me *AppleNotificationServer) Initialize() bool {
 
 			me.AppleClient.HTTPClient.Transport = transport
 		}
+
+		me.logger.Infof("Initializing apple notification server for type=%v with PEM certificate", me.ApplePushSettings.Type)
 
 		return true
 	} else {
