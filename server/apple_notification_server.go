@@ -80,7 +80,9 @@ func (me *AppleNotificationServer) Initialize() bool {
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 
 	data := payload.NewPayload()
-	if msg.Badge != -1 {
+	if msg.Badge == 0 && msg.Type == PushTypeClear && msg.AppVersion > 1 {
+		data.Badge(1)
+	} else if msg.Badge != -1 {
 		data.Badge(msg.Badge)
 	}
 

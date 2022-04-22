@@ -192,6 +192,17 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		msg.Message = msg.Message[0:2046]
 	}
 
+	// Parse the app version if available
+	index := strings.Index(msg.Platform, "-v")
+	platform := msg.Platform
+	appVersion := 1
+	if index > -1 {
+		msg.Platform = platform[:index]
+		appVersionString := platform[index+2:]
+		fmt.Sscan(appVersionString, &appVersion)
+	}
+	msg.AppVersion = appVersion
+
 	if server, ok := s.pushTargets[msg.Platform]; ok {
 		rMsg := server.SendNotification(msg)
 		_, _ = w.Write([]byte(rMsg.ToJson()))
