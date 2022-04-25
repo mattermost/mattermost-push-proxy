@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -199,7 +200,13 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	if index > -1 {
 		msg.Platform = platform[:index]
 		appVersionString := platform[index+2:]
-		fmt.Sscan(appVersionString, &appVersion)
+		version, e := strconv.Atoi(appVersionString)
+		if e == nil {
+			appVersion = version
+		} else {
+			rMsg := fmt.Sprintf("Could not determine the app version in %v appVersion=%v", msg.Platform, appVersionString)
+			s.logger.Error(rMsg)
+		}
 	}
 	msg.AppVersion = appVersion
 
