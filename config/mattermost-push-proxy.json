@@ -10,14 +10,20 @@
             "ApplePushUseDevelopment":false,
             "ApplePushCertPrivate":"",
             "ApplePushCertPassword":"",
-            "ApplePushTopic":"com.mattermost.Mattermost"
+            "ApplePushTopic":"com.mattermost.Mattermost",
+            "AppleAuthKeyFile": "",
+            "AppleAuthKeyID": "",
+            "AppleTeamID": ""
         },
         {
             "Type":"apple_rn",
             "ApplePushUseDevelopment":false,
             "ApplePushCertPrivate":"",
             "ApplePushCertPassword":"",
-            "ApplePushTopic":"com.mattermost.react.native"
+            "ApplePushTopic":"com.mattermost.react.native",
+            "AppleAuthKeyFile": "",
+            "AppleAuthKeyID": "",
+            "AppleTeamID": ""
         }
     ],
     "AndroidPushSettings":[
