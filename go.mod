@@ -1,6 +1,6 @@
 module github.com/mattermost/mattermost-push-proxy
 
-go 1.17
+go 1.20
 
 require (
 	github.com/appleboy/go-fcm v0.1.5
