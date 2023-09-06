@@ -44,6 +44,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"channel_id":     msg.ChannelID,
 		"is_crt_enabled": msg.IsCRTEnabled,
 		"server_id":      msg.ServerID,
+		"category":       msg.Category,
 	}
 
 	if msg.Badge != -1 {
