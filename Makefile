@@ -124,7 +124,7 @@ TAG ?= $(shell git describe --tags --always --dirty)
 
 # build with buildx
 .PHONY: container
-container: package-image init-docker-buildx
+container: package-image
 	@for platform in $(PLATFORMS); do \
 		echo "Starting build for $${platform} platform"; \
 		docker buildx build \
@@ -150,11 +150,6 @@ manifest: push
 	docker manifest create --amend $(IMAGE):$(TAG) $(shell echo $(ARCHS) | sed -e "s~[^ ]*~$(IMAGE)\-&:$(TAG)~g")
 	@for platform in $(ARCHS); do docker manifest annotate --arch "$${platform}" ${IMAGE}:${TAG} ${IMAGE}-$${platform}:${TAG}; done
 	docker manifest push --purge $(IMAGE):$(TAG)
-
-# enable buildx
-.PHONY: init-docker-buildx
-init-docker-buildx:
-	./hack/init-buildx.sh
 
 test:
 	$(GO) test $(GOFLAGS) -v -timeout=180s ./...

@@ -6,7 +6,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -64,7 +64,7 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 	}
 	defer file.Close()
 
-	buf, err := ioutil.ReadAll(file)
+	buf, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}

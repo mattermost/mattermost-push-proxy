@@ -8,7 +8,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -77,7 +76,7 @@ func createAndWritePrivateKey(app, dirCSR string) (*rsa.PrivateKey, error) {
 			Bytes: marshaledKey,
 		},
 	)
-	err = ioutil.WriteFile(path.Join(dirCSR, app+".key"), pemPrivateKey, 0664)
+	err = os.WriteFile(path.Join(dirCSR, app+".key"), pemPrivateKey, 0664)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +109,7 @@ func createAndWriteCSR(cfg config, key *rsa.PrivateKey, dirCSR string) error {
 		return err
 	}
 	cr := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes})
-	err = ioutil.WriteFile(path.Join(dirCSR, cfg.App+".csr"), cr, 0664)
+	err = os.WriteFile(path.Join(dirCSR, cfg.App+".csr"), cr, 0664)
 	if err != nil {
 		return err
 	}
