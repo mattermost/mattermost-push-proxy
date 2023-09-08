@@ -3,11 +3,6 @@
 
 package server
 
-import (
-	"encoding/json"
-	"io"
-)
-
 const (
 	PushNotifyApple   = "apple"
 	PushNotifyAndroid = "android"
@@ -55,41 +50,4 @@ type PushNotification struct {
 	ContentAvailable int    `json:"cont_ava"`
 	IsCRTEnabled     bool   `json:"is_crt_enabled"`
 	IsIDLoaded       bool   `json:"is_id_loaded"`
-}
-
-func (me *PushNotification) ToJson() string {
-	b, err := json.Marshal(me)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-func PushNotificationFromJson(data io.Reader) *PushNotification {
-	decoder := json.NewDecoder(data)
-	var me PushNotification
-	err := decoder.Decode(&me)
-	if err == nil {
-		return &me
-	} else {
-		return nil
-	}
-}
-
-func (me *PushNotificationAck) ToJSON() string {
-	b, err := json.Marshal(me)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-func PushNotificationAckFromJSON(data io.Reader) *PushNotificationAck {
-	var me PushNotificationAck
-	decoder := json.NewDecoder(data)
-	err := decoder.Decode(&me)
-	if err == nil {
-		return &me
-	}
-	return nil
 }

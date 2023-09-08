@@ -26,7 +26,7 @@
             "AppleTeamID": ""
         }
     ],
-    "AndroidPushSettings":[
+    "AndroidPushSettings": [
         {
             "Type":"android",
             "AndroidApiKey":""

@@ -37,14 +37,6 @@ func NewErrorPushResponse(message string) PushResponse {
 	return m
 }
 
-func (me *PushResponse) ToJson() string {
-	if b, err := json.Marshal(me); err != nil {
-		return ""
-	} else {
-		return string(b)
-	}
-}
-
 func PushResponseFromJson(data io.Reader) PushResponse {
 	decoder := json.NewDecoder(data)
 
