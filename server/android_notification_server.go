@@ -16,7 +16,7 @@ type AndroidNotificationServer struct {
 	AndroidPushSettings AndroidPushSettings
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) NotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
@@ -37,7 +37,7 @@ func (me *AndroidNotificationServer) Initialize() bool {
 
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	pushType := msg.Type
-	data := map[string]interface{}{
+	data := map[string]any{
 		"ack_id":         msg.AckID,
 		"type":           pushType,
 		"version":        msg.Version,

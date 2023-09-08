@@ -24,7 +24,7 @@ type AppleNotificationServer struct {
 	ApplePushSettings ApplePushSettings
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) NotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,

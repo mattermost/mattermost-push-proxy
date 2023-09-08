@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -154,13 +155,15 @@ func (s *Server) responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) {
-	msg := PushNotificationFromJson(r.Body)
-
-	if msg == nil {
-		rMsg := "Failed to read message body"
+	var msg PushNotification
+	err := json.NewDecoder(r.Body).Decode(&msg)
+	if err != nil {
+		rMsg := fmt.Sprintf("Failed to read message body: %v", err)
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
+			s.logger.Errorf("Failed to write response: %v", err2)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -171,7 +174,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		rMsg := "Failed because of missing server Id"
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
+			s.logger.Errorf("Failed to write response: %v", err2)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -182,7 +187,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerID)
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
+			s.logger.Errorf("Failed to write response: %v", err2)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -210,29 +217,34 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if server, ok := s.pushTargets[msg.Platform]; ok {
-		rMsg := server.SendNotification(msg)
-		_, _ = w.Write([]byte(rMsg.ToJson()))
-		return
-	} else {
-		rMsg := fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerID)
-		s.logger.Error(rMsg)
-		resp := NewErrorPushResponse(rMsg)
-		_, _ = w.Write([]byte(resp.ToJson()))
-		if s.metrics != nil {
-			s.metrics.incrementBadRequest()
+		rMsg := server.SendNotification(&msg)
+		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
+			s.logger.Errorf("Failed to write message: %v", err2)
 		}
 		return
+	}
+	rMsg := fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerID)
+	s.logger.Error(rMsg)
+	resp := NewErrorPushResponse(rMsg)
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		s.logger.Errorf("Failed to write response: %v", err)
+	}
+	if s.metrics != nil {
+		s.metrics.incrementBadRequest()
 	}
 }
 
 func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
-	ack := PushNotificationAckFromJSON(r.Body)
-
-	if ack == nil {
-		msg := "Failed to read ack body"
+	var ack PushNotificationAck
+	err := json.NewDecoder(r.Body).Decode(&ack)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to read ack body: %v", err)
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
+			s.logger.Errorf("Failed to write response: %v", err2)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -243,7 +255,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		msg := "Failed because of missing ack Id"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			s.logger.Errorf("Failed to write response: %v", err)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -254,7 +268,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		msg := "Failed because of missing ack platform"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			s.logger.Errorf("Failed to write response: %v", err)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -265,7 +281,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		msg := "Failed because of missing ack type"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
-		_, _ = w.Write([]byte(resp.ToJson()))
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			s.logger.Errorf("Failed to write response: %v", err)
+		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -279,7 +297,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rMsg := NewOkPushResponse()
-	_, _ = w.Write([]byte(rMsg.ToJson()))
+	if err := json.NewEncoder(w).Encode(rMsg); err != nil {
+		s.logger.Errorf("Failed to write message: %v", err)
+	}
 }
 
 func (s *Server) getIpAddress(r *http.Request) string {

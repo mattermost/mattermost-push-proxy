@@ -57,6 +57,7 @@ node_modules
 # Swagger output file
 index.html
 
+config/mattermost-push-proxy.json
 # Ignore config.json
 cmd/renew_apple_cert/convert_cert/config/**
 cmd/renew_apple_cert/convert_cert/config.json
