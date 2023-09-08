@@ -16,7 +16,7 @@ func TestMetricDisabled(t *testing.T) {
 	platform := "junk"
 	pushType := PushTypeMessage
 
-	fileName := FindConfigFile("mattermost-push-proxy.json")
+	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
@@ -64,7 +64,7 @@ func TestMetricEnabled(t *testing.T) {
 	platform := "junk"
 	pushType := PushTypeMessage
 
-	fileName := FindConfigFile("mattermost-push-proxy.json")
+	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
