@@ -1,4 +1,6 @@
+# options for analysis running
 run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
   timeout: 5m
 
 linters-settings:
@@ -7,27 +9,17 @@ linters-settings:
   govet:
     check-shadowing: true
     enable-all: true
+    disable:
+      - fieldalignment
 
 linters:
   disable-all: true
   enable:
-    - deadcode
     - gofmt
-    # - golint Enable it later.
     - gosimple
     - govet
     - ineffassign
     - exportloopref
-    - structcheck
+    - staticcheck
     - unconvert
     - unused
-    - varcheck
-    - errcheck
-    - staticcheck
-
-issues:
-  exclude-rules:
-    - linters:
-      - scopelint
-      # ignore warnings from table tests. https://github.com/kyoh86/scopelint/issues/4
-      path: ".*_test.go"

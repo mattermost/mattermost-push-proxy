@@ -5,7 +5,6 @@ package server
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func TestLoggerConsoleAndFile(t *testing.T) {
-	f, err := ioutil.TempFile("", "log")
+	f, err := os.CreateTemp("", "log")
 	require.NoError(t, err)
 	err = f.Close()
 	require.NoError(t, err)
@@ -52,7 +51,7 @@ func TestLoggerConsoleAndFile(t *testing.T) {
 		l.Errorf("err %d", 1)
 	})
 
-	buf, err := ioutil.ReadFile(f.Name())
+	buf, err := os.ReadFile(f.Name())
 	require.NoError(t, err)
 	var total []byte
 	total = append(total, infoBuf.Bytes()...)
@@ -80,7 +79,7 @@ func TestLoggerConsoleAndFile(t *testing.T) {
 }
 
 func TestLoggerConsole(t *testing.T) {
-	f, err := ioutil.TempFile("", "log")
+	f, err := os.CreateTemp("", "log")
 	require.NoError(t, err)
 	err = f.Close()
 	require.NoError(t, err)
@@ -114,7 +113,7 @@ func TestLoggerConsole(t *testing.T) {
 		l.Errorf("err %d", 1)
 	})
 
-	buf, err := ioutil.ReadFile(f.Name())
+	buf, err := os.ReadFile(f.Name())
 	require.NoError(t, err)
 	assert.Empty(t, buf)
 }
