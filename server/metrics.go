@@ -153,7 +153,7 @@ func (m *metrics) incrementDelivered(platform, pushType string) {
 
 func (m *metrics) incrementFailure(platform, pushType, reason string) {
 	m.metricFailure.WithLabelValues(platform, pushType).Inc()
-	if len(reason) > 0 {
+	if reason != "" {
 		m.metricFailureWithReason.WithLabelValues(platform, pushType, reason).Inc()
 	}
 }

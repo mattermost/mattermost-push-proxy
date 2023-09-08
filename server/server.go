@@ -31,7 +31,7 @@ const (
 
 type NotificationServer interface {
 	SendNotification(msg *PushNotification) PushResponse
-	Initialize() bool
+	Initialize() error
 }
 
 // Server is the main struct which performs all activities.
@@ -70,16 +70,22 @@ func (s *Server) Start() {
 
 	for _, settings := range s.cfg.ApplePushSettings {
 		server := NewAppleNotificationServer(settings, s.logger, m)
-		if server.Initialize() {
-			s.pushTargets[settings.Type] = server
+		err := server.Initialize()
+		if err != nil {
+			s.logger.Errorf("Failed to initialize client: %v", err)
+			continue
 		}
+		s.pushTargets[settings.Type] = server
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
 		server := NewAndroidNotificationServer(settings, s.logger, m)
-		if server.Initialize() {
-			s.pushTargets[settings.Type] = server
+		err := server.Initialize()
+		if err != nil {
+			s.logger.Errorf("Failed to initialize client: %v", err)
+			continue
 		}
+		s.pushTargets[settings.Type] = server
 	}
 
 	router := mux.NewRouter()

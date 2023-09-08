@@ -29,11 +29,11 @@
     "AndroidPushSettings": [
         {
             "Type":"android",
-            "AndroidApiKey":""
+            "ServiceFileLocation":""
         },
         {
             "Type":"android_rn",
-            "AndroidApiKey":""
+            "ServiceFileLocation":""
         }
     ],
     "EnableConsoleLog": true,
