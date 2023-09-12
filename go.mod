@@ -12,6 +12,7 @@ require (
 	github.com/sideshow/apns2 v0.23.0
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/net v0.15.0
+	golang.org/x/oauth2 v0.11.0
 	google.golang.org/api v0.138.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/throttled/throttled.v1 v1.0.0
@@ -50,7 +51,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/oauth2 v0.11.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
