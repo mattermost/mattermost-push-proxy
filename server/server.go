@@ -69,7 +69,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.ApplePushSettings {
-		server := NewAppleNotificationServer(settings, s.logger, m)
+		server := NewAppleNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Errorf("Failed to initialize client: %v", err)
@@ -79,7 +79,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
-		server := NewAndroidNotificationServer(settings, s.logger, m)
+		server := NewAndroidNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Errorf("Failed to initialize client: %v", err)

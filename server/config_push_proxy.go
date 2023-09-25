@@ -16,6 +16,7 @@ type ConfigPushProxy struct {
 	ListenAddress           string
 	ThrottleVaryByHeader    string
 	LogFileLocation         string
+	SendTimeoutSec          int
 	ApplePushSettings       []ApplePushSettings
 	EnableMetrics           bool
 	EnableConsoleLog        bool

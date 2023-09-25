@@ -40,6 +40,7 @@ type AndroidNotificationServer struct {
 	logger              *Logger
 	AndroidPushSettings AndroidPushSettings
 	client              *messaging.Client
+	sendTimeout         time.Duration
 }
 
 // serviceAccount contains a subset of the fields in service-account.json.
@@ -53,11 +54,12 @@ type serviceAccount struct {
 	TokenURI    string `json:"token_uri"`
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) *AndroidNotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
 		logger:              logger,
+		sendTimeout:         time.Duration(sendTimeoutSecs) * time.Second,
 	}
 }
 
@@ -157,7 +159,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
 	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)

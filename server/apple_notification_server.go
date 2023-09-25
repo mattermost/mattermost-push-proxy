@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -23,13 +24,15 @@ type AppleNotificationServer struct {
 	metrics           *metrics
 	logger            *Logger
 	ApplePushSettings ApplePushSettings
+	sendTimeout       time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
 		logger:            logger,
+		sendTimeout:       time.Duration(sendTimeoutSecs) * time.Second,
 	}
 }
 
@@ -218,7 +221,11 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	if me.AppleClient != nil {
 		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
 		start := time.Now()
-		res, err := me.AppleClient.Push(notification)
+
+		ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+		defer cancel()
+
+		res, err := me.AppleClient.PushWithContext(ctx, notification)
 		if me.metrics != nil {
 			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
 		}

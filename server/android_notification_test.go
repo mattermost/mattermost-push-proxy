@@ -21,7 +21,7 @@ func TestAndroidInitialize(t *testing.T) {
 	// Verify error for no service file
 	pushSettings := AndroidPushSettings{}
 	cfg.AndroidPushSettings[0] = pushSettings
-	require.Error(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil).Initialize())
+	require.Error(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil, cfg.SendTimeoutSec).Initialize())
 
 	f, err := os.CreateTemp("", "example")
 	require.NoError(t, err)
@@ -32,7 +32,7 @@ func TestAndroidInitialize(t *testing.T) {
 	// Verify error for bad JSON
 	_, err = f.Write([]byte("badJSON"))
 	require.NoError(t, err)
-	require.Error(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil).Initialize())
+	require.Error(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil, cfg.SendTimeoutSec).Initialize())
 
 	require.NoError(t, f.Truncate(0))
 	_, err = f.Seek(0, 0)
@@ -44,7 +44,7 @@ func TestAndroidInitialize(t *testing.T) {
 		ProjectID: "sample",
 	}))
 	require.NoError(t, f.Sync())
-	require.NoError(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil).Initialize())
+	require.NoError(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil, cfg.SendTimeoutSec).Initialize())
 
 	require.NoError(t, f.Close())
 }
