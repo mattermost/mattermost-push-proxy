@@ -4,6 +4,7 @@
     "ThrottleMemoryStoreSize":50000,
     "ThrottleVaryByHeader":"X-Forwarded-For",
     "EnableMetrics": false,
+    "SendTimeoutSec": 30,
     "ApplePushSettings":[
         {
             "Type":"apple",
@@ -29,11 +30,11 @@
     "AndroidPushSettings": [
         {
             "Type":"android",
-            "AndroidApiKey":""
+            "ServiceFileLocation":""
         },
         {
             "Type":"android_rn",
-            "AndroidApiKey":""
+            "ServiceFileLocation":""
         }
     ],
     "EnableConsoleLog": true,

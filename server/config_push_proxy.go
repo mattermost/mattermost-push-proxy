@@ -16,6 +16,7 @@ type ConfigPushProxy struct {
 	ListenAddress           string
 	ThrottleVaryByHeader    string
 	LogFileLocation         string
+	SendTimeoutSec          int
 	ApplePushSettings       []ApplePushSettings
 	EnableMetrics           bool
 	EnableConsoleLog        bool
@@ -36,8 +37,9 @@ type ApplePushSettings struct {
 }
 
 type AndroidPushSettings struct {
-	Type          string
-	AndroidAPIKey string `json:"AndroidApiKey"`
+	Type                string
+	AndroidAPIKey       string `json:"AndroidApiKey"`
+	ServiceFileLocation string `json:"ServiceFileLocation"`
 }
 
 // FindConfigFile searches for the filepath in a list of directories

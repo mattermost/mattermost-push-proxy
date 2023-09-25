@@ -4,7 +4,9 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -22,17 +24,19 @@ type AppleNotificationServer struct {
 	metrics           *metrics
 	logger            *Logger
 	ApplePushSettings ApplePushSettings
+	sendTimeout       time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
 		logger:            logger,
+		sendTimeout:       time.Duration(sendTimeoutSecs) * time.Second,
 	}
 }
 
-func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate) bool {
+func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate) error {
 	// Override the native transport.
 	proxyServer := getProxyServer()
 	if proxyServer != "" {
@@ -51,8 +55,7 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 
 		err := http2.ConfigureTransport(transport)
 		if err != nil {
-			me.logger.Errorf("Transport Error: %v", err)
-			return false
+			return fmt.Errorf("Transport Error: %v", err)
 		}
 
 		me.AppleClient.HTTPClient.Transport = transport
@@ -64,14 +67,14 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 		me.logger.Infof("Initializing apple notification server for type=%v with AuthKey", me.ApplePushSettings.Type)
 	}
 
-	return true
+	return nil
 }
 
-func (me *AppleNotificationServer) Initialize() bool {
+func (me *AppleNotificationServer) Initialize() error {
 	if me.ApplePushSettings.AppleAuthKeyFile != "" && me.ApplePushSettings.AppleAuthKeyID != "" && me.ApplePushSettings.AppleTeamID != "" {
 		authKey, err := token.AuthKeyFromFile(me.ApplePushSettings.AppleAuthKeyFile)
 		if err != nil {
-			me.logger.Panicf("Failed to initialize apple notification service with AuthKey file err=%v ", err)
+			return fmt.Errorf("Failed to initialize apple notification service with AuthKey file err=%v ", err)
 		}
 
 		appleToken := &token.Token{
@@ -93,8 +96,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 	if me.ApplePushSettings.ApplePushCertPrivate != "" {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
 		if appleCertErr != nil {
-			me.logger.Panicf("Failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
-			return false
+			return fmt.Errorf("Failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 		}
 
 		if me.ApplePushSettings.ApplePushUseDevelopment {
@@ -107,8 +109,7 @@ func (me *AppleNotificationServer) Initialize() bool {
 		return me.setupProxySettings(&appleCert)
 	}
 
-	me.logger.Errorf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type)
-	return false
+	return fmt.Errorf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type)
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
@@ -220,7 +221,11 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	if me.AppleClient != nil {
 		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
 		start := time.Now()
-		res, err := me.AppleClient.Push(notification)
+
+		ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+		defer cancel()
+
+		res, err := me.AppleClient.PushWithContext(ctx, notification)
 		if me.metrics != nil {
 			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
 		}

@@ -4,51 +4,125 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"time"
 
-	fcm "github.com/appleboy/go-fcm"
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/kyokomi/emoji"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
+)
+
+const (
+	apnsAuthError       = "APNS_AUTH_ERROR"
+	internalError       = "INTERNAL"
+	thirdPartyAuthError = "THIRD_PARTY_AUTH_ERROR"
+	invalidArgument     = "INVALID_ARGUMENT"
+	quotaExceeded       = "QUOTA_EXCEEDED"
+	senderIDMismatch    = "SENDER_ID_MISMATCH"
+	unregistered        = "UNREGISTERED"
+	unavailable         = "UNAVAILABLE"
+	tokenSourceError    = "TOKEN_SOURCE_ERROR"
+)
+
+const (
+	scope = "https://www.googleapis.com/auth/firebase.messaging"
 )
 
 type AndroidNotificationServer struct {
 	metrics             *metrics
 	logger              *Logger
 	AndroidPushSettings AndroidPushSettings
+	client              *messaging.Client
+	sendTimeout         time.Duration
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics) *AndroidNotificationServer {
+// serviceAccount contains a subset of the fields in service-account.json.
+// It is mainly used to extract the projectID and client email for authentication.
+type serviceAccount struct {
+	Type        string `json:"type"`
+	ProjectID   string `json:"project_id"`
+	ClientEmail string `json:"client_email"`
+	ClientID    string `json:"client_id"`
+	AuthURI     string `json:"auth_uri"`
+	TokenURI    string `json:"token_uri"`
+}
+
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
 		logger:              logger,
+		sendTimeout:         time.Duration(sendTimeoutSecs) * time.Second,
 	}
 }
 
-func (me *AndroidNotificationServer) Initialize() bool {
+func (me *AndroidNotificationServer) Initialize() error {
 	me.logger.Infof("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type)
 
-	if me.AndroidPushSettings.AndroidAPIKey == "" {
-		me.logger.Error("Android push notifications not configured.  Missing AndroidAPIKey.")
-		return false
+	if me.AndroidPushSettings.AndroidAPIKey != "" {
+		me.logger.Infof("AndroidPushSettings.AndroidAPIKey is no longer used. Please remove this config value.")
 	}
 
-	return true
+	if me.AndroidPushSettings.ServiceFileLocation == "" {
+		return errors.New("Android push notifications not configured.  Missing ServiceFileLocation.")
+	}
+
+	jsonKey, err := os.ReadFile(me.AndroidPushSettings.ServiceFileLocation)
+	if err != nil {
+		return fmt.Errorf("error reading service file: %v", err)
+	}
+
+	cfg, err := google.JWTConfigFromJSON(jsonKey, scope)
+	if err != nil {
+		return fmt.Errorf("error getting JWT config: %v", err)
+	}
+
+	var serviceAcc serviceAccount
+	err = json.Unmarshal(jsonKey, &serviceAcc)
+	if err != nil {
+		return fmt.Errorf("error parsing service account JSON: %v", err)
+	}
+
+	opt := option.WithTokenSource(cfg.TokenSource(context.Background()))
+	conf := &firebase.Config{
+		ProjectID:        serviceAcc.ProjectID,
+		ServiceAccountID: serviceAcc.ClientEmail,
+	}
+	app, err := firebase.NewApp(context.Background(), conf, opt)
+	if err != nil {
+		return fmt.Errorf("error initializing app: %v", err)
+	}
+
+	client, err := app.Messaging(context.Background())
+	if err != nil {
+		return fmt.Errorf("error initializing client: %v", err)
+	}
+	me.client = client
+
+	return nil
 }
 
 func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
 	pushType := msg.Type
-	data := map[string]any{
+	data := map[string]string{
 		"ack_id":         msg.AckID,
 		"type":           pushType,
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
-		"is_crt_enabled": msg.IsCRTEnabled,
+		"is_crt_enabled": strconv.FormatBool(msg.IsCRTEnabled),
 		"server_id":      msg.ServerID,
 		"category":       msg.Category,
 	}
 
 	if msg.Badge != -1 {
-		data["badge"] = msg.Badge
+		data["badge"] = strconv.Itoa(msg.Badge)
 	}
 
 	if msg.RootID != "" {
@@ -58,7 +132,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	if msg.IsIDLoaded {
 		data["post_id"] = msg.PostID
 		data["message"] = msg.Message
-		data["id_loaded"] = true
+		data["id_loaded"] = "true"
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = "Someone"
 		data["team_id"] = msg.TeamID
@@ -77,54 +151,57 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	if me.metrics != nil {
 		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType)
 	}
-	fcmMsg := &fcm.Message{
-		To:       msg.DeviceID,
-		Data:     data,
-		Priority: "high",
+	fcmMsg := &messaging.Message{
+		Token: msg.DeviceID,
+		Data:  data,
+		Android: &messaging.AndroidConfig{
+			Priority: "high",
+		},
 	}
 
-	if me.AndroidPushSettings.AndroidAPIKey != "" {
-		sender, err := fcm.NewClient(me.AndroidPushSettings.AndroidAPIKey)
-		if err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancel()
+
+	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
+
+	start := time.Now()
+	_, err := me.client.Send(ctx, fcmMsg)
+	if me.metrics != nil {
+		me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+	}
+
+	if err != nil {
+		me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
+
+		if messaging.IsUnregistered(err) {
+			me.logger.Infof("Android response failure sending remove code: type=%v", me.AndroidPushSettings.Type)
 			if me.metrics != nil {
-				me.metrics.incrementFailure(PushNotifyAndroid, pushType, "invalid ApiKey")
+				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, unregistered)
 			}
-			return NewErrorPushResponse(err.Error())
+			return NewRemovePushResponse()
 		}
 
-		me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
+		var reason string
+		switch {
+		case messaging.IsInternal(err):
+			reason = internalError
+		case messaging.IsInvalidArgument(err):
+			reason = invalidArgument
+		case messaging.IsQuotaExceeded(err):
+			reason = quotaExceeded
+		case messaging.IsSenderIDMismatch(err):
+			reason = senderIDMismatch
+		case messaging.IsThirdPartyAuthError(err):
+			reason = thirdPartyAuthError
+		default:
+			reason = "unknown transport error"
 
-		start := time.Now()
-		resp, err := sender.SendWithRetry(fcmMsg, 2)
+		}
 		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+			me.metrics.incrementFailure(PushNotifyAndroid, pushType, reason)
 		}
 
-		if err != nil {
-			me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
-			if me.metrics != nil {
-				me.metrics.incrementFailure(PushNotifyAndroid, pushType, "unknown transport error")
-			}
-			return NewErrorPushResponse("unknown transport error")
-		}
-
-		if resp.Failure > 0 {
-			fcmError := resp.Results[0].Error
-
-			if fcmError == fcm.ErrInvalidRegistration || fcmError == fcm.ErrNotRegistered || fcmError == fcm.ErrMissingRegistration {
-				me.logger.Infof("Android response failure sending remove code: %v type=%v", resp, me.AndroidPushSettings.Type)
-				if me.metrics != nil {
-					me.metrics.incrementRemoval(PushNotifyAndroid, pushType, fcmError.Error())
-				}
-				return NewRemovePushResponse()
-			}
-
-			me.logger.Errorf("Android response failure: %v type=%v", resp, me.AndroidPushSettings.Type)
-			if me.metrics != nil {
-				me.metrics.incrementFailure(PushNotifyAndroid, pushType, fcmError.Error())
-			}
-			return NewErrorPushResponse(fcmError.Error())
-		}
+		return NewErrorPushResponse(err.Error())
 	}
 
 	if me.metrics != nil {
