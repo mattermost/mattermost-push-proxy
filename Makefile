@@ -8,7 +8,9 @@ GO=go
 
 # Set version variables for LDFLAGS
 GIT_VERSION ?= $(shell git describe --tags --always --dirty)
-GIT_HASH ?= $(shell git rev-parse HEAD)
+BUILD_HASH = $(shell git rev-parse --short HEAD)
+BUILD_TAG_LATEST = $(shell git describe --tags --match 'v*' --abbrev=0)
+BUILD_TAG_CURRENT = $(shell git tag --points-at HEAD)
 DATE_FMT = +'%Y-%m-%dT%H:%M:%SZ'
 SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
 ifdef SOURCE_DATE_EPOCH
@@ -23,7 +25,7 @@ ifeq ($(DIFF), 1)
 endif
 
 PP_PKG=github.com/mattermost/mattermost-push-proxy/internal/version
-LDFLAGS="-X $(PP_PKG).gitVersion=$(GIT_VERSION) -X $(PP_PKG).gitCommit=$(GIT_HASH) -X $(PP_PKG).gitTreeState=$(GIT_TREESTATE) -X $(PP_PKG).buildDate=$(BUILD_DATE)"
+LDFLAGS="-X $(PP_PKG).gitVersion=$(GIT_VERSION) -X $(PP_PKG).buildHash=$(BUILD_HASH) -X $(PP_PKG).buildTagLatest=$(BUILD_TAG_LATEST) -X $(PP_PKG).buildTagCurrent=$(BUILD_TAG_CURRENT) -X $(PP_PKG).gitTreeState=$(GIT_TREESTATE) -X $(PP_PKG).buildDate=$(BUILD_DATE)"
 
 DIST_ROOT=dist
 DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
@@ -161,7 +163,7 @@ clean:
 
 run:
 	@echo Starting go web server
-	$(GO) run $(GOFLAGS) -ldflags '$(LDFLAGS)' main.go
+	$(GO) run $(GOFLAGS) -ldflags $(LDFLAGS) main.go
 
 build-swagger:
 	npm run validate

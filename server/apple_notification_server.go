@@ -138,12 +138,12 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.ContentAvailable()
 	} else {
 		switch msg.Type {
-		case PushTypeMessage, PushTypeSession:
+		case PushTypeMessage, PushTypeSession, PushTypeCalls:
 			data.Category(msg.Category)
 			data.Sound("default")
 			data.Custom("version", msg.Version)
 			data.MutableContent()
-			if msg.Type == PushTypeMessage {
+			if msg.Type == PushTypeMessage || msg.Type == PushTypeCalls {
 				data.ContentAvailable()
 			}
 
