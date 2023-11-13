@@ -36,14 +36,14 @@ func GetVersion() error {
 }
 
 type Info struct {
-	GitVersion   string
-	BuildHash    string
-	BuildVersion string
-	GitTreeState string
-	BuildDate    string
-	GoVersion    string
-	Compiler     string
-	Platform     string
+	GitVersion   string `json:"-"`
+	BuildHash    string `json:"hash"`
+	BuildVersion string `json:"version"`
+	GitTreeState string `json:"-"`
+	BuildDate    string `json:"-"`
+	GoVersion    string `json:"-"`
+	Compiler     string `json:"-"`
+	Platform     string `json:"-"`
 }
 
 func VersionInfo() Info {

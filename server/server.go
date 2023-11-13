@@ -153,13 +153,9 @@ func root(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) version(w http.ResponseWriter, _ *http.Request) {
 	info := version.VersionInfo()
-	ret := map[string]interface{}{
-		"version": info.BuildVersion,
-		"hash":    info.BuildHash,
-	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(ret); err != nil {
+	if err := json.NewEncoder(w).Encode(info); err != nil {
 		s.logger.Errorf("Failed to write response: %v", err)
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
