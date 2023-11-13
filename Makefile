@@ -1,174 +1,366 @@
-.PHONY: all dist build build-release build-local package test clean run update-dependencies golangci-lint
+# ====================================================================================
+# Variables
 
-GOFLAGS ?= $(GOFLAGS:)
-LDFLAGS ?= $(LDFLAGS:)
+## General Variables
 
-export GOBIN = $(PWD)/bin
-GO=go
-
-# Set version variables for LDFLAGS
+# Branch Variables
+PROTECTED_BRANCH := master
+CURRENT_BRANCH   := $(shell git rev-parse --abbrev-ref HEAD)
+# Use repository name as application name
+APP_NAME    := $(shell basename -s .git `git config --get remote.origin.url`)
+# Get current commit
+APP_COMMIT  := $(shell git log --pretty=format:'%h' -n 1)
+# Check if we are in protected branch, if yes use `protected_branch_name-sha` as app version.
+# Else check if we are in a release tag, if yes use the tag as app version, else use `dev-sha` as app version.
+APP_VERSION ?= $(shell if [ $(PROTECTED_BRANCH) = $(CURRENT_BRANCH) ]; then echo $(PROTECTED_BRANCH); else (git describe --abbrev=0 --exact-match --tags 2>/dev/null || echo dev-$(APP_COMMIT)) ; fi)
 GIT_VERSION ?= $(shell git describe --tags --always --dirty)
-BUILD_HASH = $(shell git rev-parse --short HEAD)
-BUILD_TAG_LATEST = $(shell git describe --tags --match 'v*' --abbrev=0)
-BUILD_TAG_CURRENT = $(shell git tag --points-at HEAD)
-DATE_FMT = +'%Y-%m-%dT%H:%M:%SZ'
-SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
-ifdef SOURCE_DATE_EPOCH
-    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-else
-    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
-endif
-GIT_TREESTATE = "clean"
+GIT_TREESTATE = clean
 DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
 ifeq ($(DIFF), 1)
-    GIT_TREESTATE = "dirty"
+    GIT_TREESTATE = dirty
 endif
 
-PP_PKG=github.com/mattermost/mattermost-push-proxy/internal/version
-LDFLAGS="-X $(PP_PKG).gitVersion=$(GIT_VERSION) -X $(PP_PKG).buildHash=$(BUILD_HASH) -X $(PP_PKG).buildTagLatest=$(BUILD_TAG_LATEST) -X $(PP_PKG).buildTagCurrent=$(BUILD_TAG_CURRENT) -X $(PP_PKG).gitTreeState=$(GIT_TREESTATE) -X $(PP_PKG).buildDate=$(BUILD_DATE)"
+# Get current date and format like: 2022-04-27 11:32
+BUILD_DATE  := $(shell date +%Y-%m-%d\ %H:%M)
 
-DIST_ROOT=dist
-DIST_PATH=$(DIST_ROOT)/mattermost-push-proxy
+## General Configuration Variables
+# We don't need make's built-in rules.
+MAKEFLAGS     += --no-builtin-rules
+# Be pedantic about undefined variables.
+MAKEFLAGS     += --warn-undefined-variables
+# Set help as default target
+.DEFAULT_GOAL := help
 
-all: dist
+# App Code location
+CONFIG_APP_CODE         += ./
 
-dist: | build-release test package
+## Docker Variables
+# Docker executable
+DOCKER                  := $(shell which docker)
+# Dockerfile's location
+DOCKER_FILE             ?= ./docker/Dockerfile
+# Docker options to inherit for all docker run commands
+DOCKER_OPTS             += --rm --platform "linux/amd64"
+# Registry to upload images
+DOCKER_REGISTRY         ?= docker.io
+DOCKER_REGISTRY_REPO    ?= mattermost/${APP_NAME}-daily
+# Registry credentials
+DOCKER_USER             ?= user
+DOCKER_PASSWORD         ?= password
+## Docker Images
+DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:dd9ad81920b63c7f9f18823d888d5fdcc7e7516086fd16654d07bc437f0e2427"
+DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.52.2@sha256:5fa6a92ab28ca3421c88d2b6cd794c9759d05a999aceca73053d014aad41b9d3"
+DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.9.2@sha256:d355bd7df747a0f124f3b5e7b21e9dafd0cb19732a276f901f0fdee243ec1f3b"
+DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
+DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
 
-update-dependencies:
-	$(GO) get -u ./...
-	$(GO) mod tidy
+## Cosign Variables
+# The public key
+COSIGN_PUBLIC_KEY       ?= akey
+# The private key
+COSIGN_KEY              ?= akey
+# The passphrase used to decrypt the private key
+COSIGN_PASSWORD         ?= password
 
-check-deps:
-	$(GO) mod tidy -v
-	@if [ -n "$$(command git --no-pager diff --exit-code go.mod go.sum)" ]; then \
-		echo "There are unused dependencies that should be removed. Please execute `go mod tidy` to fix it."; \
-		exit 1; \
-	fi
+## Go Variables
+# Go executable
+GO                           := $(shell which go)
+# Extract GO version from go.mod file
+GO_VERSION                   ?= $(shell grep -E '^go' go.mod | awk {'print $$2'})
+# LDFLAGS
+GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.gitVersion=$(GIT_VERSION)"
+GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.gitCommit=$(APP_COMMIT)"
+GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.gitTreeState=$(GIT_TREESTATE)"
+GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.buildDate=$(BUILD_DATE)"
 
-build-release:
-	@echo Building proxy push server
-	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-amd64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
-	env CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build -o $(GOBIN)/mattermost-push-proxy-linux-arm64 -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
 
-build-local: # build push proxy for the current arch
-	@echo Building proxy push server
-	env CGO_ENABLED=0 $(GO) build -o $(GOBIN) -trimpath -ldflags $(LDFLAGS) $(GOFLAGS)
+# Architectures to build for
+GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 freebsd-amd64
+GO_BUILD_PLATFORMS_ARTIFACTS = $(foreach cmd,$(addprefix go-build/,${APP_NAME}),$(addprefix $(cmd)-,$(GO_BUILD_PLATFORMS)))
 
-golangci-lint: ## Run golangci-lint on codebase
-# https://stackoverflow.com/a/677212/1027058 (check if a command exists or not)
-	@if ! [ -x "$$(command -v golangci-lint)" ]; then \
-		echo "golangci-lint is not installed. Please see https://github.com/golangci/golangci-lint#install for installation instructions."; \
-		exit 1; \
-	fi; \
+# Build options
+GO_BUILD_OPTS                += -trimpath
+GO_TEST_OPTS                 += -v -timeout=180s
+# Temporary folder to output compiled binaries artifacts
+GO_OUT_BIN_DIR               := ./dist
 
-	@echo Running golangci-lint
-	golangci-lint run ./...
+## Github Variables
+# A github access token that provides access to upload artifacts under releases
+GITHUB_TOKEN                 ?= a_token
+# Github organization
+GITHUB_ORG                   := mattermost
+# Most probably the name of the repo
+GITHUB_REPO                  := ${APP_NAME}
 
-package-linux-amd64:
-	@ echo Packaging push proxy for linux amd64
+# ====================================================================================
+# Colors
 
-	mkdir -p $(DIST_PATH)/bin
-	cp $(GOBIN)/mattermost-push-proxy-linux-amd64 $(DIST_PATH)/bin/mattermost-push-proxy
+BLUE   := $(shell printf "\033[34m")
+YELLOW := $(shell printf "\033[33m")
+RED    := $(shell printf "\033[31m")
+GREEN  := $(shell printf "\033[32m")
+CYAN   := $(shell printf "\033[36m")
+CNone  := $(shell printf "\033[0m")
 
-	cp -RL config $(DIST_PATH)/config
-	touch $(DIST_PATH)/config/build.txt
-	echo $(BUILD_NUMBER) | tee -a $(DIST_PATH)/config/build.txt
+# ====================================================================================
+# Logger
 
-	mkdir -p $(DIST_PATH)/logs
+TIME_LONG	= `date +%Y-%m-%d' '%H:%M:%S`
+TIME_SHORT	= `date +%H:%M:%S`
+TIME		= $(TIME_SHORT)
 
-	cp LICENSE.txt $(DIST_PATH)
-	cp NOTICE.txt $(DIST_PATH)
-	cp README.md $(DIST_PATH)
+INFO = echo ${TIME} ${BLUE}[ .. ]${CNone}
+WARN = echo ${TIME} ${YELLOW}[WARN]${CNone}
+ERR  = echo ${TIME} ${RED}[FAIL]${CNone}
+OK   = echo ${TIME} ${GREEN}[ OK ]${CNone}
+FAIL = (echo ${TIME} ${RED}[FAIL]${CNone} && false)
 
-	tar -C dist -czf $(DIST_PATH)-linux-amd64.tar.gz mattermost-push-proxy
-	rm -rf $(DIST_PATH)
+# ====================================================================================
+# Verbosity control hack
 
-package-linux-arm64:
-	@ echo Packaging push proxy for linux arm64
+VERBOSE ?= 0
+AT_0 := @
+AT_1 :=
+AT = $(AT_$(VERBOSE))
 
-	mkdir -p $(DIST_PATH)/bin
-	cp $(GOBIN)/mattermost-push-proxy-linux-arm64 $(DIST_PATH)/bin/mattermost-push-proxy
+# ====================================================================================
+# Targets
 
-	cp -RL config $(DIST_PATH)/config
-	touch $(DIST_PATH)/config/build.txt
-	echo $(BUILD_NUMBER) | tee -a $(DIST_PATH)/config/build.txt
+help: ## to get help
+	@echo "Usage:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) |\
+	awk 'BEGIN {FS = ":.*?## "}; {printf "make ${CYAN}%-30s${CNone} %s\n", $$1, $$2}'
 
-	mkdir -p $(DIST_PATH)/logs
+.PHONY: build
+build: go-build-docker ## to build
 
-	cp LICENSE.txt $(DIST_PATH)
-	cp NOTICE.txt $(DIST_PATH)
-	cp README.md $(DIST_PATH)
+.PHONY: release
+release: build github-release ## to build and release artifacts
 
-	tar -C dist -czf $(DIST_PATH)-linux-arm64.tar.gz mattermost-push-proxy
+.PHONY: package
+package: go-build package-software ## to build, package
 
-package: build-release package-linux-arm64 package-linux-amd64
-	cd dist \
-	sha256sum mattermost-push-proxy-linux-amd64.tar.gz >> checksums.txt \
-	&& sha256sum mattermost-push-proxy-linux-arm64.tar.gz >> checksums.txt
+.PHONY: sign
+sign: docker-sign docker-verify ## to sign the artifact and perform verification
 
-package-image: build-release
-	mkdir -p $(DIST_PATH)/bin
+.PHONY: lint
+lint: go-lint docker-lint ## to lint
 
-	cp -RL config $(DIST_PATH)/config
-	touch $(DIST_PATH)/config/build.txt
-	echo $(BUILD_NUMBER) | tee -a $(DIST_PATH)/config/build.txt
+.PHONY: test
+test: go-test ## to test
 
-	mkdir -p $(DIST_PATH)/logs
-
-	cp LICENSE.txt $(DIST_PATH)
-	cp NOTICE.txt $(DIST_PATH)
-	cp README.md $(DIST_PATH)
-
-PLATFORMS ?= linux/amd64 linux/arm64
-ARCHS = $(patsubst linux/%,%,$(PLATFORMS))
-IMAGE ?= mattermost/mattermost-push-proxy
-TAG ?= $(shell git describe --tags --always --dirty)
-
-# build with buildx
-.PHONY: container
-container: package-image
-	@for platform in $(PLATFORMS); do \
-		echo "Starting build for $${platform} platform"; \
-		docker buildx build \
-			--load \
-			--progress plain \
-			--platform $${platform} \
-			--build-arg=ARCH=$${platform##*/} \
-			--tag $(IMAGE)-$${platform##*/}:$(TAG) \
-			--file docker/Dockerfile \
-			.; \
+package-software:  ## to package the binary
+	@$(INFO) Packaging
+	$(AT) for file in $(GO_OUT_BIN_DIR)/mattermost-push-proxy-*; do \
+		target=$$(basename $$file); \
+		mkdir -p $(GO_OUT_BIN_DIR)/$${target}_temp/bin; \
+		cp -RL config $(GO_OUT_BIN_DIR)/$${target}_temp/config; \
+		echo $(APP_VERSION) > $(GO_OUT_BIN_DIR)/$${target}_temp/config/build.txt; \
+		cp LICENSE.txt NOTICE.txt README.md $(GO_OUT_BIN_DIR)/$${target}_temp; \
+		mv $$file $(GO_OUT_BIN_DIR)/$${target}_temp/bin/mattermost-push-proxy; \
+		mv $(GO_OUT_BIN_DIR)/$${target}_temp $(GO_OUT_BIN_DIR)/$${target}; \
+		tar -czf $(GO_OUT_BIN_DIR)/$${target}.tar.gz -C $(GO_OUT_BIN_DIR) $${target}; \
+		rm -r $(GO_OUT_BIN_DIR)/$${target}; \
 	done
+	@$(OK) Packaging
 
-.PHONY: push
-push: container
-	echo "Pushing $(IMGNAME) tags"
-	@for platform in $(PLATFORMS); do \
-		echo "Pushing tags for $${platform} platform"; \
-		docker push $(IMAGE)-$${platform##*/}:$(TAG); \
-	done
+.PHONY: docker-build
+docker-build: ## to build the docker image
+	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION}
+	$(AT)$(DOCKER) build \
+	--build-arg GO_IMAGE=${DOCKER_IMAGE_GO} \
+	--build-arg=ARCH=amd64 \
+	-f ${DOCKER_FILE} . \
+	-t ${APP_NAME}:${APP_VERSION} || ${FAIL}
+	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION}
 
-.PHONY: manifest
-manifest: push
-	docker manifest create --amend $(IMAGE):$(TAG) $(shell echo $(ARCHS) | sed -e "s~[^ ]*~$(IMAGE)\-&:$(TAG)~g")
-	@for platform in $(ARCHS); do docker manifest annotate --arch "$${platform}" ${IMAGE}:${TAG} ${IMAGE}-$${platform}:${TAG}; done
-	docker manifest push --purge $(IMAGE):$(TAG)
+.PHONY: docker-push
+docker-push: ## to push the docker image
+	@$(INFO) Pushing to registry...
+	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION} || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION} || ${FAIL}
+# if we are on a latest semver APP_VERSION tag, also push latest
+ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
+  ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
+	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
+  endif
+endif
+	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}
 
-test:
-	$(GO) test $(GOFLAGS) -v -timeout=180s ./...
+.PHONY: docker-sign
+docker-sign: ## to sign the docker image
+	@$(INFO) Signing the docker image...
+	$(AT)echo "$${COSIGN_KEY}" > cosign.key && \
+	$(DOCKER) run ${DOCKER_OPTS} \
+	--entrypoint '/bin/sh' \
+        -v $(PWD):/app -w /app \
+	-e COSIGN_PASSWORD=${COSIGN_PASSWORD} \
+	-e HOME="/tmp" \
+    ${DOCKER_IMAGE_COSIGN} \
+	-c \
+	"echo Signing... && \
+	cosign login $(DOCKER_REGISTRY) -u ${DOCKER_USER} -p ${DOCKER_PASSWORD} && \
+	cosign sign --key cosign.key $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}" || ${FAIL}
+# if we are on a latest semver APP_VERSION tag, also sign latest tag
+ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
+  ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
+	$(DOCKER) run ${DOCKER_OPTS} \
+	--entrypoint '/bin/sh' \
+        -v $(PWD):/app -w /app \
+	-e COSIGN_PASSWORD=${COSIGN_PASSWORD} \
+	-e HOME="/tmp" \
+	${DOCKER_IMAGE_COSIGN} \
+	-c \
+	"echo Signing... && \
+	cosign login $(DOCKER_REGISTRY) -u ${DOCKER_USER} -p ${DOCKER_PASSWORD} && \
+	cosign sign --key cosign.key $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest" || ${FAIL}
+  endif
+endif
+	$(AT)rm -f cosign.key || ${FAIL}
+	@$(OK) Signing the docker image: $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}
 
-clean:
-	@echo Cleaning
-	rm -Rf $(DIST_ROOT)
-	go clean $(GOFLAGS) -i ./...
+.PHONY: docker-verify
+docker-verify: ## to verify the docker image
+	@$(INFO) Verifying the published docker image...
+	$(AT)echo "$${COSIGN_PUBLIC_KEY}" > cosign_public.key && \
+	$(DOCKER) run ${DOCKER_OPTS} \
+	--entrypoint '/bin/sh' \
+	-v $(PWD):/app -w /app \
+	${DOCKER_IMAGE_COSIGN} \
+	-c \
+	"echo Verifying... && \
+	cosign verify --key cosign_public.key $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}" || ${FAIL}
+# if we are on a latest semver APP_VERSION tag, also verify latest tag
+ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
+  ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
+	$(DOCKER) run ${DOCKER_OPTS} \
+	--entrypoint '/bin/sh' \
+	-v $(PWD):/app -w /app \
+	${DOCKER_IMAGE_COSIGN} \
+	-c \
+	"echo Verifying... && \
+	cosign verify --key cosign_public.key $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest" || ${FAIL}
+  endif
+endif
+	$(AT)rm -f cosign_public.key || ${FAIL}
+	@$(OK) Verifying the published docker image: $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}
 
-run:
-	@echo Starting go web server
-	$(GO) run $(GOFLAGS) -ldflags $(LDFLAGS) main.go
+.PHONY: docker-sbom
+docker-sbom: ## to print a sbom report
+	@$(INFO) Performing Docker sbom report...
+	$(AT)$(DOCKER) sbom ${APP_NAME}:${APP_VERSION} || ${FAIL}
+	@$(OK) Performing Docker sbom report
 
-build-swagger:
-	npm run validate
-	npm run build
+.PHONY: docker-scan
+docker-scan: ## to print a vulnerability report
+	@$(INFO) Performing Docker scan report...
+	$(AT)$(DOCKER) scan ${APP_NAME}:${APP_VERSION} || ${FAIL}
+	@$(OK) Performing Docker scan report
 
-serve-swagger:
-	npm run validate
-	npm run serve
+.PHONY: docker-lint
+docker-lint: ## to lint the Dockerfile
+	@$(INFO) Dockerfile linting...
+	$(AT)$(DOCKER) run -i ${DOCKER_OPTS} \
+	${DOCKER_IMAGE_DOCKERLINT} \
+	< ${DOCKER_FILE} || ${FAIL}
+	@$(OK) Dockerfile linting
+
+.PHONY: docker-login
+docker-login: ## to login to a container registry
+	@$(INFO) Dockerd login to container registry ${DOCKER_REGISTRY}...
+	$(AT) echo "${DOCKER_PASSWORD}" | $(DOCKER) login --password-stdin -u ${DOCKER_USER} $(DOCKER_REGISTRY) || ${FAIL}
+	@$(OK) Dockerd login to container registry ${DOCKER_REGISTRY}...
+
+go-build: $(GO_BUILD_PLATFORMS_ARTIFACTS) ## to build binaries
+
+.PHONY: go-build
+go-build/%:
+	@$(INFO) go build $*...
+	$(AT)target="$*"; \
+	command="${APP_NAME}"; \
+	platform_ext="$${target#$$command-*}"; \
+	platform="$${platform_ext%.*}"; \
+	export GOOS="$${platform%%-*}"; \
+	export GOARCH="$${platform#*-}"; \
+	echo export GOOS=$${GOOS}; \
+	echo export GOARCH=$${GOARCH}; \
+	CGO_ENABLED=0 \
+	$(GO) build ${GO_BUILD_OPTS} \
+	-ldflags '${GO_LDFLAGS}' \
+	-o ${GO_OUT_BIN_DIR}/$* \
+	${CONFIG_APP_CODE} || ${FAIL}
+	@$(OK) go build $*
+
+.PHONY: go-build-docker
+go-build-docker: # to build binaries under a controlled docker dedicated go container using DOCKER_IMAGE_GO
+	@$(INFO) go build docker
+	$(AT)$(DOCKER) run  \
+	-v $(PWD):/app -w /app \
+	$(DOCKER_IMAGE_GO) \
+	/bin/sh -c \
+	"cd /app && \
+	make go-build"  || ${FAIL}
+	@$(OK) go build docker
+
+.PHONY: go-run
+go-run: ## to run locally for development
+	@$(INFO) running locally...
+	$(AT)$(GO) run ${GO_BUILD_OPTS} ${CONFIG_APP_CODE} || ${FAIL}
+	@$(OK) running locally
+
+.PHONY: go-test
+go-test: ## to run tests
+	@$(INFO) testing...
+	$(AT)$(DOCKER) run ${DOCKER_OPTS} \
+	-v $(PWD):/app -w /app \
+	$(DOCKER_IMAGE_GO) \
+	/bin/sh -c \
+	"cd /app && \
+	go test ${GO_TEST_OPTS} ./... " || ${FAIL}
+	@$(OK) testing
+
+.PHONY: go-mod-check
+go-mod-check: ## to check go mod files consistency
+	@$(INFO) Checking go mod files consistency...
+	$(AT)$(GO) mod tidy
+	$(AT)git --no-pager diff --exit-code go.mod go.sum || \
+	(${WARN} Please run "go mod tidy" and commit the changes in go.mod and go.sum. && ${FAIL} ; exit 128 )
+	@$(OK) Checking go mod files consistency
+
+.PHONY: go-lint
+go-lint: ## to lint go code
+	@$(INFO) App linting...
+	$(AT)$(DOCKER) run ${DOCKER_OPTS} \
+	-v $(PWD):/app -w /app \
+	${DOCKER_IMAGE_GOLINT} \
+	golangci-lint run ./... || ${FAIL}
+	@$(OK) App linting
+
+.PHONY: go-doc
+go-doc: ## to generate documentation
+	@$(INFO) Generating Documentation...
+	$(AT)$(GO) run ./scripts/env_config.go ./docs/env_config.md || ${FAIL}
+	@$(OK) Generating Documentation
+
+.PHONY: github-release
+github-release: ## to publish a release and relevant artifacts to GitHub
+	@$(INFO) Generating github-release http://github.com/$(GITHUB_ORG)/$(GITHUB_REPO)/releases/tag/$(APP_VERSION) ...
+ifeq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
+	$(error "We only support releases from semver tags")
+else
+	$(AT)$(DOCKER) run \
+	-v $(PWD):/app -w /app \
+	-e GITHUB_TOKEN=${GITHUB_TOKEN} \
+	$(DOCKER_IMAGE_GH_CLI) \
+	/bin/sh -c \
+	"git config --global --add safe.directory /app && cd /app && \
+	gh release create $(APP_VERSION) --generate-notes $(GO_OUT_BIN_DIR)/*" || ${FAIL}
+endif
+	@$(OK) Generating github-release http://github.com/$(GITHUB_ORG)/$(GITHUB_REPO)/releases/tag/$(APP_VERSION) ...
+
+.PHONY: clean
+clean: ## to clean-up
+	@$(INFO) cleaning /${GO_OUT_BIN_DIR} folder...
+	$(AT)rm -rf ${GO_OUT_BIN_DIR} || ${FAIL}
+	@$(OK) cleaning /${GO_OUT_BIN_DIR} folder

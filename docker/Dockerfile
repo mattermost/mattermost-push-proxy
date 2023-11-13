@@ -10,6 +10,7 @@ COPY bin/mattermost-push-proxy-linux-$ARCH bin/mattermost-push-proxy
 
 FROM alpine:3.15
 
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
   ca-certificates \
   libc6-compat \
