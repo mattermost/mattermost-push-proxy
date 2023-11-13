@@ -6,7 +6,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/mattermost/mattermost-push-proxy/internal/version"
+	"github.com/stretchr/testify/assert"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -110,4 +113,27 @@ func TestAndroidSend(t *testing.T) {
 
 	srv.Stop()
 	time.Sleep(time.Second * 2)
+}
+
+func TestServer_version(t *testing.T) {
+	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
+	cfg, err := LoadConfig(fileName)
+	require.NoError(t, err)
+	logger := NewLogger(cfg)
+	srv := New(cfg, logger)
+
+	req := httptest.NewRequest(http.MethodGet, "/version", nil)
+	res := httptest.NewRecorder()
+	srv.version(res, req)
+	assert.Equal(t, res.Code, http.StatusOK)
+
+	info := version.VersionInfo()
+	ret := struct {
+		Version string
+		Hash    string
+	}{}
+	err = json.NewDecoder(res.Body).Decode(&ret)
+	assert.NoError(t, err)
+	assert.Equal(t, info.BuildVersion, ret.Version)
+	assert.Equal(t, info.BuildHash, ret.Hash)
 }
