@@ -157,6 +157,7 @@ package-software:  ## to package the binary
 		cp -RL config $(GO_OUT_BIN_DIR)/$${target}_temp/config; \
 		echo $(APP_VERSION) > $(GO_OUT_BIN_DIR)/$${target}_temp/config/build.txt; \
 		cp LICENSE.txt NOTICE.txt README.md $(GO_OUT_BIN_DIR)/$${target}_temp; \
+		mkdir $(GO_OUT_BIN_DIR)/$${target}_temp/logs; \
 		mv $$file $(GO_OUT_BIN_DIR)/$${target}_temp/bin/mattermost-push-proxy; \
 		mv $(GO_OUT_BIN_DIR)/$${target}_temp $(GO_OUT_BIN_DIR)/$${target}; \
 		tar -czf $(GO_OUT_BIN_DIR)/$${target}.tar.gz -C $(GO_OUT_BIN_DIR) $${target}; \
