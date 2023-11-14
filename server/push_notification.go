@@ -39,6 +39,7 @@ type PushNotification struct {
 	RootID           string `json:"root_id"`
 	ChannelName      string `json:"channel_name"`
 	Type             string `json:"type"`
+	SubType          string `json:"sub_type,omitempty"`
 	SenderName       string `json:"sender_name"`
 	SenderID         string `json:"sender_id"`
 	OverrideUsername string `json:"override_username"`

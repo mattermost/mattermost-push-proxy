@@ -114,6 +114,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	data := map[string]string{
 		"ack_id":         msg.AckID,
 		"type":           pushType,
+		"sub_type":       msg.SubType,
 		"version":        msg.Version,
 		"channel_id":     msg.ChannelID,
 		"is_crt_enabled": strconv.FormatBool(msg.IsCRTEnabled),

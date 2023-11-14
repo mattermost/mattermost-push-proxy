@@ -168,6 +168,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType)
 	}
 	data.Custom("type", pushType)
+	data.Custom("sub_type", msg.SubType)
 	data.Custom("server_id", msg.ServerID)
 
 	if msg.AckID != "" {
