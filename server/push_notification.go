@@ -12,7 +12,6 @@ const (
 	PushTypeUpdateBadge = "update_badge"
 	PushTypeSession     = "session"
 	PushTypeTest        = "test"
-	PushTypeCalls       = "calls"
 
 	PushMessageV2 = "v2"
 

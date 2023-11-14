@@ -136,7 +136,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = "Someone"
 		data["team_id"] = msg.TeamID
-	} else if pushType == PushTypeMessage || pushType == PushTypeSession || pushType == PushTypeCalls {
+	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
 		data["team_id"] = msg.TeamID
 		data["sender_id"] = msg.SenderID
 		data["sender_name"] = msg.SenderName
@@ -162,7 +162,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
-	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, pushType, msg.AckID)
+	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
 
 	start := time.Now()
 	_, err := me.client.Send(ctx, fcmMsg)
