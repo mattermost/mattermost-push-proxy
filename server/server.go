@@ -102,6 +102,7 @@ func (s *Server) Start() {
 	handler := th.Throttle(router)
 
 	router.HandleFunc("/", root).Methods("GET")
+	router.HandleFunc("/version", s.version).Methods("GET")
 
 	metricCompatibleSendNotificationHandler := s.handleSendNotification
 	metricCompatibleAckNotificationHandler := s.handleAckNotification
@@ -148,6 +149,18 @@ func (s *Server) Stop() {
 
 func root(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("<html><body>Mattermost Push Proxy</body></html>"))
+}
+
+func (s *Server) version(w http.ResponseWriter, _ *http.Request) {
+	info := version.VersionInfo()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		s.logger.Errorf("Failed to write response: %v", err)
+		if s.metrics != nil {
+			s.metrics.incrementBadRequest()
+		}
+	}
 }
 
 func (s *Server) responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
