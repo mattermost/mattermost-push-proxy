@@ -11,6 +11,7 @@ APP_NAME    := $(shell basename -s .git `git config --get remote.origin.url`)
 # Check if we are in protected branch, if yes use `protected_branch_name-sha` as app version.
 # Else check if we are in a release tag, if yes use the tag as app version, else use `dev-sha` as app version.
 APP_VERSION ?= $(shell if [ $(PROTECTED_BRANCH) = $(CURRENT_BRANCH) ]; then echo $(PROTECTED_BRANCH); else (git describe --abbrev=0 --exact-match --tags 2>/dev/null || echo dev-$(APP_COMMIT)) ; fi)
+APP_VERSION_NO_V := $(patsubst v%,%,$(APP_VERSION))
 GIT_VERSION ?= $(shell git describe --tags --always --dirty)
 GIT_TREESTATE = clean
 DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
@@ -172,27 +173,27 @@ package-software:  ## to package the binary
 
 .PHONY: docker-build
 docker-build: ## to build the docker image
-	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION}
+	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 	$(AT)$(DOCKER) build \
 	--build-arg GO_IMAGE=${DOCKER_IMAGE_GO} \
 	--build-arg=ARCH=amd64 \
 	-f ${DOCKER_FILE} . \
-	-t ${APP_NAME}:${APP_VERSION} || ${FAIL}
-	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION}
+	-t ${APP_NAME}:${APP_VERSION_NO_V} || ${FAIL}
+	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
 .PHONY: docker-push
 docker-push: ## to push the docker image
 	@$(INFO) Pushing to registry...
-	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION} || ${FAIL}
-	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION} || ${FAIL}
+	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION_NO_V} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} || ${FAIL}
 # if we are on a latest semver APP_VERSION tag, also push latest
 ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
   ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
-	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
+	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION_NO_V} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
 	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
   endif
 endif
-	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION}
+	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}
 
 .PHONY: docker-sign
 docker-sign: ## to sign the docker image
