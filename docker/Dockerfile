@@ -1,4 +1,4 @@
-FROM ubuntu:noble-20240127.1@sha256:36fa0c7153804946e17ee951fdeffa6a1c67e5088438e5b90de077de5c600d4c AS TMP
+FROM ubuntu:jammy@sha256:f9d633ff6640178c2d0525017174a688e2c1aef28f0a0130b26bd5554491f0da AS TMP
 
 # Setting bash as our shell, and enabling pipefail option
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -11,7 +11,7 @@ ARG ARCH
 COPY bin/mattermost-push-proxy-linux-$ARCH bin/mattermost-push-proxy
 
 #Using multi stage build
-FROM ubuntu:noble-20240127.1@sha256:36fa0c7153804946e17ee951fdeffa6a1c67e5088438e5b90de077de5c600d4c
+FROM ubuntu:jammy@sha256:f9d633ff6640178c2d0525017174a688e2c1aef28f0a0130b26bd5554491f0da
 
 # Install needed packages and indirect dependencies
 # hadolint ignore=DL3008
