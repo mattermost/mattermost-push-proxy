@@ -5,9 +5,9 @@ ARG TARGETARCH
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Copying tarball
-RUN mkdir /mattermost-push-proxy
-COPY dist/mattermost-push-proxy-linux-${TARGETARCH}.tar.gz dist/mattermost-push-proxy-linux.tar.gz
-RUN tar -xf dist/mattermost-push-proxy-linux.tar.gz --strip-components=1  -C /mattermost-push-proxy
+WORKDIR /mattermost-push-proxy
+COPY dist/mattermost-push-proxy-linux-${TARGETARCH}.tar.gz /mattermost-push-proxy-linux.tar.gz
+RUN tar -xf /mattermost-push-proxy-linux.tar.gz --strip-components=1  -C /mattermost-push-proxy
 
 FROM --platform=${TARGETPLATFORM} ubuntu:jammy-20240212
 
