@@ -8,6 +8,7 @@ PROTECTED_BRANCH := master
 CURRENT_BRANCH   := $(shell git rev-parse --abbrev-ref HEAD)
 # Use repository name as application name
 APP_NAME    := $(shell basename -s .git `git config --get remote.origin.url`)
+APP_COMMIT  := $(shell git rev-parse HEAD)
 # Check if we are in protected branch, if yes use `protected_branch_name-sha` as app version.
 # Else check if we are in a release tag, if yes use the tag as app version, else use `dev-sha` as app version.
 APP_VERSION ?= $(shell if [ $(PROTECTED_BRANCH) = $(CURRENT_BRANCH) ]; then echo $(PROTECTED_BRANCH); else (git describe --abbrev=0 --exact-match --tags 2>/dev/null || echo dev-$(APP_COMMIT)) ; fi)
@@ -189,7 +190,7 @@ docker-build: ## to build the docker image
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
 .PHONY: docker-push
-docker-push: docker-login ## to push the docker image
+docker-push: ## to push the docker image
 	@$(INFO) Pushing to registry...
 	$(AT)$(DOCKER) buildx build \
 	--no-cache --pull --platform linux/amd64,linux/arm64 \
