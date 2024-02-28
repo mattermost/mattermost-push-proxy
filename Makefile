@@ -189,7 +189,7 @@ docker-build: ## to build the docker image
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
 .PHONY: docker-push
-docker-push: ## to push the docker image
+docker-push: docker-login ## to push the docker image
 	@$(INFO) Pushing to registry...
 	$(AT)$(DOCKER) buildx build \
 	--no-cache --pull --platform linux/amd64,linux/arm64 \
