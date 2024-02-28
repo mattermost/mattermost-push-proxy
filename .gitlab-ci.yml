@@ -1,4 +1,0 @@
-include:
-  - project: 'mattermost/ci/mattermost-push-proxy'
-    ref: main
-    file: '/all.yml'

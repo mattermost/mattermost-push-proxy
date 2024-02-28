@@ -81,7 +81,7 @@ GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/v
 
 
 # Architectures to build for
-GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 freebsd-amd64
+GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 freebsd-amd64
 GO_BUILD_PLATFORMS_ARTIFACTS = $(foreach cmd,$(addprefix go-build/,${APP_NAME}),$(addprefix $(cmd)-,$(GO_BUILD_PLATFORMS)))
 
 # Build options
@@ -174,12 +174,20 @@ package-software:  ## to package the binary
 .PHONY: docker-build
 docker-build: ## to build the docker image
 	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
-	$(AT)$(DOCKER) build \
-	--build-arg GO_IMAGE=${DOCKER_IMAGE_GO} \
-	--build-arg=ARCH=amd64 \
+	$(AT)$(DOCKER) buildx build \
+	--no-cache --pull --platform linux/amd64,linux/arm64 \
 	-f ${DOCKER_FILE} . \
 	-t ${APP_NAME}:${APP_VERSION_NO_V} || ${FAIL}
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
+
+.PHONY: release-docker-build
+release-docker-build: docker-login
+	@$(INFO) Performing Release Docker build ${APP_NAME}:${APP_VERSION_NO_V}
+	$(AT)$(DOCKER) buildx build \
+	--no-cache --pull --platform linux/amd64,linux/arm64 \
+	-f ${DOCKER_FILE} . \
+	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} --push || ${FAIL}
+	@$(OK) Performing Release Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
 .PHONY: docker-push
 docker-push: ## to push the docker image
