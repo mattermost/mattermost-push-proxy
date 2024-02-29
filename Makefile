@@ -8,6 +8,7 @@ PROTECTED_BRANCH := master
 CURRENT_BRANCH   := $(shell git rev-parse --abbrev-ref HEAD)
 # Use repository name as application name
 APP_NAME    := $(shell basename -s .git `git config --get remote.origin.url`)
+APP_COMMIT  := $(shell git rev-parse HEAD)
 # Check if we are in protected branch, if yes use `protected_branch_name-sha` as app version.
 # Else check if we are in a release tag, if yes use the tag as app version, else use `dev-sha` as app version.
 APP_VERSION ?= $(shell if [ $(PROTECTED_BRANCH) = $(CURRENT_BRANCH) ]; then echo $(PROTECTED_BRANCH); else (git describe --abbrev=0 --exact-match --tags 2>/dev/null || echo dev-$(APP_COMMIT)) ; fi)
@@ -51,10 +52,18 @@ DOCKER_REGISTRY_REPO    ?= mattermost/${APP_NAME}-daily
 # Registry credentials
 DOCKER_USER             ?= user
 DOCKER_PASSWORD         ?= password
+## Latest Docker tags 
+# if we are on a latest semver APP_VERSION tag, also push latest
+ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
+  ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
+		LATEST_DOCKER_TAG = -t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest
+  endif
+endif
+
 ## Docker Images
 DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:dd9ad81920b63c7f9f18823d888d5fdcc7e7516086fd16654d07bc437f0e2427"
 DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.52.2@sha256:5fa6a92ab28ca3421c88d2b6cd794c9759d05a999aceca73053d014aad41b9d3"
-DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.9.2@sha256:d355bd7df747a0f124f3b5e7b21e9dafd0cb19732a276f901f0fdee243ec1f3b"
+DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
 DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
 
@@ -81,7 +90,7 @@ GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/v
 
 
 # Architectures to build for
-GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 freebsd-amd64
+GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 freebsd-amd64
 GO_BUILD_PLATFORMS_ARTIFACTS = $(foreach cmd,$(addprefix go-build/,${APP_NAME}),$(addprefix $(cmd)-,$(GO_BUILD_PLATFORMS)))
 
 # Build options
@@ -174,9 +183,8 @@ package-software:  ## to package the binary
 .PHONY: docker-build
 docker-build: ## to build the docker image
 	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
-	$(AT)$(DOCKER) build \
-	--build-arg GO_IMAGE=${DOCKER_IMAGE_GO} \
-	--build-arg=ARCH=amd64 \
+	$(AT)$(DOCKER) buildx build \
+	--no-cache --pull --platform linux/amd64,linux/arm64 \
 	-f ${DOCKER_FILE} . \
 	-t ${APP_NAME}:${APP_VERSION_NO_V} || ${FAIL}
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
@@ -184,15 +192,10 @@ docker-build: ## to build the docker image
 .PHONY: docker-push
 docker-push: ## to push the docker image
 	@$(INFO) Pushing to registry...
-	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION_NO_V} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} || ${FAIL}
-	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} || ${FAIL}
-# if we are on a latest semver APP_VERSION tag, also push latest
-ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
-  ifeq ($(shell git tag -l --sort=v:refname | tail -n1),$(APP_VERSION))
-	$(AT)$(DOCKER) tag ${APP_NAME}:${APP_VERSION_NO_V} $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
-	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:latest || ${FAIL}
-  endif
-endif
+	$(AT)$(DOCKER) buildx build \
+	--no-cache --pull --platform linux/amd64,linux/arm64 \
+	-f ${DOCKER_FILE} . \
+	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} $(LATEST_DOCKER_TAG) --push || ${FAIL}
 	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}
 
 .PHONY: docker-sign
