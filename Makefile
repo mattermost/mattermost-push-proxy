@@ -88,7 +88,6 @@ GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/v
 GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.gitTreeState=$(GIT_TREESTATE)"
 GO_LDFLAGS                   += -X "github.com/mattermost/${APP_NAME}/internal/version.buildDate=$(BUILD_DATE)"
 
-
 # Architectures to build for
 GO_BUILD_PLATFORMS           ?= linux-amd64 linux-arm64 freebsd-amd64
 GO_BUILD_PLATFORMS_ARTIFACTS = $(foreach cmd,$(addprefix go-build/,${APP_NAME}),$(addprefix $(cmd)-,$(GO_BUILD_PLATFORMS)))
@@ -139,6 +138,14 @@ AT_1 :=
 AT = $(AT_$(VERBOSE))
 
 # ====================================================================================
+# Used for semver bumping
+CURRENT_VERSION := $(shell git describe --abbrev=0 --tags)
+VERSION_PARTS := $(subst ., ,$(subst v,,$(CURRENT_VERSION)))
+MAJOR := $(word 1,$(VERSION_PARTS))
+MINOR := $(word 2,$(VERSION_PARTS))
+PATCH := $(word 3,$(VERSION_PARTS))
+
+# ====================================================================================
 # Targets
 
 help: ## to get help
@@ -163,6 +170,32 @@ lint: go-lint docker-lint ## to lint
 
 .PHONY: test
 test: go-test ## to test
+
+
+.PHONY: patch minor major
+
+patch: ## to bump patch version (semver)
+	@$(eval PATCH := $(shell echo $$(($(PATCH)+1))))
+	@$(INFO) Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)
+	git tag -s -a $(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)"
+	git push --tags
+	@$(OK) Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)
+
+minor: ## to bump minor version (semver)
+	@$(eval MINOR := $(shell echo $$(($(MINOR)+1))))
+	@$(INFO) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
+	git tag -s -a $(MAJOR).$(MINOR).0 -m "Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0"
+	git push --tags
+	@$(OK) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
+
+major: ## to bump major version (semver)
+	$(eval MAJOR := $(shell echo $$(($(MAJOR)+1))))
+	$(eval MINOR := 0)
+	$(eval PATCH := 0)
+	@$(INFO) Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)
+	git tag -s -a $(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)"
+	git push --tags
+	@$(OK) Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)
 
 package-software:  ## to package the binary
 	@$(INFO) Packaging
