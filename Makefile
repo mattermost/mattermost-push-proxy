@@ -177,14 +177,14 @@ test: go-test ## to test
 patch: ## to bump patch version (semver)
 	@$(eval PATCH := $(shell echo $$(($(PATCH)+1))))
 	@$(INFO) Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)
-	git tag -s -a $(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)"
+	git tag -s -a v$(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)"
 	git push --tags
 	@$(OK) Bumping $(APP_NAME) to Patch version $(MAJOR).$(MINOR).$(PATCH)
 
 minor: ## to bump minor version (semver)
 	@$(eval MINOR := $(shell echo $$(($(MINOR)+1))))
 	@$(INFO) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
-	git tag -s -a $(MAJOR).$(MINOR).0 -m "Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0"
+	git tag -s -a v$(MAJOR).$(MINOR).0 -m "Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0"
 	git push --tags
 	@$(OK) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
 
@@ -193,7 +193,7 @@ major: ## to bump major version (semver)
 	$(eval MINOR := 0)
 	$(eval PATCH := 0)
 	@$(INFO) Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)
-	git tag -s -a $(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)"
+	git tag -s -a v$(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)"
 	git push --tags
 	@$(OK) Bumping $(APP_NAME) to Major version $(MAJOR).$(MINOR).$(PATCH)
 
