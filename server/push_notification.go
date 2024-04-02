@@ -50,4 +50,5 @@ type PushNotification struct {
 	ContentAvailable int    `json:"cont_ava"`
 	IsCRTEnabled     bool   `json:"is_crt_enabled"`
 	IsIDLoaded       bool   `json:"is_id_loaded"`
+	Signature        string `json:"signature"`
 }
