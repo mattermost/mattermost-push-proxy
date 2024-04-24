@@ -130,6 +130,12 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["root_id"] = msg.RootID
 	}
 
+	if msg.Signature == "" {
+		data["signature"] = "NO_SIGNATURE"
+	} else {
+		data["signature"] = msg.Signature
+	}
+
 	if msg.IsIDLoaded {
 		data["post_id"] = msg.PostID
 		data["message"] = msg.Message

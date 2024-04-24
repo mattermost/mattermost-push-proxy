@@ -187,6 +187,12 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 
+	if msg.Signature == "" {
+		data.Custom("signature", "NO_SIGNATURE")
+	} else {
+		data.Custom("signature", msg.Signature)
+	}
+
 	if msg.TeamID != "" {
 		data.Custom("team_id", msg.TeamID)
 	}
