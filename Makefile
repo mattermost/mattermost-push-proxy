@@ -20,6 +20,9 @@ ifeq ($(DIFF), 1)
     GIT_TREESTATE = dirty
 endif
 
+GO_INSTALL = ./scripts/go_install.sh
+TOOLS_BIN_DIR := $(abspath bin)
+
 # Get current date and format like: 2022-04-27 11:32
 BUILD_DATE  := $(shell date +%Y-%m-%d\ %H:%M)
 
@@ -105,6 +108,10 @@ GITHUB_TOKEN                 ?= a_token
 GITHUB_ORG                   := mattermost
 # Most probably the name of the repo
 GITHUB_REPO                  := ${APP_NAME}
+
+OUTDATED_VER := master
+OUTDATED_BIN := go-mod-outdated
+OUTDATED_GEN := $(TOOLS_BIN_DIR)/$(OUTDATED_BIN)
 
 # ====================================================================================
 # Colors
@@ -301,6 +308,11 @@ docker-scan: ## to print a vulnerability report
 	$(AT)$(DOCKER) scan ${APP_NAME}:${APP_VERSION} || ${FAIL}
 	@$(OK) Performing Docker scan report
 
+.PHONY: docker-scout
+	@$(INFO) Performing Docker scout report...
+	$(AT)$(DOCKER) scout cves ${APP_NAME}:${APP_VERSION} || ${FAIL}
+	@$(OK) Performing Docker scout report
+
 .PHONY: docker-lint
 docker-lint: ## to lint the Dockerfile
 	@$(INFO) Dockerfile linting...
@@ -386,6 +398,11 @@ go-doc: ## to generate documentation
 	$(AT)$(GO) run ./scripts/env_config.go ./docs/env_config.md || ${FAIL}
 	@$(OK) Generating Documentation
 
+.PHONY: check-modules
+check-modules: $(OUTDATED_GEN) ## Check outdated modules
+	@echo Checking outdated modules
+	$(GO) list -mod=mod -u -m -json all | $(OUTDATED_GEN) -update -direct
+
 .PHONY: github-release
 github-release: ## to publish a release and relevant artifacts to GitHub
 	@$(INFO) Generating github-release http://github.com/$(GITHUB_ORG)/$(GITHUB_REPO)/releases/tag/$(APP_VERSION) ...
@@ -407,3 +424,10 @@ clean: ## to clean-up
 	@$(INFO) cleaning /${GO_OUT_BIN_DIR} folder...
 	$(AT)rm -rf ${GO_OUT_BIN_DIR} || ${FAIL}
 	@$(OK) cleaning /${GO_OUT_BIN_DIR} folder
+
+
+## --------------------------------------
+## Tooling Binaries
+## --------------------------------------
+$(OUTDATED_GEN): ## Build go-mod-outdated.
+	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/psampaz/go-mod-outdated $(OUTDATED_BIN) $(OUTDATED_VER)
