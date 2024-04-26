@@ -190,10 +190,11 @@ patch: ## to bump patch version (semver)
 
 minor: ## to bump minor version (semver)
 	@$(eval MINOR := $(shell echo $$(($(MINOR)+1))))
-	@$(INFO) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
-	git tag -s -a v$(MAJOR).$(MINOR).0 -m "Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0"
+	@$(eval PATCH := 0)
+	@$(INFO) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).$(PATCH)
+	git tag -s -a v$(MAJOR).$(MINOR).$(PATCH) -m "Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).$(PATCH)"
 	git push origin v$(MAJOR).$(MINOR).$(PATCH)
-	@$(OK) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).0
+	@$(OK) Bumping $(APP_NAME) to Minor version $(MAJOR).$(MINOR).$(PATCH)
 
 major: ## to bump major version (semver)
 	$(eval MAJOR := $(shell echo $$(($(MAJOR)+1))))
