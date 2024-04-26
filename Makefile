@@ -20,6 +20,9 @@ ifeq ($(DIFF), 1)
     GIT_TREESTATE = dirty
 endif
 
+GO_INSTALL = ./scripts/go_install.sh
+TOOLS_BIN_DIR := $(abspath bin)
+
 # Get current date and format like: 2022-04-27 11:32
 BUILD_DATE  := $(shell date +%Y-%m-%d\ %H:%M)
 
@@ -61,8 +64,8 @@ ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
 endif
 
 ## Docker Images
-DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:dd9ad81920b63c7f9f18823d888d5fdcc7e7516086fd16654d07bc437f0e2427"
-DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.52.2@sha256:5fa6a92ab28ca3421c88d2b6cd794c9759d05a999aceca73053d014aad41b9d3"
+DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:d83472f1ab5712a6b2b816dc811e46155e844ddc02f5f5952e72c6deedafed77"
+DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.57.2@sha256:8f3a60a00a83bb7d599d2e028ac0c3573dc2b9ec0842590f1c2e59781c821da7"
 DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
 DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
@@ -105,6 +108,10 @@ GITHUB_TOKEN                 ?= a_token
 GITHUB_ORG                   := mattermost
 # Most probably the name of the repo
 GITHUB_REPO                  := ${APP_NAME}
+
+OUTDATED_VER := master
+OUTDATED_BIN := go-mod-outdated
+OUTDATED_GEN := $(TOOLS_BIN_DIR)/$(OUTDATED_BIN)
 
 # ====================================================================================
 # Colors
@@ -301,6 +308,11 @@ docker-scan: ## to print a vulnerability report
 	$(AT)$(DOCKER) scan ${APP_NAME}:${APP_VERSION} || ${FAIL}
 	@$(OK) Performing Docker scan report
 
+.PHONY: docker-scout
+	@$(INFO) Performing Docker scout report...
+	$(AT)$(DOCKER) scout cves ${APP_NAME}:${APP_VERSION} || ${FAIL}
+	@$(OK) Performing Docker scout report
+
 .PHONY: docker-lint
 docker-lint: ## to lint the Dockerfile
 	@$(INFO) Dockerfile linting...
@@ -386,6 +398,11 @@ go-doc: ## to generate documentation
 	$(AT)$(GO) run ./scripts/env_config.go ./docs/env_config.md || ${FAIL}
 	@$(OK) Generating Documentation
 
+.PHONY: check-modules
+check-modules: $(OUTDATED_GEN) ## Check outdated modules
+	@echo Checking outdated modules
+	$(GO) list -mod=mod -u -m -json all | $(OUTDATED_GEN) -update -direct
+
 .PHONY: github-release
 github-release: ## to publish a release and relevant artifacts to GitHub
 	@$(INFO) Generating github-release http://github.com/$(GITHUB_ORG)/$(GITHUB_REPO)/releases/tag/$(APP_VERSION) ...
@@ -407,3 +424,10 @@ clean: ## to clean-up
 	@$(INFO) cleaning /${GO_OUT_BIN_DIR} folder...
 	$(AT)rm -rf ${GO_OUT_BIN_DIR} || ${FAIL}
 	@$(OK) cleaning /${GO_OUT_BIN_DIR} folder
+
+
+## --------------------------------------
+## Tooling Binaries
+## --------------------------------------
+$(OUTDATED_GEN): ## Build go-mod-outdated.
+	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/psampaz/go-mod-outdated $(OUTDATED_BIN) $(OUTDATED_VER)
