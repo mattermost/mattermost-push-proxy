@@ -227,15 +227,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if me.AppleClient != nil {
 		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
-		start := time.Now()
 
-		ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
-		defer cancel()
-
-		res, err := me.AppleClient.PushWithContext(ctx, notification)
-		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
-		}
+		res, err := me.SendNotificationWithRetry(notification, 0)
 		if err != nil {
 			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
 			if me.metrics != nil {
@@ -268,4 +261,24 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	return NewOkPushResponse()
+}
+
+func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.Notification, retry int) (*apns.Response, error) {
+	start := time.Now()
+
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancel()
+
+	res, err := me.AppleClient.PushWithContext(ctx, notification)
+	if me.metrics != nil {
+		me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+	}
+
+	if err != nil {
+		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
+			return me.SendNotificationWithRetry(notification, retry)
+		}
+	}
+
+	return res, err
 }

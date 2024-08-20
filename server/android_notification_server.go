@@ -166,16 +166,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
-	defer cancel()
-
 	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
 
-	start := time.Now()
-	_, err := me.client.Send(ctx, fcmMsg)
-	if me.metrics != nil {
-		me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
-	}
+	err := me.SendNotificationWithRetry(fcmMsg, 0)
 
 	if err != nil {
 		me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
@@ -219,4 +212,32 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 	return NewOkPushResponse()
+}
+
+func isRetriableError(err error) bool {
+	// Any error that is not a known error, but the Internal error
+	return !(messaging.IsUnregistered(err) ||
+		messaging.IsInvalidArgument(err) ||
+		messaging.IsQuotaExceeded(err) ||
+		messaging.IsSenderIDMismatch(err) ||
+		messaging.IsThirdPartyAuthError(err))
+}
+
+func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging.Message, retry int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancel()
+
+	start := time.Now()
+	_, err := me.client.Send(ctx, fcmMsg)
+	if me.metrics != nil {
+		me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+	}
+
+	if isRetriableError(err) {
+		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
+			return me.SendNotificationWithRetry(fcmMsg, nextIteration)
+		}
+	}
+
+	return err
 }

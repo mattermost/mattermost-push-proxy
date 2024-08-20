@@ -27,6 +27,7 @@ const (
 	HEADER_REAL_IP             = "X-Real-IP"
 	WAIT_FOR_SERVER_SHUTDOWN   = time.Second * 5
 	CONNECTION_TIMEOUT_SECONDS = 60
+	MAX_RETRIES                = 3
 )
 
 type NotificationServer interface {
