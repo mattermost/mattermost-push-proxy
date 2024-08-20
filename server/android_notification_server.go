@@ -234,9 +234,11 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 	}
 
 	if isRetriableError(err) {
+		me.logger.Errorf("Failed to send android push did=%v retry=%v error=%v", fcmMsg.Token, retry, err)
 		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
 			return me.SendNotificationWithRetry(fcmMsg, nextIteration)
 		}
+		me.logger.Errorf("Max retries reached did=%v", fcmMsg.Token)
 	}
 
 	return err

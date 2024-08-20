@@ -275,9 +275,11 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 	}
 
 	if err != nil {
+		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retry, err)
 		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
 			return me.SendNotificationWithRetry(notification, retry)
 		}
+		me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
 	}
 
 	return res, err
