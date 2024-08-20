@@ -219,6 +219,10 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		msg.Message = msg.Message[0:2046]
 	}
 
+	if len(msg.ChannelName) > 64 {
+		msg.ChannelName = msg.ChannelName[0:64]
+	}
+
 	// Parse the app version if available
 	index := strings.Index(msg.Platform, "-v")
 	platform := msg.Platform
