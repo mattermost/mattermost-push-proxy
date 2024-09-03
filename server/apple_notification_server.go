@@ -228,7 +228,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	if me.AppleClient != nil {
 		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
 
-		res, err := me.SendNotificationWithRetry(notification, 0)
+		res, err := me.SendNotificationWithRetry(notification)
 		if err != nil {
 			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
 			if me.metrics != nil {
@@ -263,23 +263,44 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	return NewOkPushResponse()
 }
 
-func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.Notification, retry int) (*apns.Response, error) {
+func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.Notification) (*apns.Response, error) {
 	start := time.Now()
 
 	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
-	res, err := me.AppleClient.PushWithContext(ctx, notification)
-	if me.metrics != nil {
-		me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
-	}
+	var res *apns.Response
+	var err error
+	waitTime := time.Second
 
-	if err != nil {
-		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retry, err)
-		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
-			return me.SendNotificationWithRetry(notification, retry)
+	for retries := 0; retries < MAX_RETRIES; retries++ {
+		res, err = me.AppleClient.PushWithContext(ctx, notification)
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
 		}
-		me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
+
+		if err == nil {
+			break
+		}
+
+		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retries, err)
+
+		select {
+		case <-ctx.Done():
+		case <-time.After(waitTime):
+		}
+
+		if ctx.Err() != nil {
+			me.logger.Infof("Not retrying because context error did=%v retry=%v error=%v", notification.DeviceToken, retries, ctx.Err())
+			err = ctx.Err()
+			break
+		}
+
+		if retries == MAX_RETRIES-1 {
+			me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
+		}
+
+		waitTime *= 2
 	}
 
 	return res, err

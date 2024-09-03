@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -168,7 +170,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
 
-	err := me.SendNotificationWithRetry(fcmMsg, 0)
+	err := me.SendNotificationWithRetry(fcmMsg)
 
 	if err != nil {
 		me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
@@ -214,31 +216,70 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	return NewOkPushResponse()
 }
 
-func isRetriableError(err error) bool {
+func (me *AndroidNotificationServer) isRetriableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
 	// Any error that is not a known error, but the Internal error
-	return !(messaging.IsUnregistered(err) ||
+	if messaging.IsUnregistered(err) ||
 		messaging.IsInvalidArgument(err) ||
 		messaging.IsQuotaExceeded(err) ||
 		messaging.IsSenderIDMismatch(err) ||
-		messaging.IsThirdPartyAuthError(err))
+		messaging.IsThirdPartyAuthError(err) {
+		return false
+	}
+
+	errorValue := reflect.ValueOf(err)
+	if reflect.Struct != errorValue.Kind() {
+		return true
+	}
+
+	response, ok := errorValue.FieldByName("Response").Interface().(*http.Response)
+	if !ok {
+		return true
+	}
+
+	if response.StatusCode == http.StatusServiceUnavailable {
+		me.logger.Info("Not retrying because status code is 503")
+		return false
+	}
+
+	return true
 }
 
-func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging.Message, retry int) error {
+func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
-	start := time.Now()
-	_, err := me.client.Send(ctx, fcmMsg)
-	if me.metrics != nil {
-		me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
-	}
-
-	if isRetriableError(err) {
-		me.logger.Errorf("Failed to send android push did=%v retry=%v error=%v", fcmMsg.Token, retry, err)
-		if nextIteration := retry + 1; nextIteration < MAX_RETRIES {
-			return me.SendNotificationWithRetry(fcmMsg, nextIteration)
+	var err error
+	waitTime := time.Second
+	for retries := 0; retries < MAX_RETRIES; retries++ {
+		start := time.Now()
+		_, err = me.client.Send(ctx, fcmMsg)
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
 		}
-		me.logger.Errorf("Max retries reached did=%v", fcmMsg.Token)
+
+		if !me.isRetriableError(err) {
+			break
+		}
+
+		me.logger.Errorf("Failed to send android push did=%v retry=%v error=%v", fcmMsg.Token, retries, err)
+
+		select {
+		case <-ctx.Done():
+		case <-time.After(waitTime):
+		}
+		if ctx.Err() != nil {
+			me.logger.Infof("Not retrying because context error did=%v retry=%v error=%v", fcmMsg.Token, retries, ctx.Err())
+			err = ctx.Err()
+			break
+		}
+		if retries == MAX_RETRIES-1 {
+			me.logger.Errorf("Max retries reached did=%v", fcmMsg.Token)
+		}
+		waitTime *= 2
 	}
 
 	return err
