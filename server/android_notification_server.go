@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"reflect"
 	"strconv"
@@ -180,15 +179,18 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if err != nil {
-		statusCode, hasStatusCode := getStatusCode(err)
+		errorCode, hasStatusCode := getErrorCode(err)
+		if !hasStatusCode {
+			errorCode = "NONE"
+		}
+
 		me.logger.Errorf(
-			"Failed to send FCM push sid=%v did=%v err=%v type=%v hasStatusCode=%v statusCode=%v",
+			"Failed to send FCM push sid=%v did=%v err=%v type=%v errorCode=%v",
 			msg.ServerID,
 			msg.DeviceID,
 			err,
 			me.AndroidPushSettings.Type,
-			hasStatusCode,
-			statusCode,
+			errorCode,
 		)
 
 		if messaging.IsUnregistered(err) {
@@ -232,25 +234,25 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	return NewOkPushResponse()
 }
 
-func getStatusCode(err error) (int, bool) {
+func getErrorCode(err error) (string, bool) {
 	if err == nil {
-		return 0, false
+		return "", false
 	}
 
 	errorPointer := reflect.ValueOf(err)
 	if errorPointer.Kind() != reflect.Ptr {
-		return 0, false
+		return "", false
 	}
 
 	errorValue := errorPointer.Elem()
 	if errorValue.Kind() != reflect.Struct {
-		return 0, false
+		return "", false
 	}
 
-	response, ok := errorValue.FieldByName("Response").Interface().(*http.Response)
+	code, ok := errorValue.FieldByName("ErrorCode").Interface().(string)
 	if !ok {
-		return 0, false
+		return "", false
 	}
 
-	return response.StatusCode, true
+	return code, true
 }
