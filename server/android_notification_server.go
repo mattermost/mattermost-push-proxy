@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -178,7 +179,19 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if err != nil {
-		me.logger.Errorf("Failed to send FCM push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.AndroidPushSettings.Type)
+		errorCode, hasStatusCode := getErrorCode(err)
+		if !hasStatusCode {
+			errorCode = "NONE"
+		}
+
+		me.logger.Errorf(
+			"Failed to send FCM push sid=%v did=%v err=%v type=%v errorCode=%v",
+			msg.ServerID,
+			msg.DeviceID,
+			err,
+			me.AndroidPushSettings.Type,
+			errorCode,
+		)
 
 		if messaging.IsUnregistered(err) {
 			me.logger.Infof("Android response failure sending remove code: type=%v", me.AndroidPushSettings.Type)
@@ -219,4 +232,27 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 	return NewOkPushResponse()
+}
+
+func getErrorCode(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+
+	errorPointer := reflect.ValueOf(err)
+	if errorPointer.Kind() != reflect.Ptr {
+		return "", false
+	}
+
+	errorValue := errorPointer.Elem()
+	if errorValue.Kind() != reflect.Struct {
+		return "", false
+	}
+
+	code, ok := errorValue.FieldByName("ErrorCode").Interface().(string)
+	if !ok {
+		return "", false
+	}
+
+	return code, true
 }
