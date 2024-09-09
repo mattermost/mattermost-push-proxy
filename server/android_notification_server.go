@@ -26,7 +26,6 @@ const (
 	thirdPartyAuthError = "THIRD_PARTY_AUTH_ERROR"
 	invalidArgument     = "INVALID_ARGUMENT"
 	quotaExceeded       = "QUOTA_EXCEEDED"
-	senderIDMismatch    = "SENDER_ID_MISMATCH"
 	unregistered        = "UNREGISTERED"
 	unavailable         = "UNAVAILABLE"
 	tokenSourceError    = "TOKEN_SOURCE_ERROR"
@@ -193,7 +192,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			errorCode,
 		)
 
-		if messaging.IsUnregistered(err) {
+		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Infof("Android response failure sending remove code: type=%v", me.AndroidPushSettings.Type)
 			if me.metrics != nil {
 				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, unregistered)
@@ -209,10 +208,10 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			reason = invalidArgument
 		case messaging.IsQuotaExceeded(err):
 			reason = quotaExceeded
-		case messaging.IsSenderIDMismatch(err):
-			reason = senderIDMismatch
 		case messaging.IsThirdPartyAuthError(err):
 			reason = thirdPartyAuthError
+		case messaging.IsUnavailable(err):
+			reason = unavailable
 		default:
 			reason = "unknown transport error"
 
