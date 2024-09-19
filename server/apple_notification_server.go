@@ -25,14 +25,16 @@ type AppleNotificationServer struct {
 	logger            *Logger
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
+	retryTimeout      time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
 		logger:            logger,
 		sendTimeout:       time.Duration(sendTimeoutSecs) * time.Second,
+		retryTimeout:      time.Duration(retryTimeoutSecs) * time.Second,
 	}
 }
 
@@ -273,15 +275,10 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 	generalContext, cancelGeneralContext := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancelGeneralContext()
 
-	// Set the retry context timeout to a value that allow us to retry the notification
-	// the MAX RETRIES with exponential backoff. With default values, this timeout
-	// will be 5 seconds.
-	retryContextTimeout := me.sendTimeout / (MAX_RETRIES * 2)
-
 	for retries := 0; retries < MAX_RETRIES; retries++ {
 		start := time.Now()
 
-		retryContext, cancelRetryContext := context.WithTimeout(generalContext, retryContextTimeout)
+		retryContext, cancelRetryContext := context.WithTimeout(generalContext, me.retryTimeout)
 		defer cancelRetryContext()
 		res, err = me.AppleClient.PushWithContext(retryContext, notification)
 		if me.metrics != nil {
