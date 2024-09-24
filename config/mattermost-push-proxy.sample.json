@@ -5,6 +5,7 @@
     "ThrottleVaryByHeader":"X-Forwarded-For",
     "EnableMetrics": false,
     "SendTimeoutSec": 30,
+    "RetryTimeoutSec": 8,
     "ApplePushSettings":[
         {
             "Type":"apple",

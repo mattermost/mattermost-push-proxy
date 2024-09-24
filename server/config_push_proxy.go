@@ -17,6 +17,7 @@ type ConfigPushProxy struct {
 	ThrottleVaryByHeader    string
 	LogFileLocation         string
 	SendTimeoutSec          int
+	RetryTimeoutSec         int
 	ApplePushSettings       []ApplePushSettings
 	EnableMetrics           bool
 	EnableConsoleLog        bool
@@ -81,6 +82,20 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 	if !cfg.EnableConsoleLog && !cfg.EnableFileLog {
 		cfg.EnableConsoleLog = true
 	}
+
+	// Set timeout defaults
+	if cfg.SendTimeoutSec == 0 {
+		cfg.SendTimeoutSec = 30
+	}
+
+	if cfg.RetryTimeoutSec == 0 {
+		cfg.RetryTimeoutSec = 8
+	}
+
+	if cfg.RetryTimeoutSec > cfg.SendTimeoutSec {
+		cfg.RetryTimeoutSec = cfg.SendTimeoutSec
+	}
+
 	if cfg.EnableFileLog {
 		if cfg.LogFileLocation == "" {
 			// We just do an mkdir -p equivalent.

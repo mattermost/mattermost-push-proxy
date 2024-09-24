@@ -25,14 +25,16 @@ type AppleNotificationServer struct {
 	logger            *Logger
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
+	retryTimeout      time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
 		logger:            logger,
 		sendTimeout:       time.Duration(sendTimeoutSecs) * time.Second,
+		retryTimeout:      time.Duration(retryTimeoutSecs) * time.Second,
 	}
 }
 
@@ -227,15 +229,8 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if me.AppleClient != nil {
 		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
-		start := time.Now()
 
-		ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
-		defer cancel()
-
-		res, err := me.AppleClient.PushWithContext(ctx, notification)
-		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
-		}
+		res, err := me.SendNotificationWithRetry(notification)
 		if err != nil {
 			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
 			if me.metrics != nil {
@@ -268,4 +263,52 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	return NewOkPushResponse()
+}
+
+func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.Notification) (*apns.Response, error) {
+	var res *apns.Response
+	var err error
+	waitTime := time.Second
+
+	// Keep a general context to make sure the whole retry
+	// doesn't take longer than the timeout.
+	generalContext, cancelGeneralContext := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancelGeneralContext()
+
+	for retries := 0; retries < MAX_RETRIES; retries++ {
+		start := time.Now()
+
+		retryContext, cancelRetryContext := context.WithTimeout(generalContext, me.retryTimeout)
+		defer cancelRetryContext()
+		res, err = me.AppleClient.PushWithContext(retryContext, notification)
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+		}
+
+		if err == nil {
+			break
+		}
+
+		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retries, err)
+
+		if retries == MAX_RETRIES-1 {
+			me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
+			break
+		}
+
+		select {
+		case <-generalContext.Done():
+		case <-time.After(waitTime):
+		}
+
+		if generalContext.Err() != nil {
+			me.logger.Infof("Not retrying because context error did=%v retry=%v error=%v", notification.DeviceToken, retries, generalContext.Err())
+			err = generalContext.Err()
+			break
+		}
+
+		waitTime *= 2
+	}
+
+	return res, err
 }

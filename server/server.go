@@ -27,6 +27,7 @@ const (
 	HEADER_REAL_IP             = "X-Real-IP"
 	WAIT_FOR_SERVER_SHUTDOWN   = time.Second * 5
 	CONNECTION_TIMEOUT_SECONDS = 60
+	MAX_RETRIES                = 3
 )
 
 type NotificationServer interface {
@@ -69,7 +70,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.ApplePushSettings {
-		server := NewAppleNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec)
+		server := NewAppleNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Errorf("Failed to initialize client: %v", err)
