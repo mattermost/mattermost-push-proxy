@@ -92,6 +92,10 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 		cfg.RetryTimeoutSec = 8
 	}
 
+	if cfg.RetryTimeoutSec > cfg.SendTimeoutSec {
+		cfg.RetryTimeoutSec = cfg.SendTimeoutSec
+	}
+
 	if cfg.EnableFileLog {
 		if cfg.LogFileLocation == "" {
 			// We just do an mkdir -p equivalent.
