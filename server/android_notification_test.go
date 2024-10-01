@@ -5,6 +5,8 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
 	"os"
 	"testing"
 
@@ -47,4 +49,32 @@ func TestAndroidInitialize(t *testing.T) {
 	require.NoError(t, NewAndroidNotificationServer(cfg.AndroidPushSettings[0], logger, nil, cfg.SendTimeoutSec).Initialize())
 
 	require.NoError(t, f.Close())
+}
+
+// Copied from firebase.google.com/go/v4@v4.14.0/internal/errors.go
+type ErrorCode string
+type FirebaseError struct {
+	ErrorCode ErrorCode
+	String    string
+	Response  *http.Response
+	Ext       map[string]interface{}
+}
+
+func (fe *FirebaseError) Error() string {
+	return fe.String
+}
+
+func TestGetErrorCode(t *testing.T) {
+	var errorCode ErrorCode = "some error code"
+	err := &FirebaseError{
+		ErrorCode: errorCode,
+	}
+
+	extractedCode, found := getErrorCode(err)
+	require.True(t, found)
+	require.Equal(t, string(errorCode), extractedCode)
+
+	extractedCode, found = getErrorCode(errors.New("non firebase error"))
+	require.Equal(t, "", extractedCode)
+	require.False(t, found)
 }

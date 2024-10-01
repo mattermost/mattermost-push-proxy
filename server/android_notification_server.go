@@ -248,10 +248,10 @@ func getErrorCode(err error) (string, bool) {
 		return "", false
 	}
 
-	code, ok := errorValue.FieldByName("ErrorCode").Interface().(string)
-	if !ok {
+	codeValue := errorValue.FieldByName("ErrorCode")
+	if !codeValue.IsValid() {
 		return "", false
 	}
 
-	return code, true
+	return codeValue.String(), true
 }
