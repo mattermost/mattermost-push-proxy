@@ -20,6 +20,7 @@ import (
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 const (
@@ -45,7 +46,7 @@ type Server struct {
 }
 
 // New returns a new Server instance.
-func New(cfg *ConfigPushProxy, logger *Logger) *Server {
+func New(cfg *ConfigPushProxy, logger *mlog.Logger) *Server {
 	return &Server{
 		cfg:         cfg,
 		pushTargets: make(map[string]NotificationServer),
@@ -56,11 +57,11 @@ func New(cfg *ConfigPushProxy, logger *Logger) *Server {
 // Start starts the server.
 func (s *Server) Start() {
 	v := version.VersionInfo()
-	s.logger.Infof("Push proxy server is initializing...\n%s\n", v.String())
+	s.logger.Info("Push proxy server is initializing...", mlog.String("version", v.String()))
 
 	proxyServer := getProxyServer()
 	if proxyServer != "" {
-		s.logger.Infof("Proxy server detected. Routing all requests through: %s", proxyServer)
+		s.logger.Info("Proxy server detected.", mlog.String("proxyServer", proxyServer))
 	}
 
 	var m *metrics
@@ -315,7 +316,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment ACK
-	s.logger.Infof("Acknowledge delivery receipt for AckId=%v", ack.ID)
+	s.logger.Info("Acknowledge delivery receipt for AckId", mlog.String("AckId", ack.ID))
 	if s.metrics != nil {
 		s.metrics.incrementDelivered(ack.Platform, ack.Type)
 	}
