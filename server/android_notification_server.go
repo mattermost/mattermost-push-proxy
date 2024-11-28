@@ -38,7 +38,7 @@ const (
 
 type AndroidNotificationServer struct {
 	metrics             *metrics
-	logger              *Logger
+	logger              *mlog.Logger
 	AndroidPushSettings AndroidPushSettings
 	client              *messaging.Client
 	sendTimeout         time.Duration
@@ -55,7 +55,7 @@ type serviceAccount struct {
 	TokenURI    string `json:"token_uri"`
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,

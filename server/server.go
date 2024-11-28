@@ -42,7 +42,7 @@ type Server struct {
 	httpServer  *http.Server
 	pushTargets map[string]NotificationServer
 	metrics     *metrics
-	logger      *Logger
+	logger      *mlog.Logger
 }
 
 // New returns a new Server instance.

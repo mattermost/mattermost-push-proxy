@@ -23,13 +23,13 @@ import (
 type AppleNotificationServer struct {
 	AppleClient       *apns.Client
 	metrics           *metrics
-	logger            *Logger
+	logger            *mlog.Logger
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
 	retryTimeout      time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
