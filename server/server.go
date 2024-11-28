@@ -127,7 +127,7 @@ func (s *Server) Start() {
 	go func() {
 		err := s.httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
-			s.logger.Panic(err.Error())
+			s.logger.Fatal(err.Error())
 		}
 	}()
 
