@@ -238,7 +238,13 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 		res, err := me.SendNotificationWithRetry(notification)
 		if err != nil {
-			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
+			me.logger.Error(
+				"Failed to send apple push",
+				mlog.String("sid", msg.ServerID),
+				mlog.String("did", msg.DeviceID),
+				mlog.Err(err),
+				mlog.String("type", me.ApplePushSettings.Type),
+			)
 			if me.metrics != nil {
 				me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
 			}
@@ -260,7 +266,13 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 				return NewRemovePushResponse()
 			}
 
-			me.logger.Errorf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
+			me.logger.Error(
+				"Failed to send apple push with res",
+				mlog.String("ApnsID", res.ApnsID),
+				mlog.String("reason", res.Reason),
+				mlog.Int("code", res.StatusCode),
+				mlog.String("type", me.ApplePushSettings.Type),
+			)
 			if me.metrics != nil {
 				me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
 			}
@@ -301,10 +313,15 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 			break
 		}
 
-		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retries, err)
+		me.logger.Error(
+			"Failed to send apple push",
+			mlog.String("did", notification.DeviceToken),
+			mlog.Int("retry", retries),
+			mlog.Err(err),
+		)
 
 		if retries == MAX_RETRIES-1 {
-			me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
+			me.logger.Error("Max retries reached", mlog.String("did", notification.DeviceToken))
 			break
 		}
 

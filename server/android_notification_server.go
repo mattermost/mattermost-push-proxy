@@ -189,13 +189,13 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			errorCode = "NONE"
 		}
 
-		me.logger.Errorf(
-			"Failed to send FCM push sid=%v did=%v err=%v type=%v errorCode=%v",
-			msg.ServerID,
-			msg.DeviceID,
-			err,
-			me.AndroidPushSettings.Type,
-			errorCode,
+		me.logger.Error(
+			"Failed to send FCM push",
+			mlog.String("sid", msg.ServerID),
+			mlog.String("did", msg.DeviceID),
+			mlog.Err(err),
+			mlog.String("type", me.AndroidPushSettings.Type),
+			mlog.String("errorCode", errorCode),
 		)
 
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
