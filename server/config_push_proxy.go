@@ -83,10 +83,6 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 		fmt.Println(buf, err)
 		return nil, err
 	}
-	// If both are disabled, that means an old config file is being used. Atleast enable console log.
-	if !cfg.EnableConsoleLog && !cfg.EnableFileLog {
-		cfg.EnableConsoleLog = true
-	}
 
 	// Set timeout defaults
 	if cfg.SendTimeoutSec == 0 {
@@ -99,30 +95,6 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 
 	if cfg.RetryTimeoutSec > cfg.SendTimeoutSec {
 		cfg.RetryTimeoutSec = cfg.SendTimeoutSec
-	}
-
-	if cfg.EnableFileLog {
-		if cfg.LogFileLocation == "" {
-			// We just do an mkdir -p equivalent.
-			// Otherwise, it would need 2 steps of statting and creating.
-			err := os.MkdirAll("./logs", 0755)
-			if err != nil {
-				// If it fails, we log in the current directory itself
-				cfg.LogFileLocation = "./push_proxy.log"
-			} else {
-				cfg.LogFileLocation = "./logs/push_proxy.log"
-			}
-		}
-		// if file does not exist, create it.
-		if _, err := os.Stat(cfg.LogFileLocation); os.IsNotExist(err) {
-			f, err := os.Create(cfg.LogFileLocation)
-			if err != nil {
-				return nil, err
-			}
-			if err := f.Close(); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	return cfg, nil
