@@ -12,16 +12,21 @@ import (
 )
 
 type ConfigPushProxy struct {
-	AndroidPushSettings     []AndroidPushSettings
-	ListenAddress           string
-	ThrottleVaryByHeader    string
-	LogFileLocation         string
-	SendTimeoutSec          int
-	RetryTimeoutSec         int
-	ApplePushSettings       []ApplePushSettings
-	EnableMetrics           bool
-	EnableConsoleLog        bool
+	AndroidPushSettings  []AndroidPushSettings
+	ListenAddress        string
+	ThrottleVaryByHeader string
+	// Deprecated: Use it is maintained for backward compatibility of the Logger struct. Use LoggingCfgFile or LoggingCfgJSON instead.
+	LogFileLocation   string
+	SendTimeoutSec    int
+	RetryTimeoutSec   int
+	ApplePushSettings []ApplePushSettings
+	EnableMetrics     bool
+	// Deprecated: Same reason as LogFileLocation.
+	EnableConsoleLog bool
+	// Deprecated: Same reason as LogFileLocation.
 	EnableFileLog           bool
+	LoggingCfgFile          string
+	LoggingCfgJSON          string
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int
 }
