@@ -64,8 +64,8 @@ ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
 endif
 
 ## Docker Images
-DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:d83472f1ab5712a6b2b816dc811e46155e844ddc02f5f5952e72c6deedafed77"
-DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.57.2@sha256:8f3a60a00a83bb7d599d2e028ac0c3573dc2b9ec0842590f1c2e59781c821da7"
+DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:21edeab9ed48e9820f0b447cce6ce1900b3aa90ffce3c8b4de7fae5ac333de0c"
+DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.62.2@sha256:0f3af3929517ed4afa1f1bcba4eae827296017720e08ecd5c68b9f0640bc310d"
 DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
 DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
