@@ -23,6 +23,8 @@ func TestBasicServer(t *testing.T) {
 	require.NoError(t, err)
 
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -87,6 +89,8 @@ func TestAndroidSend(t *testing.T) {
 
 	cfg.AndroidPushSettings[0].AndroidAPIKey = "junk"
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -121,6 +125,8 @@ func TestServer_version(t *testing.T) {
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/version", nil)

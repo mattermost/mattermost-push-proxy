@@ -6,7 +6,7 @@ import (
 )
 
 func DefaultLoggingConfig(cfg *ConfigPushProxy) string {
-	if cfg.EnableFileLog == false {
+	if !cfg.EnableFileLog {
 		return defaultLoggingConsoleLogConfig()
 	} else {
 		return defaultLoggingFileLogConfig(cfg.LogFileLocation)

@@ -20,6 +20,7 @@ func TestAndroidInitialize(t *testing.T) {
 	require.NoError(t, err)
 
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
 
 	// Verify error for no service file
 	pushSettings := AndroidPushSettings{}

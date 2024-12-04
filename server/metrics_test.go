@@ -24,6 +24,8 @@ func TestMetricDisabled(t *testing.T) {
 	cfg.EnableMetrics = false
 
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -72,6 +74,8 @@ func TestMetricEnabled(t *testing.T) {
 	cfg.EnableMetrics = true
 
 	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
