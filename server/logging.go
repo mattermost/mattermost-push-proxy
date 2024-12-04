@@ -2,13 +2,43 @@ package server
 
 import (
 	"fmt"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"strings"
 )
 
-func DefaultLoggingConfig(cfg *ConfigPushProxy) string {
-	if !cfg.EnableFileLog {
+func NewMlogLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
+	// Initialize the logger - begin
+	logger, err := mlog.NewLogger()
+	if err != nil {
+		return nil, err
+	}
+	cfgJSON := cfg.LoggingCfgJSON
+	if cfg.LoggingCfgFile == "" && cfgJSON == "" {
+		// if no logging defined, use default config (console output)
+		cfgJSON = defaultLoggingConfig(cfg)
+	}
+	err = logger.Configure(cfg.LoggingCfgFile, cfgJSON, nil)
+	if err != nil {
+		return logger, err
+	}
+
+	return logger, nil
+}
+
+func defaultLoggingConfig(cfg *ConfigPushProxy) string {
+	if !cfg.EnableFileLog && !cfg.EnableConsoleLog {
+		return defaultLoggingConsoleLogConfig()
+	} else if cfg.EnableFileLog && !cfg.EnableConsoleLog {
+		if cfg.LogFileLocation == "" {
+			return defaultLoggingConsoleLogConfig()
+		}
+		return defaultLoggingFileLogConfig(cfg.LogFileLocation)
+	} else if !cfg.EnableFileLog && cfg.EnableConsoleLog {
 		return defaultLoggingConsoleLogConfig()
 	} else {
+		if cfg.LogFileLocation == "" {
+			return defaultLoggingConsoleLogConfig()
+		}
 		return defaultLoggingFileLogConfig(cfg.LogFileLocation)
 	}
 }

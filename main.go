@@ -12,7 +12,6 @@ import (
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
 	"github.com/mattermost/mattermost-push-proxy/server"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 var (
@@ -40,22 +39,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the logger - begin
-	logger, err := mlog.NewLogger()
+	// Initialize the logger - start
+	logger, err := server.NewMlogLogger(cfg)
+	defer func() {
+		if logger != nil {
+			_ = logger.Shutdown()
+		}
+	}()
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfgJSON := cfg.LoggingCfgJSON
-	if cfg.LoggingCfgFile == "" && cfgJSON == "" {
-		// if no logging defined, use default config (console output)
-		cfgJSON = server.DefaultLoggingConfig(cfg)
-	}
-	err = logger.Configure(cfg.LoggingCfgFile, cfgJSON, nil)
-	if err != nil {
-		log.Fatal("Error in config file for logger: ", err)
-		return
-	}
-	defer func() { _ = logger.Shutdown() }()
 	// Initialize the logger - end
 
 	logger.Info("Loading " + fileName)

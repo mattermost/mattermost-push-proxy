@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 )
@@ -57,13 +59,80 @@ func TestDefaultLoggingConfigOK(t *testing.T) {
 	cfg := &ConfigPushProxy{
 		EnableFileLog: false,
 	}
-	assert.Equal(t, defaultLoggingConsoleLogConfig(), DefaultLoggingConfig(cfg))
+	assert.Equal(t, defaultLoggingConsoleLogConfig(), defaultLoggingConfig(cfg))
 
 	cfg = &ConfigPushProxy{
 		EnableFileLog:   true,
 		LogFileLocation: randomString(10),
 	}
-	assert.Equal(t, defaultLoggingFileLogConfig(cfg.LogFileLocation), DefaultLoggingConfig(cfg))
+	assert.Equal(t, defaultLoggingFileLogConfig(cfg.LogFileLocation), defaultLoggingConfig(cfg))
+}
+
+func TestNewMlogLoggerConsoleLegacyOK(t *testing.T) {
+	cfg := &ConfigPushProxy{
+		EnableFileLog: false,
+	}
+	logger, err := NewMlogLogger(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, logger)
+}
+
+func TestNewMlogLoggerFileLegacyOk(t *testing.T) {
+	log, err := os.CreateTemp("", "log")
+	require.NoError(t, err)
+
+	err = log.Close()
+	require.NoError(t, err)
+	defer os.Remove(log.Name())
+
+	cfg := &ConfigPushProxy{
+		EnableFileLog:   true,
+		LogFileLocation: log.Name(),
+	}
+
+	logger, err := NewMlogLogger(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, logger)
+}
+
+func TestNewMlogLoggerLoggingCfgFileOk(t *testing.T) {
+	conf, err := os.CreateTemp("", "logget-cfg-conf.json")
+	require.NoError(t, err)
+
+	_, err = conf.WriteString(defaultLoggingConsoleLogConfig())
+	require.NoError(t, err)
+
+	err = conf.Close()
+	require.NoError(t, err)
+	defer os.Remove(conf.Name())
+
+	cfg := &ConfigPushProxy{
+		LoggingCfgFile: conf.Name(),
+	}
+
+	logger, err := NewMlogLogger(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, logger)
+}
+
+func TestNewMlogLoggerLoggingCfgJSONOk(t *testing.T) {
+	conf, err := os.CreateTemp("", "logget-cfg-conf.json")
+	require.NoError(t, err)
+
+	_, err = conf.WriteString(defaultLoggingConsoleLogConfig())
+	require.NoError(t, err)
+
+	err = conf.Close()
+	require.NoError(t, err)
+	defer os.Remove(conf.Name())
+
+	cfg := &ConfigPushProxy{
+		LoggingCfgJSON: defaultLoggingConsoleLogConfig(),
+	}
+
+	logger, err := NewMlogLogger(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, logger)
 }
 
 func randomString(length int) string {
