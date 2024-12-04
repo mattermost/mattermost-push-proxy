@@ -6,6 +6,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"net/http"
 	"os"
 	"testing"
@@ -18,7 +19,7 @@ func TestAndroidInitialize(t *testing.T) {
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
 
 	// Verify error for no service file
 	pushSettings := AndroidPushSettings{}

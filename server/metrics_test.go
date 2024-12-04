@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"io"
 	"net/http"
 	"strings"
@@ -22,7 +23,7 @@ func TestMetricDisabled(t *testing.T) {
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
 	cfg.EnableMetrics = false
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -70,7 +71,7 @@ func TestMetricEnabled(t *testing.T) {
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
 	cfg.EnableMetrics = true
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
 	srv := New(cfg, logger)
 	srv.Start()
 
