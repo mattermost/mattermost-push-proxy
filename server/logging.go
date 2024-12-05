@@ -26,10 +26,10 @@ func NewMlogLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
 }
 
 func defaultLoggingConfig(cfg *ConfigPushProxy) string {
-        if (cfg.LogFileLocation == "" || !cfg.EnableFileLog) {
-            return defaultLoggingConsoleLogConfig()
-        }
-        return defaultLoggingFileLogConfig(cfg.LogFileLocation)
+	if cfg.LogFileLocation == "" || !cfg.EnableFileLog {
+		return defaultLoggingConsoleLogConfig()
+	}
+	return defaultLoggingFileLogConfig(cfg.LogFileLocation)
 }
 
 func defaultLoggingFileLogConfig(filename string) string {
