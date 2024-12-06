@@ -2,18 +2,17 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 )
 
 type logOptionsTest map[string]string
 
-func TestEscapeDoubleQuotesOK(t *testing.T) {
+func TestEscapeDoubleQuotes(t *testing.T) {
 	t.Run("No quotes", func(t *testing.T) {
 		assert.Equal(t, "test", escapeDoubleQuotes("test"))
 	})
@@ -31,7 +30,7 @@ func TestEscapeDoubleQuotesOK(t *testing.T) {
 	})
 }
 
-func TestDefaultLoggingConsoleLogConfigOK(t *testing.T) {
+func TestDefaultLoggingConsoleLogConfig(t *testing.T) {
 	var mapCfgEscaped = new(mlog.LoggerConfiguration)
 	var logOptionsConsole = new(logOptionsTest)
 
@@ -54,8 +53,8 @@ func TestDefaultLoggingConsoleLogConfigOK(t *testing.T) {
 	})
 }
 
-func TestDefaultLoggingFileLogConfigOK(t *testing.T) {
-	filename := randomString(10)
+func TestDefaultLoggingFileLogConfig(t *testing.T) {
+	filename := model.NewId()
 	var mapCfgEscaped = new(mlog.LoggerConfiguration)
 	var logOptionsConsole = new(logOptionsTest)
 
@@ -78,7 +77,7 @@ func TestDefaultLoggingFileLogConfigOK(t *testing.T) {
 	})
 }
 
-func TestDefaultLoggingConfigOK(t *testing.T) {
+func TestDefaultLoggingConfig(t *testing.T) {
 	t.Run("Console config is get correctly", func(t *testing.T) {
 		cfg := &ConfigPushProxy{
 			EnableFileLog: false,
@@ -89,13 +88,13 @@ func TestDefaultLoggingConfigOK(t *testing.T) {
 	t.Run("File config is get correctly", func(t *testing.T) {
 		cfg := &ConfigPushProxy{
 			EnableFileLog:   true,
-			LogFileLocation: randomString(10),
+			LogFileLocation: model.NewId(),
 		}
 		assert.Equal(t, defaultLoggingFileLogConfig(cfg.LogFileLocation), defaultLoggingConfig(cfg))
 	})
 }
 
-func TestNewMlogLoggerConsoleLegacyOK(t *testing.T) {
+func TestNewMlogLogger(t *testing.T) {
 	t.Run("Instancing logger with console for legacy conf", func(t *testing.T) {
 		cfg := &ConfigPushProxy{
 			EnableFileLog: false,
@@ -104,9 +103,7 @@ func TestNewMlogLoggerConsoleLegacyOK(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
 	})
-}
 
-func TestNewMlogLoggerFileLegacyOk(t *testing.T) {
 	t.Run("Instancing logger with file for legacy conf", func(t *testing.T) {
 		log, err := os.CreateTemp("", "log")
 		require.NoError(t, err)
@@ -124,9 +121,7 @@ func TestNewMlogLoggerFileLegacyOk(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
 	})
-}
 
-func TestNewMlogLoggerLoggingCfgFileOk(t *testing.T) {
 	t.Run("Instancing logger with file", func(t *testing.T) {
 		conf, err := os.CreateTemp("", "logget-cfg-conf.json")
 		require.NoError(t, err)
@@ -146,9 +141,7 @@ func TestNewMlogLoggerLoggingCfgFileOk(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
 	})
-}
 
-func TestNewMlogLoggerLoggingCfgJSONOk(t *testing.T) {
 	t.Run("Instancing logger with json", func(t *testing.T) {
 		conf, err := os.CreateTemp("", "logget-cfg-conf.json")
 		require.NoError(t, err)
@@ -168,17 +161,4 @@ func TestNewMlogLoggerLoggingCfgJSONOk(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
 	})
-}
-
-func randomString(length int) string {
-	// Define the character set
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\""
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// Generate the string
-	result := make([]byte, length)
-	for i := range result {
-		result[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(result)
 }
