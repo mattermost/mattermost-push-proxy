@@ -38,7 +38,7 @@
             "ServiceFileLocation":""
         }
     ],
-    "EnableConsoleLog": false,
+    "EnableConsoleLog": true,
     "EnableFileLog": false,
     "LogFileLocation": "",
     "LogFormat": "plain"
