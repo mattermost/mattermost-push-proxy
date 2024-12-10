@@ -38,6 +38,8 @@
             "ServiceFileLocation":""
         }
     ],
-    "LoggingCfgFile": "",
-    "LoggingCfgJSON": ""
+    "EnableConsoleLog": false,
+    "EnableFileLog": false,
+    "LogFileLocation": "",
+    "LogFormat": "plain"
 }
