@@ -1,9 +1,8 @@
 package server
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
-	"strings"
 )
 
 func NewMlogLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
@@ -12,12 +11,10 @@ func NewMlogLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfgJSON := cfg.LoggingCfgJSON
-	if cfg.LoggingCfgFile == "" && cfgJSON == "" {
-		// if no logging defined, use default config (console output)
-		cfgJSON = defaultLoggingConfig(cfg)
+	if cfg.LogFormat != "plain" && cfg.LogFormat != "json" {
+		cfg.LogFormat = "plain"
 	}
-	err = logger.Configure(cfg.LoggingCfgFile, cfgJSON, nil)
+	err = logger.ConfigureTargets(buildLogConfig(cfg), nil)
 	if err != nil {
 		return logger, err
 	}
@@ -25,69 +22,53 @@ func NewMlogLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
 	return logger, nil
 }
 
-func defaultLoggingConfig(cfg *ConfigPushProxy) string {
-	if cfg.LogFileLocation == "" || !cfg.EnableFileLog {
-		return defaultLoggingConsoleLogConfig()
+func buildLogConfig(cfg *ConfigPushProxy) mlog.LoggerConfiguration {
+	logConf := make(mlog.LoggerConfiguration)
+
+	if cfg.EnableFileLog && cfg.LogFileLocation != "" {
+		logConf["file"] = buildLogFileConfig(cfg.LogFileLocation, cfg.LogFormat)
 	}
-	return defaultLoggingFileLogConfig(cfg.LogFileLocation)
+
+	if cfg.EnableConsoleLog || cfg.LogFileLocation == "" || !cfg.EnableFileLog {
+		logConf["console"] = buildConsoleLogConfig(cfg.LogFormat)
+	}
+
+	return logConf
 }
 
-func defaultLoggingFileLogConfig(filename string) string {
-	return fmt.Sprintf(`
-		{
-			"def": {
-				"type": "file",
-				"options": {
-					"filename": "%s"
-				},
-				"format": "plain",
-				"format_options": {
-					"delim": " ",
-					"min_level_len": 5,
-					"min_msg_len": 40,
-					"enable_color": true,
-					"enable_caller": true
-				},
-				"levels": [
-					{"id": 5, "name": "debug"},
-					{"id": 4, "name": "info", "color": 36},
-					{"id": 3, "name": "warn"},
-					{"id": 2, "name": "error", "color": 31},
-					{"id": 1, "name": "fatal", "stacktrace": true},
-					{"id": 0, "name": "panic", "stacktrace": true}
-				]
-			}
-		}`, escapeDoubleQuotes(filename))
+func buildConsoleLogConfig(format string) mlog.TargetCfg {
+	return mlog.TargetCfg{
+		Type:          "console",
+		Levels:        mlog.StdAll,
+		Format:        format,
+		Options:       json.RawMessage(`{"out": "stdout"}`),
+		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
+		MaxQueueSize:  1000,
+	}
 }
 
-func defaultLoggingConsoleLogConfig() string {
-	return `
-		{
-			"def": {
-				"type": "console",
-				"options": {
-					"out": "stdout"
-				},
-				"format": "plain",
-				"format_options": {
-					"delim": " ",
-					"min_level_len": 5,
-					"min_msg_len": 40,
-					"enable_color": true,
-					"enable_caller": true
-				},
-				"levels": [
-					{"id": 5, "name": "debug"},
-					{"id": 4, "name": "info", "color": 36},
-					{"id": 3, "name": "warn"},
-					{"id": 2, "name": "error", "color": 31},
-					{"id": 1, "name": "fatal", "stacktrace": true},
-					{"id": 0, "name": "panic", "stacktrace": true}
-				]
-			}
-		}`
-}
+func buildLogFileConfig(filename string, format string) mlog.TargetCfg {
+	opts := struct {
+		Filename    string `json:"filename"`
+		Max_size    int    `json:"max_size"`
+		Max_age     int    `json:"max_age"`
+		Max_backups int    `json:"max_backups"`
+		Compress    bool   `json:"compress"`
+	}{
+		Filename:    filename,
+		Max_size:    100,
+		Max_age:     0,
+		Max_backups: 0,
+		Compress:    true,
+	}
+	var optsJsonString, _ = json.Marshal(opts)
 
-func escapeDoubleQuotes(input string) string {
-	return strings.ReplaceAll(input, `"`, `\"`)
+	return mlog.TargetCfg{
+		Type:          "file",
+		Levels:        mlog.StdAll,
+		Format:        format,
+		Options:       optsJsonString,
+		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
+		MaxQueueSize:  1000,
+	}
 }
