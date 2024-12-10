@@ -24,5 +24,3 @@ To trigger a release of Mattermost Push-Proxy, follow these steps:
     make major
     ```
    This will release a major change.
-
-See the [CHANGELOG](CHANGELOG.md) for more information.
