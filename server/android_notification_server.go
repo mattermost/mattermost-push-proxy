@@ -241,7 +241,7 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 
 		retryContext, cancelRetryContext := context.WithTimeout(generalContext, me.retryTimeout)
 		defer cancelRetryContext()
-		_, err := me.client.Send(retryContext, fcmMsg)
+		_, err = me.client.Send(retryContext, fcmMsg)
 		if me.metrics != nil {
 			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
 		}
