@@ -1,92 +1,74 @@
-// Copyright (c) 2015 Mattermost, Inc. All Rights Reserved.
-// See License.txt for license information.
-
 package server
 
 import (
-	"fmt"
-	"log"
-	"os"
-
-	"gopkg.in/natefinch/lumberjack.v2"
+	"encoding/json"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
-// Logger is the struct to manage all logging operations in the application.
-type Logger struct {
-	cfg         *ConfigPushProxy
-	cInfoLogger *log.Logger
-	fInfoLogger *log.Logger
-	cErrLogger  *log.Logger
-	fErrLogger  *log.Logger
+func NewLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
+	// Initialize the logger - begin
+	logger, err := mlog.NewLogger()
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LogFormat != "plain" && cfg.LogFormat != "json" {
+		cfg.LogFormat = "plain"
+	}
+	err = logger.ConfigureTargets(buildLogConfig(cfg), nil)
+	if err != nil {
+		return logger, err
+	}
+
+	return logger, nil
 }
 
-// NewLogger returns a new instance of the logger
-func NewLogger(cfg *ConfigPushProxy) *Logger {
-	l := &Logger{
-		cfg: cfg,
+func buildLogConfig(cfg *ConfigPushProxy) mlog.LoggerConfiguration {
+	logConf := make(mlog.LoggerConfiguration)
+
+	if cfg.EnableFileLog && cfg.LogFileLocation != "" {
+		logConf["file"] = buildLogFileConfig(cfg.LogFileLocation, cfg.LogFormat)
 	}
-	if cfg.EnableConsoleLog {
-		l.cInfoLogger = log.New(os.Stdout, "INFO: ", log.LstdFlags|log.Lshortfile)
-		l.cErrLogger = log.New(os.Stdout, "ERR: ", log.LstdFlags|log.Lshortfile)
+
+	if cfg.EnableConsoleLog || cfg.LogFileLocation == "" || !cfg.EnableFileLog {
+		logConf["console"] = buildConsoleLogConfig(cfg.LogFormat)
 	}
-	if cfg.EnableFileLog {
-		lumber := &lumberjack.Logger{
-			Filename: cfg.LogFileLocation,
-			MaxSize:  10, // megabytes
-			Compress: true,
-		}
-		l.fInfoLogger = log.New(lumber, "INFO: ", log.LstdFlags|log.Lshortfile)
-		l.fErrLogger = log.New(lumber, "ERR: ", log.LstdFlags|log.Lshortfile)
-	}
-	return l
+
+	return logConf
 }
 
-// Following are some helper methods that are called from the application.
-// They are divided into categories of Info(f), Error(f), and Panic(f).
-// They just forward to their underlying loggers depending on the config.
-
-func (l *Logger) Info(v ...interface{}) {
-	if l.cfg.EnableConsoleLog {
-		l.cInfoLogger.Println(v...)
-	}
-	if l.cfg.EnableFileLog {
-		l.fInfoLogger.Println(v...)
-	}
-}
-
-func (l *Logger) Infof(format string, v ...interface{}) {
-	if l.cfg.EnableConsoleLog {
-		l.cInfoLogger.Printf(format, v...)
-	}
-	if l.cfg.EnableFileLog {
-		l.fInfoLogger.Printf(format, v...)
+func buildConsoleLogConfig(format string) mlog.TargetCfg {
+	return mlog.TargetCfg{
+		Type:          "console",
+		Levels:        mlog.StdAll,
+		Format:        format,
+		Options:       json.RawMessage(`{"out": "stdout"}`),
+		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
+		MaxQueueSize:  1000,
 	}
 }
 
-func (l *Logger) Error(v ...interface{}) {
-	if l.cfg.EnableConsoleLog {
-		l.cErrLogger.Println(v...)
+func buildLogFileConfig(filename string, format string) mlog.TargetCfg {
+	opts := struct {
+		Filename    string `json:"filename"`
+		Max_size    int    `json:"max_size"`
+		Max_age     int    `json:"max_age"`
+		Max_backups int    `json:"max_backups"`
+		Compress    bool   `json:"compress"`
+	}{
+		Filename:    filename,
+		Max_size:    100,
+		Max_age:     0,
+		Max_backups: 0,
+		Compress:    true,
 	}
-	if l.cfg.EnableFileLog {
-		l.fErrLogger.Println(v...)
-	}
-}
+	var optsJsonString, _ = json.Marshal(opts)
 
-func (l *Logger) Errorf(format string, v ...interface{}) {
-	if l.cfg.EnableConsoleLog {
-		l.cErrLogger.Printf(format, v...)
+	return mlog.TargetCfg{
+		Type:          "file",
+		Levels:        mlog.StdAll,
+		Format:        format,
+		Options:       optsJsonString,
+		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
+		MaxQueueSize:  1000,
 	}
-	if l.cfg.EnableFileLog {
-		l.fErrLogger.Printf(format, v...)
-	}
-}
-
-func (l *Logger) Panic(v ...interface{}) {
-	l.Error(v...)
-	panic(fmt.Sprintln(v...))
-}
-
-func (l *Logger) Panicf(format string, v ...interface{}) {
-	l.Errorf(format, v...)
-	panic(fmt.Sprintf(format, v...))
 }
