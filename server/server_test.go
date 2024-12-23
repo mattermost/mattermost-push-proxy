@@ -6,14 +6,22 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/mattermost/mattermost-push-proxy/internal/version"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+)
 
+import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
+)
+
+import (
+	"github.com/mattermost/mattermost-push-proxy/internal/version"
+)
+
+import (
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 

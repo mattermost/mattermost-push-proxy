@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"net/http"
 	"net/url"
 	"time"
@@ -18,6 +17,10 @@ import (
 	"github.com/sideshow/apns2/payload"
 	"github.com/sideshow/apns2/token"
 	"golang.org/x/net/http2"
+)
+
+import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 type AppleNotificationServer struct {

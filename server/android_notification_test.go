@@ -6,12 +6,15 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"net/http"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+)
+
+import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 func TestAndroidInitialize(t *testing.T) {

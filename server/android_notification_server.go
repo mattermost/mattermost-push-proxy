@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"os"
 	"reflect"
 	"strconv"
@@ -19,6 +18,10 @@ import (
 	"github.com/kyokomi/emoji"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
+)
+
+import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 const (

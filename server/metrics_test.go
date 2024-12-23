@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"io"
 	"net/http"
 	"strings"
@@ -10,6 +9,10 @@ import (
 
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/require"
+)
+
+import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 func TestMetricDisabled(t *testing.T) {
