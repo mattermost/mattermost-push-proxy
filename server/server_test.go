@@ -10,17 +10,10 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-)
 
-import (
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
-)
-
-import (
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
-)
 
-import (
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

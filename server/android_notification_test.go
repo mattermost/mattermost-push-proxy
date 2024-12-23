@@ -11,9 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-)
 
-import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
