@@ -39,8 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Initialize the logger - start
-	logger, err := server.NewMlogLogger(cfg)
+	logger, err := server.NewLogger(cfg)
 	defer func() {
 		if logger != nil {
 			_ = logger.Shutdown()
@@ -49,7 +48,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Initialize the logger - end
 
 	logger.Info("Loading " + fileName)
 
