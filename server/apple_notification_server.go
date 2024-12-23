@@ -70,7 +70,7 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 	if appleCert != nil {
 		me.logger.Info("Initializing apple notification server with PEM certificate", mlog.String("type", me.ApplePushSettings.Type))
 	} else {
-		me.logger.Info("Initializing apple notification server for type=%v with AuthKey", mlog.String("type", me.ApplePushSettings.Type))
+		me.logger.Info("Initializing apple notification server with AuthKey", mlog.String("type", me.ApplePushSettings.Type))
 	}
 
 	return nil
@@ -233,10 +233,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 	if me.AppleClient != nil {
 		me.logger.Info(
-			"Sending apple push notification for ackId=%v",
+			"Sending apple push notification",
 			mlog.String("device", me.ApplePushSettings.Type),
 			mlog.String("type", msg.Type),
-			mlog.String("AckId", msg.AckID),
+			mlog.String("ack_id", msg.AckID),
 		)
 
 		res, err := me.SendNotificationWithRetry(notification)

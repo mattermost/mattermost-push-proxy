@@ -174,10 +174,10 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	defer cancel()
 
 	me.logger.Info(
-		"Sending android push notification ackId=%v",
+		"Sending android push notification",
 		mlog.String("device", me.AndroidPushSettings.Type),
 		mlog.String("type", msg.Type),
-		mlog.String("AckId", msg.AckID),
+		mlog.String("ack_id", msg.AckID),
 	)
 
 	start := time.Now()

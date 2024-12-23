@@ -316,7 +316,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment ACK
-	s.logger.Info("Acknowledge delivery receipt for AckId", mlog.String("AckId", ack.ID))
+	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.ID))
 	if s.metrics != nil {
 		s.metrics.incrementDelivered(ack.Platform, ack.Type)
 	}
