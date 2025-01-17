@@ -120,6 +120,6 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 			}
 		}
 	}
-	
+
 	return cfg, nil
 }
