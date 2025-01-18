@@ -80,7 +80,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
-		server := NewAndroidNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec)
+		server := NewAndroidNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Errorf("Failed to initialize client: %v", err)
