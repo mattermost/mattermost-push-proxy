@@ -6,13 +6,15 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/mattermost/mattermost-push-proxy/internal/version"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/mattermost/mattermost-push-proxy/internal/version"
+
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +23,9 @@ func TestBasicServer(t *testing.T) {
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -85,7 +89,9 @@ func TestAndroidSend(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg.AndroidPushSettings[0].AndroidAPIKey = "junk"
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -119,7 +125,9 @@ func TestServer_version(t *testing.T) {
 	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/version", nil)

@@ -18,6 +18,8 @@ import (
 	"github.com/kyokomi/emoji"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
+
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 const (
@@ -37,7 +39,7 @@ const (
 
 type AndroidNotificationServer struct {
 	metrics             *metrics
-	logger              *Logger
+	logger              *mlog.Logger
 	AndroidPushSettings AndroidPushSettings
 	client              *messaging.Client
 	sendTimeout         time.Duration
@@ -54,7 +56,7 @@ type serviceAccount struct {
 	TokenURI    string `json:"token_uri"`
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
@@ -64,10 +66,10 @@ func NewAndroidNotificationServer(settings AndroidPushSettings, logger *Logger, 
 }
 
 func (me *AndroidNotificationServer) Initialize() error {
-	me.logger.Infof("Initializing Android notification server for type=%v", me.AndroidPushSettings.Type)
+	me.logger.Info("Initializing Android notification server", mlog.String("type", me.AndroidPushSettings.Type))
 
 	if me.AndroidPushSettings.AndroidAPIKey != "" {
-		me.logger.Infof("AndroidPushSettings.AndroidAPIKey is no longer used. Please remove this config value.")
+		me.logger.Info("AndroidPushSettings.AndroidAPIKey is no longer used. Please remove this config value.")
 	}
 
 	if me.AndroidPushSettings.ServiceFileLocation == "" {
@@ -169,7 +171,12 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
-	me.logger.Infof("Sending android push notification for device=%v type=%v ackId=%v", me.AndroidPushSettings.Type, msg.Type, msg.AckID)
+	me.logger.Info(
+		"Sending android push notification",
+		mlog.String("device", me.AndroidPushSettings.Type),
+		mlog.String("type", msg.Type),
+		mlog.String("ack_id", msg.AckID),
+	)
 
 	start := time.Now()
 	_, err := me.client.Send(ctx, fcmMsg)
@@ -183,17 +190,17 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 			errorCode = "NONE"
 		}
 
-		me.logger.Errorf(
-			"Failed to send FCM push sid=%v did=%v err=%v type=%v errorCode=%v",
-			msg.ServerID,
-			msg.DeviceID,
-			err,
-			me.AndroidPushSettings.Type,
-			errorCode,
+		me.logger.Error(
+			"Failed to send FCM push",
+			mlog.String("sid", msg.ServerID),
+			mlog.String("did", msg.DeviceID),
+			mlog.Err(err),
+			mlog.String("type", me.AndroidPushSettings.Type),
+			mlog.String("errorCode", errorCode),
 		)
 
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
-			me.logger.Infof("Android response failure sending remove code: type=%v", me.AndroidPushSettings.Type)
+			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
 				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, unregistered)
 			}

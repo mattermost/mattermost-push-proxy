@@ -17,18 +17,20 @@ import (
 	"github.com/sideshow/apns2/payload"
 	"github.com/sideshow/apns2/token"
 	"golang.org/x/net/http2"
+
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 type AppleNotificationServer struct {
 	AppleClient       *apns.Client
 	metrics           *metrics
-	logger            *Logger
+	logger            *mlog.Logger
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
 	retryTimeout      time.Duration
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
@@ -64,9 +66,9 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 	}
 
 	if appleCert != nil {
-		me.logger.Infof("Initializing apple notification server for type=%v with PEM certificate", me.ApplePushSettings.Type)
+		me.logger.Info("Initializing apple notification server with PEM certificate", mlog.String("type", me.ApplePushSettings.Type))
 	} else {
-		me.logger.Infof("Initializing apple notification server for type=%v with AuthKey", me.ApplePushSettings.Type)
+		me.logger.Info("Initializing apple notification server with AuthKey", mlog.String("type", me.ApplePushSettings.Type))
 	}
 
 	return nil
@@ -228,11 +230,22 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 
 	if me.AppleClient != nil {
-		me.logger.Infof("Sending apple push notification for device=%v type=%v ackId=%v", me.ApplePushSettings.Type, msg.Type, msg.AckID)
+		me.logger.Info(
+			"Sending apple push notification",
+			mlog.String("device", me.ApplePushSettings.Type),
+			mlog.String("type", msg.Type),
+			mlog.String("ack_id", msg.AckID),
+		)
 
 		res, err := me.SendNotificationWithRetry(notification)
 		if err != nil {
-			me.logger.Errorf("Failed to send apple push sid=%v did=%v err=%v type=%v", msg.ServerID, msg.DeviceID, err, me.ApplePushSettings.Type)
+			me.logger.Error(
+				"Failed to send apple push",
+				mlog.String("sid", msg.ServerID),
+				mlog.String("did", msg.DeviceID),
+				mlog.Err(err),
+				mlog.String("type", me.ApplePushSettings.Type),
+			)
 			if me.metrics != nil {
 				me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
 			}
@@ -241,14 +254,26 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 
 		if !res.Sent() {
 			if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
-				me.logger.Infof("Failed to send apple push sending remove code res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
+				me.logger.Info(
+					"Failed to send apple push sending remove code res",
+					mlog.String("ApnsID", res.ApnsID),
+					mlog.String("reason", res.Reason),
+					mlog.Int("code", res.StatusCode),
+					mlog.String("type", me.ApplePushSettings.Type),
+				)
 				if me.metrics != nil {
 					me.metrics.incrementRemoval(PushNotifyApple, pushType, res.Reason)
 				}
 				return NewRemovePushResponse()
 			}
 
-			me.logger.Errorf("Failed to send apple push with res ApnsID=%v reason=%v code=%v type=%v", res.ApnsID, res.Reason, res.StatusCode, me.ApplePushSettings.Type)
+			me.logger.Error(
+				"Failed to send apple push with res",
+				mlog.String("ApnsID", res.ApnsID),
+				mlog.String("reason", res.Reason),
+				mlog.Int("code", res.StatusCode),
+				mlog.String("type", me.ApplePushSettings.Type),
+			)
 			if me.metrics != nil {
 				me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
 			}
@@ -289,10 +314,15 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 			break
 		}
 
-		me.logger.Errorf("Failed to send apple push did=%v retry=%v error=%v", notification.DeviceToken, retries, err)
+		me.logger.Error(
+			"Failed to send apple push",
+			mlog.String("did", notification.DeviceToken),
+			mlog.Int("retry", retries),
+			mlog.Err(err),
+		)
 
 		if retries == MAX_RETRIES-1 {
-			me.logger.Errorf("Max retries reached did=%v", notification.DeviceToken)
+			me.logger.Error("Max retries reached", mlog.String("did", notification.DeviceToken))
 			break
 		}
 
@@ -302,7 +332,12 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 		}
 
 		if generalContext.Err() != nil {
-			me.logger.Infof("Not retrying because context error did=%v retry=%v error=%v", notification.DeviceToken, retries, generalContext.Err())
+			me.logger.Info(
+				"Not retrying because context error",
+				mlog.String("did", notification.DeviceToken),
+				mlog.Int("retry", retries),
+				mlog.Err(generalContext.Err()),
+			)
 			err = generalContext.Err()
 			break
 		}
