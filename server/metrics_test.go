@@ -9,6 +9,8 @@ import (
 
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 func TestMetricDisabled(t *testing.T) {
@@ -22,7 +24,9 @@ func TestMetricDisabled(t *testing.T) {
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
 	cfg.EnableMetrics = false
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 
@@ -70,7 +74,9 @@ func TestMetricEnabled(t *testing.T) {
 	cfg.AndroidPushSettings[0].AndroidAPIKey = platform
 	cfg.EnableMetrics = true
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
 	srv := New(cfg, logger)
 	srv.Start()
 

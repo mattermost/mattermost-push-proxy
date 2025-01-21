@@ -20,6 +20,7 @@ import (
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 const (
@@ -41,11 +42,11 @@ type Server struct {
 	httpServer  *http.Server
 	pushTargets map[string]NotificationServer
 	metrics     *metrics
-	logger      *Logger
+	logger      *mlog.Logger
 }
 
 // New returns a new Server instance.
-func New(cfg *ConfigPushProxy, logger *Logger) *Server {
+func New(cfg *ConfigPushProxy, logger *mlog.Logger) *Server {
 	return &Server{
 		cfg:         cfg,
 		pushTargets: make(map[string]NotificationServer),
@@ -56,11 +57,11 @@ func New(cfg *ConfigPushProxy, logger *Logger) *Server {
 // Start starts the server.
 func (s *Server) Start() {
 	v := version.VersionInfo()
-	s.logger.Infof("Push proxy server is initializing...\n%s\n", v.String())
+	s.logger.Info("Push proxy server is initializing...", mlog.String("version", v.String()))
 
 	proxyServer := getProxyServer()
 	if proxyServer != "" {
-		s.logger.Infof("Proxy server detected. Routing all requests through: %s", proxyServer)
+		s.logger.Info("Proxy server detected.", mlog.String("proxyServer", proxyServer))
 	}
 
 	var m *metrics
@@ -73,7 +74,7 @@ func (s *Server) Start() {
 		server := NewAppleNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
-			s.logger.Errorf("Failed to initialize client: %v", err)
+			s.logger.Error("Failed to initialize client", mlog.Err(err))
 			continue
 		}
 		s.pushTargets[settings.Type] = server
@@ -83,7 +84,7 @@ func (s *Server) Start() {
 		server := NewAndroidNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
-			s.logger.Errorf("Failed to initialize client: %v", err)
+			s.logger.Error("Failed to initialize client", mlog.Err(err))
 			continue
 		}
 		s.pushTargets[settings.Type] = server
@@ -96,7 +97,7 @@ func (s *Server) Start() {
 	th := throttled.RateLimit(throttled.PerSec(s.cfg.ThrottlePerSec), &vary, throttledStore.NewMemStore(s.cfg.ThrottleMemoryStoreSize))
 
 	th.DeniedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.logger.Errorf("%v: code=429 ip=%v", r.URL.Path, s.getIpAddress(r))
+		s.logger.Error("Error: code=429", mlog.String("path", r.URL.Path), mlog.String("ip", s.getIpAddress(r)))
 		throttled.DefaultDeniedHandler.ServeHTTP(w, r)
 	})
 
@@ -126,7 +127,7 @@ func (s *Server) Start() {
 	go func() {
 		err := s.httpServer.ListenAndServe()
 		if err != http.ErrServerClosed {
-			s.logger.Panic(err.Error())
+			s.logger.Fatal(err.Error())
 		}
 	}()
 
@@ -157,7 +158,7 @@ func (s *Server) version(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
-		s.logger.Errorf("Failed to write response: %v", err)
+		s.logger.Error("Failed to write response", mlog.Err(err))
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -182,7 +183,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Errorf("Failed to write response: %v", err2)
+			s.logger.Error("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -195,7 +196,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Errorf("Failed to write response: %v", err2)
+			s.logger.Error("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -208,7 +209,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Errorf("Failed to write response: %v", err2)
+			s.logger.Error("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -243,7 +244,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	if server, ok := s.pushTargets[msg.Platform]; ok {
 		rMsg := server.SendNotification(&msg)
 		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
-			s.logger.Errorf("Failed to write message: %v", err2)
+			s.logger.Error("Failed to write message", mlog.Err(err2))
 		}
 		return
 	}
@@ -252,7 +253,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	resp := NewErrorPushResponse(rMsg)
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		s.logger.Errorf("Failed to write response: %v", err)
+		s.logger.Error("Failed to write response", mlog.Err(err))
 	}
 	if s.metrics != nil {
 		s.metrics.incrementBadRequest()
@@ -267,7 +268,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Errorf("Failed to write response: %v", err2)
+			s.logger.Error("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -280,7 +281,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Errorf("Failed to write response: %v", err)
+			s.logger.Error("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -293,7 +294,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Errorf("Failed to write response: %v", err)
+			s.logger.Error("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -306,7 +307,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Errorf("Failed to write response: %v", err)
+			s.logger.Error("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -315,14 +316,14 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment ACK
-	s.logger.Infof("Acknowledge delivery receipt for AckId=%v", ack.ID)
+	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.ID))
 	if s.metrics != nil {
 		s.metrics.incrementDelivered(ack.Platform, ack.Type)
 	}
 
 	rMsg := NewOkPushResponse()
 	if err := json.NewEncoder(w).Encode(rMsg); err != nil {
-		s.logger.Errorf("Failed to write message: %v", err)
+		s.logger.Error("Failed to write message", mlog.Err(err))
 	}
 }
 
@@ -337,7 +338,7 @@ func (s *Server) getIpAddress(r *http.Request) string {
 	if address == "" {
 		address, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			s.logger.Errorf("error in getting IP address: %v", err)
+			s.logger.Error("error in getting IP address", mlog.Err(err))
 		}
 	}
 

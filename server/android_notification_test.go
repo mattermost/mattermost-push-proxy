@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 func TestAndroidInitialize(t *testing.T) {
@@ -18,7 +20,8 @@ func TestAndroidInitialize(t *testing.T) {
 	cfg, err := LoadConfig(fileName)
 	require.NoError(t, err)
 
-	logger := NewLogger(cfg)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
 
 	// Verify error for no service file
 	pushSettings := AndroidPushSettings{}

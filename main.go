@@ -39,7 +39,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logger := server.NewLogger(cfg)
+	logger, err := server.NewLogger(cfg)
+	defer func() {
+		if logger != nil {
+			_ = logger.Shutdown()
+		}
+	}()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	logger.Info("Loading " + fileName)
 
 	srv := server.New(cfg, logger)

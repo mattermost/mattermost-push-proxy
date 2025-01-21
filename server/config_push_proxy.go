@@ -22,6 +22,7 @@ type ConfigPushProxy struct {
 	EnableMetrics           bool
 	EnableConsoleLog        bool
 	EnableFileLog           bool
+	LogFormat               string // json or plain
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int
 }
@@ -78,7 +79,7 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 		fmt.Println(buf, err)
 		return nil, err
 	}
-	// If both are disabled, that means an old config file is being used. Atleast enable console log.
+
 	if !cfg.EnableConsoleLog && !cfg.EnableFileLog {
 		cfg.EnableConsoleLog = true
 	}

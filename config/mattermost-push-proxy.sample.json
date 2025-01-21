@@ -40,5 +40,6 @@
     ],
     "EnableConsoleLog": true,
     "EnableFileLog": false,
-    "LogFileLocation": ""
+    "LogFileLocation": "",
+    "LogFormat": "plain"
 }
