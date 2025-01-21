@@ -252,14 +252,10 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 		defer cancelRetryContext()
 		_, err = me.client.Send(retryContext, fcmMsg)
 		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
 		}
 
-		if err == nil {
-			break
-		}
-
-		if !isRetryable(err) {
+		if err == nil || !isRetryable(err) {
 			break
 		}
 
