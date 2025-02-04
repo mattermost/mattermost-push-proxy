@@ -43,6 +43,7 @@ type AndroidNotificationServer struct {
 	AndroidPushSettings AndroidPushSettings
 	client              *messaging.Client
 	sendTimeout         time.Duration
+	retryTimeout        time.Duration
 }
 
 // serviceAccount contains a subset of the fields in service-account.json.
@@ -56,12 +57,13 @@ type serviceAccount struct {
 	TokenURI    string `json:"token_uri"`
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int) *AndroidNotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
 		logger:              logger,
 		sendTimeout:         time.Duration(sendTimeoutSecs) * time.Second,
+		retryTimeout:        time.Duration(retryTimeoutSecs) * time.Second,
 	}
 }
 
@@ -168,21 +170,13 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
-	defer cancel()
-
 	me.logger.Info(
 		"Sending android push notification",
 		mlog.String("device", me.AndroidPushSettings.Type),
 		mlog.String("type", msg.Type),
 		mlog.String("ack_id", msg.AckID),
 	)
-
-	start := time.Now()
-	_, err := me.client.Send(ctx, fcmMsg)
-	if me.metrics != nil {
-		me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
-	}
+	err := me.SendNotificationWithRetry(fcmMsg)
 
 	if err != nil {
 		errorCode, hasStatusCode := getErrorCode(err)
@@ -238,6 +232,78 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		}
 	}
 	return NewOkPushResponse()
+}
+
+func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging.Message) error {
+	var err error
+	waitTime := time.Second
+
+	logger := me.logger.With(mlog.String("did", fcmMsg.Token))
+
+	// Keep a general context to make sure the whole retry
+	// doesn't take longer than the timeout.
+	generalContext, cancelGeneralContext := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancelGeneralContext()
+
+	for retries := 0; retries < MAX_RETRIES; retries++ {
+		start := time.Now()
+
+		retryContext, cancelRetryContext := context.WithTimeout(generalContext, me.retryTimeout)
+		defer cancelRetryContext()
+		_, err = me.client.Send(retryContext, fcmMsg)
+		if me.metrics != nil {
+			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+		}
+
+		if err == nil || !isRetryable(err) {
+			break
+		}
+
+		logger.Error(
+			"Failed to send android push",
+			mlog.Int("retry", retries),
+			mlog.Err(err),
+		)
+
+		if retries == MAX_RETRIES-1 {
+			logger.Error("Max retries reached")
+			break
+		}
+
+		select {
+		case <-generalContext.Done():
+			if generalContext.Err() != nil {
+				logger.Info(
+					"Not retrying because context error",
+					mlog.Int("retry", retries),
+					mlog.Err(generalContext.Err()),
+				)
+			}
+			return generalContext.Err()
+		case <-time.After(waitTime):
+		}
+
+		waitTime *= 2
+	}
+
+	return err
+}
+
+func isRetryable(err error) bool {
+	// We retry if the context deadline is exceeded.
+	// This may cause double notifications, but we expect
+	// this not to happen often.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	// We retry the errors based on https://firebase.google.com/docs/cloud-messaging/http-server-ref
+	return messaging.IsInternal(err) ||
+		messaging.IsQuotaExceeded(err)
+
+	// messaging.IsUnavailable is retried by the default retry config in
+	// firebase.google.com/go/v4@v4.14.0/internal/http_client.go
+	// messaging.IsUnavailable(err)
 }
 
 func getErrorCode(err error) (string, bool) {
