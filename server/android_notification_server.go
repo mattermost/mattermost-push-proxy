@@ -272,17 +272,15 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 
 		select {
 		case <-generalContext.Done():
+			if generalContext.Err() != nil {
+				logger.Info(
+					"Not retrying because context error",
+					mlog.Int("retry", retries),
+					mlog.Err(generalContext.Err()),
+				)
+			}
+			return generalContext.Err()
 		case <-time.After(waitTime):
-		}
-
-		if generalContext.Err() != nil {
-			logger.Info(
-				"Not retrying because context error",
-				mlog.Int("retry", retries),
-				mlog.Err(generalContext.Err()),
-			)
-			err = generalContext.Err()
-			break
 		}
 
 		waitTime *= 2
@@ -292,6 +290,13 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 }
 
 func isRetryable(err error) bool {
+	// We retry if the context deadline is exceeded.
+	// This may cause double notifications, but we expect
+	// this not to happen often.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
 	// We retry the errors based on https://firebase.google.com/docs/cloud-messaging/http-server-ref
 	return messaging.IsInternal(err) ||
 		messaging.IsQuotaExceeded(err)
