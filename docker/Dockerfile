@@ -1,4 +1,4 @@
-FROM --platform=${TARGETPLATFORM} ubuntu:noble-20241118.1 AS builder
+FROM --platform=${TARGETPLATFORM} ubuntu:noble-20250529 AS builder
 ARG TARGETARCH
 
 # Setting bash as our shell, and enabling pipefail option
@@ -9,7 +9,7 @@ WORKDIR /mattermost-push-proxy
 COPY dist/mattermost-push-proxy-linux-${TARGETARCH}.tar.gz /mattermost-push-proxy-linux.tar.gz
 RUN tar -xf /mattermost-push-proxy-linux.tar.gz --strip-components=1  -C /mattermost-push-proxy
 
-FROM --platform=${TARGETPLATFORM} ubuntu:noble-20241118.1
+FROM --platform=${TARGETPLATFORM} ubuntu:noble-20250529
 
 # Install needed packages and indirect dependencies
 # hadolint ignore=DL3008
