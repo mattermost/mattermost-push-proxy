@@ -5,8 +5,18 @@ on:
     branches:
       - master
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  id-token: write  # Required for OIDC authentication with Chainguard identity
+
+env:
+  GO_VERSION: 1.24.4
+  FIPS_ENABLED: true
 
 jobs:
   lint:
@@ -19,6 +29,7 @@ jobs:
           fetch-depth: 0
       - name: Lint
         run: make lint
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -29,34 +40,213 @@ jobs:
           fetch-depth: 0
       - name: Test
         run: make test
-  build:
-    name: Build
+
+  fips-lint:
+    name: FIPS Lint
     runs-on: ubuntu-latest
-    needs: [lint, test]
     steps:
       - name: Checkout code
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           fetch-depth: 0
-      - uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
-        if: github.repository_owner == 'mattermost'
+      - name: Setup Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
-          ecr: false
+          go-version: "${{ env.GO_VERSION }}"
+      - name: FIPS Lint
+        run: make go-lint
+
+  fips-test:
+    name: FIPS Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+      - name: FIPS Test
+        run: make go-test
+
+  build-amd64:
+    name: Build AMD64
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      - name: Build Docker Image for AMD64
+        run: make build-image-amd64-with-tags
+
+  build-arm64:
+    name: Build ARM64
+    runs-on: ubuntu-24.04-arm
+    needs: [lint, test]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      - name: Build Docker Image for ARM64
+        run: make build-image-arm64-with-tags
+
+  fips-build-amd64:
+    name: FIPS Build AMD64
+    runs-on: ubuntu-latest
+    needs: [fips-lint, fips-test]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Build FIPS Docker Image for AMD64
+        run: make build-image-fips-amd64-with-tags
+
+  fips-build-arm64:
+    name: FIPS Build ARM64
+    runs-on: ubuntu-24.04-arm
+    needs: [fips-lint, fips-test]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Build FIPS Docker Image for ARM64
+        run: make build-image-fips-arm64-with-tags
+
+  fips-security-scan:
+    name: FIPS Security Scan
+    runs-on: ubuntu-latest
+    needs: [fips-build-amd64, fips-build-arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Build FIPS Docker image for scanning
+        run: make build-image-fips-amd64-with-tags
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
+        with:
+          image-ref: "mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips"
+          format: 'table'
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build-amd64, build-arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Build Docker image for scanning
+        run: make build-image-amd64-with-tags
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
+        with:
+          image-ref: "mattermost-push-proxy:dev-${{ github.sha }}"
+          format: 'table'
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build Docker images for both architectures
+        run: make docker-build-parallel-with-tags
 
-      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.
+      - name: Push Docker images with unified tags
+        run: make docker-push-parallel-with-tags
 
-      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+      - name: Clean up intermediate tags
+        run: make cleanup-tags
+
+  fips-deploy:
+    name: FIPS Deploy
+    runs-on: ubuntu-latest
+    needs: [fips-security-scan]
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
-          go-version-file: go.mod
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build FIPS Docker images for both architectures
+        run: make docker-build-fips-parallel-with-tags
 
-      - name: build-package/package
-        run: make package
+      - name: Push FIPS Docker images with unified tags
+        run: make docker-push-fips-parallel-with-tags
 
-      - name: Build
-        if: github.repository_owner == 'mattermost'
-        run: make docker-push
+      - name: Clean up intermediate FIPS tags
+        run: make cleanup-fips-tags
 
+      - name: Create FIPS release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make github-release-fips
+      
       - name: Cleanup
         run: make clean

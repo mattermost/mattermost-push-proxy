@@ -70,6 +70,13 @@ DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
 DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
 
+# FIPS Support - similar to mattermost-operator
+# To build FIPS-compliant push-proxy: make build-fips
+# Requires Docker to be installed and running
+FIPS_ENABLED ?= false
+BUILD_IMAGE_FIPS ?= cgr.dev/mattermost.com/go-msft-fips:1.24.4@sha256:8ab847d56930279a3ea36763277080106406354ec31c5f57f9d7fa787ecadcb2
+BASE_IMAGE_FIPS ?= cgr.dev/mattermost.com/glibc-openssl-fips:15.1
+
 ## Cosign Variables
 # The public key
 COSIGN_PUBLIC_KEY       ?= akey
@@ -108,6 +115,17 @@ GITHUB_TOKEN                 ?= a_token
 GITHUB_ORG                   := mattermost
 # Most probably the name of the repo
 GITHUB_REPO                  := ${APP_NAME}
+
+## FIPS Docker Variables
+# FIPS images go to private repository: mattermost/mattermost-push-proxy-fips
+# Non-FIPS images continue to use: $(APP_NAME) (from git remote)
+APP_NAME_FIPS ?= mattermost/mattermost-push-proxy-fips
+APP_VERSION_FIPS ?= $(APP_VERSION)-fips
+APP_VERSION_NO_V_FIPS ?= $(APP_VERSION_NO_V)-fips
+
+## Architecture Variables (default to ARM64 for local builds)
+TARGET_OS ?= linux
+TARGET_ARCH ?= arm64
 
 OUTDATED_VER := master
 OUTDATED_BIN := go-mod-outdated
@@ -180,11 +198,26 @@ help: ## to get help
 .PHONY: build
 build: go-build-docker ## to build
 
+.PHONY: build-all
+build-all: build build-fips ## to build both normal and FIPS versions
+
 .PHONY: release
 release: build github-release ## to build and release artifacts
 
+.PHONY: release-fips
+release-fips: build-fips ## to build and release FIPS artifacts
+
+.PHONY: release-all
+release-all: build-all github-release-all ## to build and release both versions
+
 .PHONY: package
 package: go-build package-software ## to build, package
+
+.PHONY: package-fips
+package-fips: build-fips ## to build FIPS version
+
+.PHONY: package-all
+package-all: package package-fips ## to build, package both versions
 
 .PHONY: sign
 sign: docker-sign docker-verify ## to sign the artifact and perform verification
@@ -244,6 +277,23 @@ package-software:  ## to package the binary
 	done
 	@$(OK) Packaging
 
+.PHONY: package-software-fips
+package-software-fips:  ## to package the FIPS binary
+	@$(INFO) Packaging FIPS
+	$(AT) for file in $(GO_OUT_BIN_DIR)/mattermost-push-proxy-*-fips; do \
+		target=$$(basename $$file); \
+		mkdir -p $(GO_OUT_BIN_DIR)/$${target}_temp/bin; \
+		cp -RL config $(GO_OUT_BIN_DIR)/$${target}_temp/config; \
+		echo $(APP_VERSION)-fips > $(GO_OUT_BIN_DIR)/$${target}_temp/config/build.txt; \
+		cp LICENSE.txt NOTICE.txt README.md $(GO_OUT_BIN_DIR)/$${target}_temp; \
+		mkdir $(GO_OUT_BIN_DIR)/$${target}_temp/logs; \
+		mv $$file $(GO_OUT_BIN_DIR)/$${target}_temp/bin/mattermost-push-proxy; \
+		mv $(GO_OUT_BIN_DIR)/$${target}_temp $(GO_OUT_BIN_DIR)/$${target}; \
+		tar -czf $(GO_OUT_BIN_DIR)/$${target}.tar.gz -C $(GO_OUT_BIN_DIR) $${target}; \
+		rm -r $(GO_OUT_BIN_DIR)/$${target}; \
+	done
+	@$(OK) Packaging FIPS
+
 .PHONY: docker-build
 docker-build: ## to build the docker image
 	@$(INFO) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
@@ -253,6 +303,161 @@ docker-build: ## to build the docker image
 	-t ${APP_NAME}:${APP_VERSION_NO_V} || ${FAIL}
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
+## --------------------------------------
+## Regular Multi-Architecture Build Targets (Fast, Parallel)
+## --------------------------------------
+
+.PHONY: build-image-amd64-with-tags
+build-image-amd64-with-tags: go-build package-software ## Build Docker image for AMD64 with tags
+	@echo "Building mattermost-push-proxy Docker Image for AMD64"
+	docker build --no-cache --pull \
+		--build-arg TARGETOS=linux \
+		--build-arg TARGETARCH=amd64 \
+		-f ${DOCKER_FILE} \
+		-t ${APP_NAME}:${APP_VERSION_NO_V}-amd64 \
+		-t ${APP_NAME}:${APP_VERSION_NO_V} \
+		.
+
+.PHONY: build-image-arm64-with-tags
+build-image-arm64-with-tags: go-build package-software ## Build Docker image for ARM64 with tags
+	@echo "Building mattermost-push-proxy Docker Image for ARM64"
+	docker build --no-cache --pull \
+		--build-arg TARGETOS=linux \
+		--build-arg TARGETARCH=arm64 \
+		-f ${DOCKER_FILE} \
+		-t ${APP_NAME}:${APP_VERSION_NO_V}-arm64 \
+		-t ${APP_NAME}:${APP_VERSION_NO_V} \
+		.
+
+.PHONY: docker-build-parallel-with-tags
+docker-build-parallel-with-tags: ## Build Docker images for both architectures in parallel (FAST)
+	@echo "Building mattermost-push-proxy Docker Images for both platforms in parallel"
+	$(MAKE) build-image-amd64-with-tags &
+	$(MAKE) build-image-arm64-with-tags &
+	wait
+	@echo "Creating multi-platform manifests with clean tags"
+	docker manifest create ${APP_NAME}:${APP_VERSION_NO_V} \
+		--amend ${APP_NAME}:${APP_VERSION_NO_V}-amd64 \
+		--amend ${APP_NAME}:${APP_VERSION_NO_V}-arm64
+	@echo "✅ Multi-platform manifests created"
+
+.PHONY: docker-push-parallel-with-tags
+docker-push-parallel-with-tags: ## Push Docker images with unified tags
+	@echo "Pushing Docker images to registry"
+	docker push ${APP_NAME}:${APP_VERSION_NO_V}-amd64
+	docker push ${APP_NAME}:${APP_VERSION_NO_V}-arm64
+	docker manifest push ${APP_NAME}:${APP_VERSION_NO_V}
+	@echo "Cleaning up intermediate architecture-specific tags from registry"
+	docker rmi ${APP_NAME}:${APP_VERSION_NO_V}-amd64
+	docker rmi ${APP_NAME}:${APP_VERSION_NO_V}-arm64
+	@echo "✅ Multi-platform images pushed with unified tags"
+	@echo "✅ Intermediate architecture-specific tags cleaned up from registry"
+
+.PHONY: cleanup-tags
+cleanup-tags: ## Clean up intermediate architecture-specific tags from registry
+	@echo "Cleaning up intermediate architecture-specific tags from registry"
+	@echo "Removing AMD64 tag: ${APP_NAME}:${APP_VERSION_NO_V}-amd64"
+	docker rmi ${APP_NAME}:${APP_VERSION_NO_V}-amd64 2>/dev/null || true
+	@echo "Removing ARM64 tag: ${APP_NAME}:${APP_VERSION_NO_V}-arm64"
+	docker rmi ${APP_NAME}:${APP_VERSION_NO_V}-arm64 2>/dev/null || true
+	@echo "✅ Intermediate architecture-specific tags cleaned up from registry"
+
+.PHONY: build-image-fips
+build-image-fips: ## Build the FIPS docker image for mattermost-push-proxy
+	@echo "Building mattermost-push-proxy FIPS Docker Image for $(TARGET_ARCH)"
+	docker build --no-cache --pull \
+		--build-arg BUILD_IMAGE=$(BUILD_IMAGE_FIPS) \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
+		--build-arg TARGETOS=$(TARGET_OS) \
+		--build-arg TARGETARCH=$(TARGET_ARCH) \
+		-f docker/Dockerfile.fips \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS) .
+
+.PHONY: buildx-image-fips
+buildx-image-fips: ## Builds and pushes the FIPS docker image for mattermost-push-proxy
+	@echo "Building mattermost-push-proxy FIPS Docker Image with buildx"
+	docker buildx build --no-cache --pull \
+		--platform linux/amd64,linux/arm64 \
+		--build-arg BUILD_IMAGE=$(BUILD_IMAGE_FIPS) \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
+		--build-arg TARGETOS=linux \
+		--build-arg TARGETARCH=amd64 \
+		-f docker/Dockerfile.fips \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS) \
+		--push .
+
+## --------------------------------------
+## FIPS Multi-Architecture Build Targets (Fast, Parallel)
+## --------------------------------------
+
+.PHONY: build-image-fips-amd64-with-tags
+build-image-fips-amd64-with-tags: ## Build FIPS Docker image for AMD64 with tags
+	@echo "Building mattermost-push-proxy FIPS Docker Image for AMD64"
+	docker build --no-cache --pull \
+		--build-arg BUILD_IMAGE=$(BUILD_IMAGE_FIPS) \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
+		--build-arg TARGETOS=linux \
+		--build-arg TARGETARCH=amd64 \
+		-f docker/Dockerfile.fips \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64 \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS) \
+		.
+
+.PHONY: build-image-fips-arm64-with-tags
+build-image-fips-arm64-with-tags: ## Build FIPS Docker image for ARM64 with tags
+	@echo "Building mattermost-push-proxy FIPS Docker Image for ARM64"
+	docker build --no-cache --pull \
+		--build-arg BUILD_IMAGE=$(BUILD_IMAGE_FIPS) \
+		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
+		--build-arg TARGETOS=linux \
+		--build-arg TARGETARCH=arm64 \
+		-f docker/Dockerfile.fips \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64 \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_FIPS) \
+		.
+
+.PHONY: docker-build-fips-parallel-with-tags
+docker-build-fips-parallel-with-tags: ## Build FIPS Docker images for both architectures in parallel (FAST)
+	@echo "Building mattermost-push-proxy FIPS Docker Images for both platforms in parallel"
+	$(MAKE) build-image-fips-amd64-with-tags &
+	$(MAKE) build-image-fips-arm64-with-tags &
+	wait
+	@echo "Creating multi-platform manifests with clean tags"
+	docker manifest create $(APP_NAME_FIPS):$(APP_VERSION_FIPS) \
+		--amend $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64 \
+		--amend $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64
+	@echo "✅ Multi-platform manifests created"
+
+.PHONY: docker-push-fips-parallel-with-tags
+docker-push-fips-parallel-with-tags: ## Push FIPS Docker images with unified tags
+	@echo "Pushing FIPS Docker images to registry"
+	docker push $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64
+	docker push $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64
+	docker manifest push $(APP_NAME_FIPS):$(APP_VERSION_FIPS)
+	@echo "Cleaning up intermediate architecture-specific tags from registry"
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64
+	@echo "✅ FIPS multi-platform images pushed with unified tags"
+	@echo "✅ Intermediate architecture-specific tags cleaned up from registry"
+
+.PHONY: github-release-fips
+github-release-fips: ## Create GitHub release for FIPS version
+	@echo "Creating GitHub release for FIPS version"
+	gh release create v$(APP_VERSION_FIPS) \
+		--title "Release v$(APP_VERSION_FIPS) (FIPS)" \
+		--notes "FIPS-compliant release of mattermost-push-proxy" \
+		--target main
+	@echo "✅ GitHub release created for FIPS version"
+
+.PHONY: cleanup-fips-tags
+cleanup-fips-tags: ## Clean up intermediate FIPS architecture-specific tags from registry
+	@echo "Cleaning up intermediate FIPS architecture-specific tags from registry"
+	@echo "Removing AMD64 tag: $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64"
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64 2>/dev/null || true
+	@echo "Removing ARM64 tag: $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64"
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64 2>/dev/null || true
+	@echo "✅ Intermediate FIPS architecture-specific tags cleaned up from registry"
+
 .PHONY: docker-push
 docker-push: ## to push the docker image
 	@$(INFO) Pushing to registry...
@@ -261,6 +466,48 @@ docker-push: ## to push the docker image
 	-f ${DOCKER_FILE} . \
 	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V} $(LATEST_DOCKER_TAG) --push || ${FAIL}
 	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}
+
+.PHONY: docker-push-fips
+docker-push-fips: ## to push the FIPS docker image
+	@$(INFO) Pushing FIPS to registry...
+	$(AT)$(DOCKER) build \
+	--no-cache --pull \
+	-f ${DOCKER_FILE}.fips . \
+	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
+	@$(OK) Pushing FIPS to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips
+
+.PHONY: docker-push-fips-linux-amd64
+docker-push-fips-linux-amd64: ## to push the FIPS docker image for Linux AMD64
+	@$(INFO) Pushing FIPS Linux AMD64 to registry...
+	$(AT)$(DOCKER) build \
+	--no-cache --pull \
+	--platform linux/amd64 \
+	-f ${DOCKER_FILE}.fips . \
+	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-amd64 || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-amd64 || ${FAIL}
+	@$(OK) Pushing FIPS Linux AMD64 to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-amd64
+
+.PHONY: docker-push-fips-linux-arm64
+docker-push-fips-linux-arm64: ## to push the FIPS docker image for Linux ARM64
+	@$(INFO) Pushing FIPS Linux ARM64 to registry...
+	$(AT)$(DOCKER) build \
+	--no-cache --pull \
+	--platform linux/arm64 \
+	-f ${DOCKER_FILE}.fips . \
+	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-arm64 || ${FAIL}
+	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-arm64 || ${FAIL}
+	@$(OK) Pushing FIPS Linux ARM64 to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-arm64
+
+.PHONY: docker-push-fips-parallel
+docker-push-fips-parallel: ## to push FIPS docker images for both architectures in parallel
+	@$(INFO) Pushing FIPS Docker images for both architectures in parallel
+	$(AT)$(MAKE) docker-push-fips-linux-amd64 &
+	$(AT)$(MAKE) docker-push-fips-linux-arm64 &
+	wait
+	@$(OK) FIPS Docker images pushed for both architectures
+
+
 
 .PHONY: docker-sign
 docker-sign: ## to sign the docker image
@@ -382,6 +629,41 @@ go-build-docker: # to build binaries under a controlled docker dedicated go cont
 	make go-build"  || ${FAIL}
 	@$(OK) go build docker
 
+## --------------------------------------
+## FIPS Build Targets
+## --------------------------------------
+
+_build-fips-internal: ## Internal FIPS build target (used by Dockerfile.fips and build-fips)
+	@echo "Building mattermost-push-proxy (FIPS)"
+	@mkdir -p $(GO_OUT_BIN_DIR)
+	GO111MODULE=on GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=1 go build -tags=fips,goexperiment.opensslcrypto -trimpath -o $(GO_OUT_BIN_DIR)/mattermost-push-proxy ./main.go
+
+.PHONY: build-fips
+build-fips: ## Build the mattermost-push-proxy with FIPS-compliant settings using containerized build
+	@echo "Building mattermost-push-proxy (FIPS - $(TARGET_ARCH))"
+	docker run --rm -v $(shell pwd):/app -w /app \
+		--entrypoint="" \
+		-e TARGET_OS=$(TARGET_OS) \
+		-e TARGET_ARCH=$(TARGET_ARCH) \
+		-e CGO_ENABLED=1 \
+		-e GOFIPS=1 \
+		-e GOEXPERIMENT=systemcrypto \
+		-e HOST_UID=$(shell id -u) \
+		-e HOST_GID=$(shell id -g) \
+		$(BUILD_IMAGE_FIPS) \
+		sh -c "cd /app && make _build-fips-internal TARGET_OS=\$$TARGET_OS TARGET_ARCH=\$$TARGET_ARCH && mv $(GO_OUT_BIN_DIR)/mattermost-push-proxy $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH) && chown \$$HOST_UID:\$$HOST_GID $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH)"
+
+.PHONY: build-fips-amd64
+build-fips-amd64: ## Build the mattermost-push-proxy with FIPS-compliant settings for AMD64
+	$(MAKE) build-fips TARGET_ARCH=amd64
+
+.PHONY: build-fips-arm64  
+build-fips-arm64: ## Build the mattermost-push-proxy with FIPS-compliant settings for ARM64
+	$(MAKE) build-fips TARGET_ARCH=arm64
+
+.PHONY: build-fips-all
+build-fips-all: build-fips-amd64 build-fips-arm64 ## Build FIPS binaries for both architectures
+
 .PHONY: go-run
 go-run: ## to run locally for development
 	@$(INFO) running locally...
@@ -442,6 +724,15 @@ else
 	gh release create $(APP_VERSION) --generate-notes $(GO_OUT_BIN_DIR)/*" || ${FAIL}
 endif
 	@$(OK) Generating github-release http://github.com/$(GITHUB_ORG)/$(GITHUB_REPO)/releases/tag/$(APP_VERSION) ...
+
+
+
+.PHONY: github-release-all
+github-release-all: ## to publish both normal and FIPS releases to GitHub
+	@$(INFO) Generating both releases...
+	$(AT)$(MAKE) github-release
+	$(AT)$(MAKE) github-release-fips
+	@$(OK) Generating both releases
 
 .PHONY: clean
 clean: ## to clean-up

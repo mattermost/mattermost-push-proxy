@@ -1,0 +1,47 @@
+# Build the mattermost-push-proxy (FIPS version)
+ARG BUILD_IMAGE=cgr.dev/mattermost.com/go-msft-fips:1.24.4
+ARG BASE_IMAGE=cgr.dev/mattermost.com/glibc-openssl-fips:15.1
+
+FROM ${BUILD_IMAGE} AS builder
+
+ARG TARGETARCH
+ARG TARGETOS
+
+WORKDIR /workspace
+COPY . .
+
+# Copy config file to workspace for later use
+COPY config/mattermost-push-proxy.sample.json /workspace/mattermost-push-proxy.json
+
+# Build with FIPS-compliant settings
+ENV CGO_ENABLED=1
+ENV GOFIPS=1
+ENV GOEXPERIMENT=systemcrypto
+RUN make _build-fips-internal TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH
+
+FROM ${BASE_IMAGE}
+
+LABEL name="Mattermost Push Proxy (FIPS)" \
+  maintainer="sre@mattermost.com" \
+  vendor="Mattermost" \
+  distribution-scope="public" \
+  url="https://mattermost.dev" \
+  io.k8s.description="Mattermost Push Proxy service for FIPS-compliant environments" \
+  io.k8s.display-name="Mattermost Push Proxy (FIPS)" \
+  io.openshift.tags="mattermost,push-proxy,fips" \
+  summary="FIPS-compliant Mattermost Push Proxy service" \
+  description="Mattermost Push Proxy service for FIPS-compliant environments. This is a FIPS-compliant version." \
+  com.mattermost.fips="true" \
+  com.mattermost.fips.version="140-2"
+
+WORKDIR /
+COPY --from=builder /workspace/dist/mattermost-push-proxy /mattermost-push-proxy
+COPY --from=builder /workspace/mattermost-push-proxy.json /mattermost-push-proxy.json
+
+USER 65532
+
+EXPOSE 8066
+VOLUME ["/config", "/certs"]
+
+# Use the binary directly as the entrypoint
+ENTRYPOINT ["/mattermost-push-proxy"]
