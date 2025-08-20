@@ -7,7 +7,6 @@ linters-settings:
   gofmt:
     simplify: true
   govet:
-    check-shadowing: true
     enable-all: true
     disable:
       - fieldalignment
@@ -19,7 +18,7 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - exportloopref
+    - copyloopvar
     - staticcheck
     - unconvert
     - unused
