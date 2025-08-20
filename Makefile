@@ -64,7 +64,7 @@ ifneq ($(shell echo $(APP_VERSION) | egrep '^v([0-9]+\.){0,2}(\*|[0-9]+)'),)
 endif
 
 ## Docker Images
-DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}@sha256:20a022e5112a144aa7b7aeb3f22ebf2cdaefcc4aac0d64e8deeee8cdc18b9c0f"
+DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}"
 DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.64.4@sha256:e83b903d722c12402c9d88948a6cac42ea0e34bf336fc6a170ade9adeecb2d0e"
 DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
@@ -73,7 +73,7 @@ DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371
 # To build FIPS-compliant push-proxy: make build-fips
 # Requires Docker to be installed and running
 FIPS_ENABLED ?= false
-BUILD_IMAGE_FIPS ?= cgr.dev/mattermost.com/go-msft-fips:1.24.4@sha256:8ab847d56930279a3ea36763277080106406354ec31c5f57f9d7fa787ecadcb2
+BUILD_IMAGE_FIPS ?= cgr.dev/mattermost.com/go-msft-fips:1.24.6
 BASE_IMAGE_FIPS ?= cgr.dev/mattermost.com/glibc-openssl-fips:15.1
 
 ## Cosign Variables
@@ -263,6 +263,7 @@ major: ## to bump major version (semver)
 package-software:  ## to package the binary
 	@$(INFO) Packaging
 	$(AT) for file in $(GO_OUT_BIN_DIR)/mattermost-push-proxy-*; do \
+		[[ "$$file" == *.tar.gz ]] && continue; \
 		target=$$(basename $$file); \
 		mkdir -p $(GO_OUT_BIN_DIR)/$${target}_temp/bin; \
 		cp -RL config $(GO_OUT_BIN_DIR)/$${target}_temp/config; \
@@ -280,6 +281,7 @@ package-software:  ## to package the binary
 package-software-fips:  ## to package the FIPS binary
 	@$(INFO) Packaging FIPS
 	$(AT) for file in $(GO_OUT_BIN_DIR)/mattermost-push-proxy-*-fips; do \
+		[[ "$$file" == *.tar.gz ]] && continue; \
 		target=$$(basename $$file); \
 		mkdir -p $(GO_OUT_BIN_DIR)/$${target}_temp/bin; \
 		cp -RL config $(GO_OUT_BIN_DIR)/$${target}_temp/config; \
@@ -307,7 +309,7 @@ docker-build: ## to build the docker image
 ## --------------------------------------
 
 .PHONY: build-image-amd64-with-tags
-build-image-amd64-with-tags: go-build package-software ## Build Docker image for AMD64 with tags
+build-image-amd64-with-tags: go-build-amd64 package-software ## Build Docker image for AMD64 with tags
 	@echo "Building mattermost-push-proxy Docker Image for AMD64"
 	docker build --no-cache --pull \
 		--build-arg TARGETOS=linux \
@@ -318,7 +320,7 @@ build-image-amd64-with-tags: go-build package-software ## Build Docker image for
 		.
 
 .PHONY: build-image-arm64-with-tags
-build-image-arm64-with-tags: go-build package-software ## Build Docker image for ARM64 with tags
+build-image-arm64-with-tags: go-build-arm64 package-software ## Build Docker image for ARM64 with tags
 	@echo "Building mattermost-push-proxy Docker Image for ARM64"
 	docker build --no-cache --pull \
 		--build-arg TARGETOS=linux \
@@ -599,6 +601,12 @@ docker-login: ## to login to a container registry
 
 go-build: $(GO_BUILD_PLATFORMS_ARTIFACTS) ## to build binaries
 
+.PHONY: go-build-amd64
+go-build-amd64: go-build/$(APP_NAME)-linux-amd64 ## Build AMD64 binary only
+
+.PHONY: go-build-arm64  
+go-build-arm64: go-build/$(APP_NAME)-linux-arm64 ## Build ARM64 binary only
+
 .PHONY: go-build
 go-build/%:
 	@$(INFO) go build $*...
@@ -713,6 +721,89 @@ update-modules: ## Update all modules to latest versions
 	@echo Updating modules
 	$(GO) get -u ./...
 	$(GO) mod tidy
+
+.PHONY: scan
+scan: ## Scan Docker image for vulnerabilities using Docker Scout
+	@echo Running Docker Scout vulnerability scan
+	@if ! docker images -q ${APP_NAME}:${APP_VERSION_NO_V} | grep -q .; then \
+		echo "❌ Image ${APP_NAME}:${APP_VERSION_NO_V} not found locally. Please build it first with:"; \
+		echo "   make build-image-amd64-with-tags (or build-image-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	docker scout cves ${APP_NAME}:${APP_VERSION_NO_V}
+
+.PHONY: scan-fips
+scan-fips: ## Scan FIPS Docker image for vulnerabilities using Docker Scout
+	@echo Running Docker Scout vulnerability scan for FIPS image
+	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_FIPS) | grep -q .; then \
+		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_FIPS) not found locally. Please build it first with:"; \
+		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	docker scout cves $(APP_NAME_FIPS):$(APP_VERSION_FIPS)
+
+.PHONY: trivy
+trivy: ## Scan Docker image for vulnerabilities using Trivy
+	@echo Running Trivy vulnerability scan
+	@if ! docker images -q ${APP_NAME}:${APP_VERSION_NO_V} | grep -q .; then \
+		echo "❌ Image ${APP_NAME}:${APP_VERSION_NO_V} not found locally. Please build it first with:"; \
+		echo "   make build-image-amd64-with-tags (or build-image-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM ${APP_NAME}:${APP_VERSION_NO_V}
+
+.PHONY: trivy-fips
+trivy-fips: ## Scan FIPS Docker image for vulnerabilities using Trivy
+	@echo Running Trivy vulnerability scan for FIPS image
+	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_FIPS) | grep -q .; then \
+		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_FIPS) not found locally. Please build it first with:"; \
+		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM $(APP_NAME_FIPS):$(APP_VERSION_FIPS)
+
+.PHONY: security-all
+security-all: ## Run all vulnerability scans (Docker Scout and Trivy) for both regular and FIPS images
+	@echo "🔍 Running comprehensive security scans for all images..."
+	@echo ""
+	@echo "=========================================="
+	@echo "📊 Docker Scout - Regular Image"
+	@echo "=========================================="
+	$(MAKE) scan
+	@echo ""
+	@echo "=========================================="
+	@echo "📊 Docker Scout - FIPS Image"
+	@echo "=========================================="
+	$(MAKE) scan-fips
+	@echo ""
+	@echo "=========================================="
+	@echo "🛡️  Trivy - Regular Image"
+	@echo "=========================================="
+	$(MAKE) trivy
+	@echo ""
+	@echo "=========================================="
+	@echo "🛡️  Trivy - FIPS Image"
+	@echo "=========================================="
+	$(MAKE) trivy-fips
+	@echo ""
+	@echo "✅ All security scans completed!"
+
+.PHONY: security-build-and-scan
+security-build-and-scan: ## Build images and run comprehensive security scans
+	@echo "🚀 Building images and running comprehensive security scans..."
+	@echo ""
+	@echo "=========================================="
+	@echo "🔨 Building Regular ARM64 Image"
+	@echo "=========================================="
+	$(MAKE) build-image-arm64-with-tags
+	@echo ""
+	@echo "=========================================="
+	@echo "🔨 Building FIPS ARM64 Image"
+	@echo "=========================================="
+	$(MAKE) build-image-fips-arm64-with-tags
+	@echo ""
+	@echo "🔍 Starting security scans..."
+	$(MAKE) security-all
 
 .PHONY: github-release
 github-release: ## to publish a release and relevant artifacts to GitHub

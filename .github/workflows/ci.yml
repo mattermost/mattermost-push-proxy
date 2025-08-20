@@ -15,7 +15,7 @@ permissions:
   id-token: write  # Required for OIDC authentication with Chainguard identity
 
 env:
-  GO_VERSION: 1.24.4
+  GO_VERSION: 1.24.6
   FIPS_ENABLED: true
 
 jobs:
