@@ -184,7 +184,7 @@ jobs:
         run: make docker-build-parallel-with-tags
 
       - name: Push Docker images with unified tags
-        run: make docker-push-parallel-with-tags
+        run: make docker-push-with-tags
 
       - name: Clean up intermediate tags
         run: make cleanup-tags
@@ -213,7 +213,7 @@ jobs:
         run: make docker-build-fips-parallel-with-tags
 
       - name: Push FIPS Docker images with unified tags
-        run: make docker-push-fips-parallel-with-tags
+        run: make docker-push-fips-with-tags
 
       - name: Clean up intermediate FIPS tags
         run: make cleanup-fips-tags

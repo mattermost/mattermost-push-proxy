@@ -342,8 +342,8 @@ docker-build-parallel-with-tags: ## Build Docker images for both architectures i
 		--amend ${APP_NAME}:${APP_VERSION_NO_V}-arm64
 	@echo "✅ Multi-platform manifests created"
 
-.PHONY: docker-push-parallel-with-tags
-docker-push-parallel-with-tags: ## Push Docker images with unified tags
+.PHONY: docker-push-with-tags
+docker-push-with-tags: ## Push Docker images with unified tags
 	@echo "Pushing Docker images to registry"
 	docker push ${APP_NAME}:${APP_VERSION_NO_V}-amd64
 	docker push ${APP_NAME}:${APP_VERSION_NO_V}-arm64
@@ -429,8 +429,8 @@ docker-build-fips-parallel-with-tags: ## Build FIPS Docker images for both archi
 		--amend $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64
 	@echo "✅ Multi-platform manifests created"
 
-.PHONY: docker-push-fips-parallel-with-tags
-docker-push-fips-parallel-with-tags: ## Push FIPS Docker images with unified tags
+.PHONY: docker-push-fips-with-tags
+docker-push-fips-with-tags: ## Push FIPS Docker images with unified tags
 	@echo "Pushing FIPS Docker images to registry"
 	docker push $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-amd64
 	docker push $(APP_NAME_FIPS):$(APP_VERSION_FIPS)-arm64
@@ -469,10 +469,11 @@ docker-push: ## to push the docker image
 	@$(OK) Pushing to registry $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}
 
 .PHONY: docker-push-fips
-docker-push-fips: ## to push the FIPS docker image
+docker-push-fips: ## to push the FIPS docker image (builds for default TARGET_ARCH: $(TARGET_ARCH))
 	@$(INFO) Pushing FIPS to registry...
 	$(AT)$(DOCKER) build \
 	--no-cache --pull \
+	--platform $(TARGET_OS)/$(TARGET_ARCH) \
 	-f ${DOCKER_FILE}.fips . \
 	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
 	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
