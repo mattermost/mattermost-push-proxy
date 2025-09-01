@@ -41,6 +41,18 @@ jobs:
       - name: Test
         run: make test
 
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      - name: build-package/package
+        run: make package
+
   build-amd64:
     name: Build AMD64
     runs-on: ubuntu-latest
