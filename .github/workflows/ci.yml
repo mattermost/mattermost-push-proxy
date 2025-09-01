@@ -172,6 +172,210 @@ jobs:
           image-ref: "mattermost-push-proxy:dev-${{ github.sha }}"
           format: 'table'
 
+  pr-deploy-amd64:
+    name: PR Deploy AMD64
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push AMD64 PR images
+        run: |
+          # Build with default APP_NAME (avoids filesystem issues)
+          make build-image-amd64-with-tags
+          
+          # Retag with correct namespace for pushing  
+          docker tag mattermost-push-proxy:dev-${{ github.sha }}-amd64 mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
+          docker tag mattermost-push-proxy:dev-${{ github.sha }} mattermost/mattermost-push-proxy:dev-${{ github.sha }}
+          
+          # Push to correct namespace
+          docker push mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
+          echo "✅ AMD64 image pushed: mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64"
+          
+  pr-deploy-arm64:
+    name: PR Deploy ARM64  
+    runs-on: ubuntu-24.04-arm
+    needs: [security-scan]
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push ARM64 PR images
+        run: |
+          # Build with default APP_NAME (avoids filesystem issues)
+          make build-image-arm64-with-tags
+          
+          # Retag with correct namespace for pushing
+          docker tag mattermost-push-proxy:dev-${{ github.sha }}-arm64 mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
+          docker tag mattermost-push-proxy:dev-${{ github.sha }} mattermost/mattermost-push-proxy:dev-${{ github.sha }}
+          
+          # Push to correct namespace
+          docker push mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
+          echo "✅ ARM64 image pushed: mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64"
+
+  pr-deploy-manifest:
+    name: PR Deploy Manifest
+    runs-on: ubuntu-latest
+    needs: [pr-deploy-amd64, pr-deploy-arm64]
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Create and push multi-arch manifest
+        run: |
+          # Create multi-platform manifest for PR testing
+          docker manifest create mattermost/mattermost-push-proxy:dev-${{ github.sha }} \
+            --amend mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64 \
+            --amend mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
+          docker manifest push mattermost/mattermost-push-proxy:dev-${{ github.sha }}
+          
+          # Clean up intermediate architecture-specific tags (like production)
+          echo "Cleaning up intermediate architecture-specific tags..."
+          docker rmi mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64 2>/dev/null || true
+          echo "✅ Multi-arch PR image available (arch-specific tags removed):"
+          echo "  docker pull mattermost/mattermost-push-proxy:dev-${{ github.sha }}"
+
+  pr-deploy-fips-amd64:
+    name: PR Deploy FIPS AMD64
+    runs-on: ubuntu-latest
+    needs: [fips-security-scan] 
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard Identity
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push FIPS AMD64 PR images
+        run: |
+          # Build with default APP_NAME (avoids filesystem issues)
+          make build-image-fips-amd64-with-tags
+          
+          # Retag with correct namespace for pushing
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
+          
+          # Push to correct namespace  
+          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
+          echo "✅ FIPS AMD64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64"
+
+  pr-deploy-fips-arm64:
+    name: PR Deploy FIPS ARM64
+    runs-on: ubuntu-24.04-arm
+    needs: [fips-security-scan]
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard Identity
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push FIPS ARM64 PR images
+        run: |
+          # Build with default APP_NAME (avoids filesystem issues)
+          make build-image-fips-arm64-with-tags
+          
+          # Retag with correct namespace for pushing
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
+          
+          # Push to correct namespace
+          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
+          echo "✅ FIPS ARM64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64"
+
+  pr-deploy-fips-manifest:
+    name: PR Deploy FIPS Manifest
+    runs-on: ubuntu-latest
+    needs: [pr-deploy-fips-amd64, pr-deploy-fips-arm64]
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Create and push FIPS multi-arch manifest
+        run: |
+          # Create multi-platform FIPS manifest for PR testing
+          docker manifest create mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips \
+            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 \
+            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
+          docker manifest push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
+          
+          # Clean up intermediate FIPS architecture-specific tags (like production)
+          echo "Cleaning up intermediate FIPS architecture-specific tags..."
+          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64 2>/dev/null || true
+          echo "✅ Multi-arch FIPS PR image available (arch-specific tags removed):"
+          echo "  docker pull mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips"
+
+
+
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
@@ -193,13 +397,38 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Build Docker images for both architectures
-        run: make docker-build-parallel-with-tags
+        run: |
+          # Build with default APP_NAME (avoids filesystem issues)
+          make docker-build-parallel-with-tags
+          
+          # Retag with correct namespace for production
+          docker tag mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)}-amd64 mattermost/mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)}-amd64 
+          docker tag mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)}-arm64 mattermost/mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)}-arm64
+          docker tag mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)} mattermost/mattermost-push-proxy:${APP_VERSION_NO_V:-dev-$(git rev-parse --short HEAD)}
 
-      - name: Push Docker images with unified tags
-        run: make docker-push-with-tags
+      - name: Push Docker images with unified tags  
+        run: |
+          # Get version for proper tagging
+          APP_VERSION_NO_V=$(git describe --abbrev=0 --exact-match --tags 2>/dev/null | sed 's/^v//' || echo "dev-$(git rev-parse --short HEAD)")
+          
+          # Push with correct namespace
+          docker push mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-amd64
+          docker push mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-arm64
+          
+          # Create and push multi-arch manifest
+          docker manifest create mattermost/mattermost-push-proxy:${APP_VERSION_NO_V} \
+            --amend mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-amd64 \
+            --amend mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-arm64
+          docker manifest push mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}
 
       - name: Clean up intermediate tags
-        run: make cleanup-tags
+        run: |
+          # Clean up both old and new tags
+          APP_VERSION_NO_V=$(git describe --abbrev=0 --exact-match --tags 2>/dev/null | sed 's/^v//' || echo "dev-$(git rev-parse --short HEAD)")
+          docker rmi mattermost-push-proxy:${APP_VERSION_NO_V}-amd64 2>/dev/null || true
+          docker rmi mattermost-push-proxy:${APP_VERSION_NO_V}-arm64 2>/dev/null || true  
+          docker rmi mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy:${APP_VERSION_NO_V}-arm64 2>/dev/null || true
 
   fips-deploy:
     name: FIPS Deploy

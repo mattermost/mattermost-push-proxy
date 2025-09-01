@@ -34,14 +34,16 @@ LABEL name="Mattermost Push Proxy (FIPS)" \
   com.mattermost.fips="true" \
   com.mattermost.fips.version="140-2"
 
-WORKDIR /
-COPY --from=builder /workspace/dist/mattermost-push-proxy /mattermost-push-proxy
-COPY --from=builder /workspace/mattermost-push-proxy.json /mattermost-push-proxy.json
+WORKDIR /mattermost-push-proxy
+
+    # Copy files - directories will be created automatically
+    COPY --from=builder /workspace/dist/mattermost-push-proxy /mattermost-push-proxy/bin/mattermost-push-proxy
+    COPY --from=builder /workspace/mattermost-push-proxy.json /mattermost-push-proxy/config/mattermost-push-proxy.json
 
 USER 65532
 
 EXPOSE 8066
-VOLUME ["/config", "/certs"]
+VOLUME ["/mattermost-push-proxy/config", "/mattermost-push-proxy/certs"]
 
-# Use the binary directly as the entrypoint
-ENTRYPOINT ["/mattermost-push-proxy"]
+# Use the binary from bin directory
+ENTRYPOINT ["/mattermost-push-proxy/bin/mattermost-push-proxy"]
