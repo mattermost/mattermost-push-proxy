@@ -16,7 +16,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"gopkg.in/throttled/throttled.v1"
+	throttled "gopkg.in/throttled/throttled.v1"
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
