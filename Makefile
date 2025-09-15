@@ -116,8 +116,6 @@ GITHUB_ORG                   := mattermost
 GITHUB_REPO                  := ${APP_NAME}
 
 ## FIPS Docker Variables
-# FIPS images go to private repository: mattermost/mattermost-push-proxy-fips
-# Non-FIPS images continue to use: $(APP_NAME) (from git remote)
 APP_NAME_FIPS ?= mattermost/mattermost-push-proxy-fips
 APP_VERSION_FIPS ?= $(APP_VERSION)-fips
 APP_VERSION_NO_V_FIPS ?= $(APP_VERSION_NO_V)-fips
@@ -305,7 +303,7 @@ docker-build: ## to build the docker image
 	@$(OK) Performing Docker build ${APP_NAME}:${APP_VERSION_NO_V}
 
 ## --------------------------------------
-## Regular Multi-Architecture Build Targets (Fast, Parallel)
+## Regular Multi-Architecture Build Targets
 ## --------------------------------------
 
 .PHONY: build-image-amd64-with-tags
@@ -331,7 +329,7 @@ build-image-arm64-with-tags: go-build-arm64 package-software ## Build Docker ima
 		.
 
 .PHONY: docker-build-parallel-with-tags
-docker-build-parallel-with-tags: ## Build Docker images for both architectures in parallel (FAST)
+docker-build-parallel-with-tags: ## Build Docker images for both architectures in parallel
 	@echo "Building mattermost-push-proxy Docker Images for both platforms in parallel"
 	$(MAKE) build-image-amd64-with-tags &
 	$(MAKE) build-image-arm64-with-tags &
