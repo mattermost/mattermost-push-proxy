@@ -130,7 +130,7 @@ jobs:
   fips-security-scan:
     name: FIPS Security Scan
     runs-on: ubuntu-latest
-    needs: [fips-build-amd64, fips-build-arm64]
+    needs: [lint, test]
     if: github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout code
@@ -143,31 +143,19 @@ jobs:
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
       
-      - name: Login to Docker Hub
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
-        with:
-          username: matterbuild
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Build and push FIPS Docker image for scanning
-        run: |
-          # Build the FIPS image locally
-          make build-image-fips-amd64-with-tags
-          
-          # Tag and push to registry for sharing between jobs
-          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
-          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
+      - name: Build FIPS Docker image for scanning
+        run: make build-image-fips-amd64-with-tags
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
         with:
-          image-ref: "mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips"
+          image-ref: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master-fips' || format('dev-{0}-fips', github.sha) }}"
           format: 'table'
 
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    needs: [build-amd64, build-arm64]
+    needs: [lint, test]
     if: github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout code
@@ -175,32 +163,20 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Login to Docker Hub
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
-        with:
-          username: matterbuild
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Build and push Docker image for scanning
-        run: |
-          # Build the image locally
-          make build-image-amd64-with-tags
-          
-          # Tag and push to registry for sharing between jobs
-          docker tag mattermost-push-proxy:dev-${{ github.sha }}-amd64 mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
-          docker push mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
+      - name: Build Docker image for scanning
+        run: make build-image-amd64-with-tags
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # 0.32.0
         with:
-          image-ref: "mattermost-push-proxy:dev-${{ github.sha }}"
+          image-ref: "mattermost-push-proxy:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
           format: 'table'
 
   pr-deploy-amd64:
     name: PR Deploy AMD64
     runs-on: ubuntu-latest
     needs: [security-scan, build-amd64]
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -233,7 +209,7 @@ jobs:
     name: PR Deploy ARM64  
     runs-on: ubuntu-24.04-arm
     needs: [security-scan, build-arm64]
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -266,7 +242,7 @@ jobs:
     name: PR Deploy Manifest
     runs-on: ubuntu-latest
     needs: [pr-deploy-amd64, pr-deploy-arm64]
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -296,7 +272,7 @@ jobs:
     name: PR Deploy FIPS AMD64
     runs-on: ubuntu-latest
     needs: [fips-security-scan, fips-build-amd64] 
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -334,7 +310,7 @@ jobs:
     name: PR Deploy FIPS ARM64
     runs-on: ubuntu-24.04-arm
     needs: [fips-security-scan, fips-build-arm64]
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -372,7 +348,7 @@ jobs:
     name: PR Deploy FIPS Manifest
     runs-on: ubuntu-latest
     needs: [pr-deploy-fips-amd64, pr-deploy-fips-arm64]
-    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
       id-token: write
@@ -404,7 +380,7 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     needs: [security-scan, build-amd64, build-arm64]
-    if: github.event_name == 'push' && github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
     permissions:
       contents: write
       id-token: write
@@ -458,7 +434,7 @@ jobs:
     name: FIPS Deploy
     runs-on: ubuntu-latest
     needs: [fips-security-scan, fips-build-amd64, fips-build-arm64]
-    if: github.event_name == 'push' && github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
     permissions:
       contents: write
       id-token: write
