@@ -425,11 +425,18 @@ jobs:
             --amend mattermost/mattermost-push-proxy:${SHORT_SHA}-amd64 \
             --amend mattermost/mattermost-push-proxy:${SHORT_SHA}-arm64
           docker manifest push mattermost/mattermost-push-proxy:${SHORT_SHA}
+          
+          # Clean up intermediate architecture-specific tags (like production)
+          echo "Cleaning up intermediate architecture-specific tags..."
+          docker rmi mattermost/mattermost-push-proxy:${SHORT_SHA}-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy:${SHORT_SHA}-arm64 2>/dev/null || true
+          echo "✅ Multi-arch production image available (arch-specific tags removed):"
+          echo "  docker pull mattermost/mattermost-push-proxy:${SHORT_SHA}"
 
-  fips-deploy:
-    name: FIPS Deploy
+  fips-deploy-amd64:
+    name: FIPS Deploy AMD64
     runs-on: ubuntu-latest
-    needs: [fips-security-scan, fips-build-amd64, fips-build-arm64]
+    needs: [fips-security-scan, fips-build-amd64]
     if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
     permissions:
       contents: write
@@ -460,28 +467,61 @@ jobs:
           docker tag mattermost/mattermost-push-proxy-fips:master-fips-amd64 mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-amd64
           # Push FIPS AMD64 image
           docker push mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-amd64
+
+  fips-deploy-arm64:
+    name: FIPS Deploy ARM64
+    runs-on: ubuntu-24.04-arm
+    needs: [fips-security-scan, fips-build-arm64]
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Chainguard Identity
+        uses: chainguard-dev/setup-chainctl@v0.3.2
+        with:
+          identity: ${{ secrets.CHAINGUARD_IDENTITY }}
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Build and push FIPS ARM64 image
         run: |
-          # For FIPS ARM64 builds, we need CGO_ENABLED=1 for FIPS compliance
-          # Use Docker buildx with proper platform specification for cross-compilation
+          # Build FIPS ARM64 image with correct tag (using commit SHA) on native ARM64 runner
           SHORT_SHA=${GITHUB_SHA:0:7}
-          
-          # Build FIPS ARM64 image with correct tag (using commit SHA)
-          # Use buildx for proper ARM64 cross-compilation with FIPS
-          docker buildx build --no-cache --pull \
-            --platform linux/arm64 \
-            --build-arg BUILD_IMAGE=cgr.dev/mattermost.com/go-msft-fips:1.24.6 \
-            --build-arg BASE_IMAGE=cgr.dev/mattermost.com/glibc-openssl-fips:15.1 \
-            --build-arg TARGETOS=linux \
-            --build-arg TARGETARCH=arm64 \
-            --tag mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-arm64 \
-            --file docker/Dockerfile.fips \
-            --load \
-            .
-          
+          make build-image-fips-arm64-with-tags
+          # Retag with short SHA
+          docker tag mattermost/mattermost-push-proxy-fips:master-fips-arm64 mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-arm64
           # Push FIPS ARM64 image
           docker push mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-arm64
+
+  fips-deploy:
+    name: FIPS Deploy
+    runs-on: ubuntu-latest
+    needs: [fips-deploy-amd64, fips-deploy-arm64]
+    if: github.repository_owner == 'mattermost' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+        with:
+          fetch-depth: 0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          username: matterbuild
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Create and push FIPS multi-arch manifest
         run: |
@@ -491,6 +531,13 @@ jobs:
             --amend mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-amd64 \
             --amend mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-arm64
           docker manifest push mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips
+          
+          # Clean up intermediate FIPS architecture-specific tags (like production)
+          echo "Cleaning up intermediate FIPS architecture-specific tags..."
+          docker rmi mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips-arm64 2>/dev/null || true
+          echo "✅ Multi-arch FIPS production image available (arch-specific tags removed):"
+          echo "  docker pull mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips"
 
       - name: Create FIPS release
         if: startsWith(github.ref, 'refs/tags/v')
