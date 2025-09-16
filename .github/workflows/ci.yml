@@ -467,17 +467,17 @@ jobs:
           
           echo "✅ Clean unified multi-arch tag: mattermost/mattermost-push-proxy:${SHORT_SHA}"
           
-          # Cleanup temp tags using Docker Hub API
+          # Cleanup temp tags using Docker Hub API with org-level cleanup token
           echo "🗑️  Cleaning up temp tags from Docker Hub..."
           
           # Delete temp tags using Docker Hub API
           TEMP_AMD64_TAG="temp-${GITHUB_SHA}-amd64"
           TEMP_ARM64_TAG="temp-${GITHUB_SHA}-arm64"
           
-          # Get Docker Hub API token
+          # Get Docker Hub API token using org-level cleanup token
           DOCKER_HUB_TOKEN=$(curl -s -X POST \
             -H "Content-Type: application/json" \
-            -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_CLEANUP_TOKEN }}"}' \
             https://hub.docker.com/v2/users/login/ | jq -r .token)
           
           # Delete AMD64 temp tag
@@ -608,10 +608,10 @@ jobs:
           TEMP_AMD64_TAG="temp-${GITHUB_SHA}-fips-amd64"
           TEMP_ARM64_TAG="temp-${GITHUB_SHA}-fips-arm64"
           
-          # Get Docker Hub API token
+          # Get Docker Hub API token using org-level cleanup token
           DOCKER_HUB_TOKEN=$(curl -s -X POST \
             -H "Content-Type: application/json" \
-            -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_CLEANUP_TOKEN }}"}' \
             https://hub.docker.com/v2/users/login/ | jq -r .token)
           
           # Delete FIPS AMD64 temp tag
