@@ -1,5 +1,5 @@
 # Build the mattermost-push-proxy (FIPS version)
-ARG BUILD_IMAGE=cgr.dev/mattermost.com/go-msft-fips:1.24.4
+ARG BUILD_IMAGE=cgr.dev/mattermost.com/go-msft-fips:1.24.7
 ARG BASE_IMAGE=cgr.dev/mattermost.com/glibc-openssl-fips:15.1
 
 FROM ${BUILD_IMAGE} AS builder
