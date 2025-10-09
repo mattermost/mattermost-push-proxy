@@ -1,6 +1,6 @@
 module github.com/mattermost/mattermost-push-proxy
 
-go 1.24.7
+go 1.24.6
 
 require (
 	firebase.google.com/go/v4 v4.18.0
