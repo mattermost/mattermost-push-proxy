@@ -95,12 +95,12 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard
         uses: chainguard-dev/setup-chainctl@v0.4.0
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Build FIPS Docker Image for AMD64
         run: make build-image-fips-amd64-with-tags
 
@@ -118,12 +118,12 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard
         uses: chainguard-dev/setup-chainctl@v0.4.0
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Build FIPS Docker Image for ARM64
         run: make build-image-fips-arm64-with-tags
 
@@ -137,19 +137,19 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard
         uses: chainguard-dev/setup-chainctl@v0.4.0
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Build FIPS Docker image for scanning
         run: make build-image-fips-amd64-with-tags
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          image-ref: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master-fips' || format('dev-{0}-fips', github.sha) }}"
+          image-ref: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
           format: 'table'
 
   security-scan:
@@ -162,10 +162,10 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Build Docker image for scanning
         run: make build-image-amd64-with-tags
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
@@ -185,28 +185,28 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push AMD64 PR images
         run: |
           # Build with default APP_NAME (avoids filesystem issues)
           make build-image-amd64-with-tags
-          
-          # Retag with correct namespace for pushing  
+
+          # Retag with correct namespace for pushing
           docker tag mattermost-push-proxy:dev-${{ github.sha }}-amd64 mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
           docker tag mattermost-push-proxy:dev-${{ github.sha }} mattermost/mattermost-push-proxy:dev-${{ github.sha }}
-          
+
           # Push to correct namespace
           docker push mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64
           echo "✅ AMD64 image pushed: mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64"
-          
+
   pr-deploy-arm64:
-    name: PR Deploy ARM64  
+    name: PR Deploy ARM64
     runs-on: ubuntu-24.04-arm
     needs: [security-scan, build-arm64]
     if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
@@ -218,22 +218,22 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push ARM64 PR images
         run: |
           # Build with default APP_NAME (avoids filesystem issues)
           make build-image-arm64-with-tags
-          
+
           # Retag with correct namespace for pushing
           docker tag mattermost-push-proxy:dev-${{ github.sha }}-arm64 mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
           docker tag mattermost-push-proxy:dev-${{ github.sha }} mattermost/mattermost-push-proxy:dev-${{ github.sha }}
-          
+
           # Push to correct namespace
           docker push mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
           echo "✅ ARM64 image pushed: mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64"
@@ -252,7 +252,7 @@ jobs:
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Create and push multi-arch manifest
         run: |
           # Create multi-platform manifest for PR testing
@@ -260,7 +260,7 @@ jobs:
             --amend mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64 \
             --amend mattermost/mattermost-push-proxy:dev-${{ github.sha }}-arm64
           docker manifest push mattermost/mattermost-push-proxy:dev-${{ github.sha }}
-          
+
           # Clean up intermediate architecture-specific tags (like production)
           echo "Cleaning up intermediate architecture-specific tags..."
           docker rmi mattermost/mattermost-push-proxy:dev-${{ github.sha }}-amd64 2>/dev/null || true
@@ -271,7 +271,7 @@ jobs:
   pr-deploy-fips-amd64:
     name: PR Deploy FIPS AMD64
     runs-on: ubuntu-latest
-    needs: [fips-security-scan, fips-build-amd64] 
+    needs: [fips-security-scan, fips-build-amd64]
     if: github.event_name == 'pull_request' && github.repository_owner == 'mattermost' && github.actor != 'dependabot[bot]'
     permissions:
       contents: read
@@ -281,30 +281,30 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard Identity
         uses: chainguard-dev/setup-chainctl@v0.4.0
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push FIPS AMD64 PR images
         run: |
           # Build with default APP_NAME (avoids filesystem issues)
           make build-image-fips-amd64-with-tags
-          
+
           # Retag with correct namespace for pushing
-          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
-          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
-          
-          # Push to correct namespace  
-          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64
-          echo "✅ FIPS AMD64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64"
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }} mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}
+
+          # Push to correct namespace
+          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64
+          echo "✅ FIPS AMD64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64"
 
   pr-deploy-fips-arm64:
     name: PR Deploy FIPS ARM64
@@ -319,30 +319,30 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard Identity
         uses: chainguard-dev/setup-chainctl@v0.4.0
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push FIPS ARM64 PR images
         run: |
           # Build with default APP_NAME (avoids filesystem issues)
           make build-image-fips-arm64-with-tags
-          
+
           # Retag with correct namespace for pushing
-          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
-          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
-          
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64 mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64
+          docker tag mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }} mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}
+
           # Push to correct namespace
-          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
-          echo "✅ FIPS ARM64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64"
+          docker push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64
+          echo "✅ FIPS ARM64 image pushed: mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64"
 
   pr-deploy-fips-manifest:
     name: PR Deploy FIPS Manifest
@@ -358,21 +358,21 @@ jobs:
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Create and push FIPS multi-arch manifest
         run: |
           # Create multi-platform FIPS manifest for PR testing
-          docker manifest create mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips \
-            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 \
-            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64
-          docker manifest push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips
-          
+          docker manifest create mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }} \
+            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64 \
+            --amend mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64
+          docker manifest push mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}
+
           # Clean up intermediate FIPS architecture-specific tags (like production)
           echo "Cleaning up intermediate FIPS architecture-specific tags..."
-          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-amd64 2>/dev/null || true
-          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips-arm64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-amd64 2>/dev/null || true
+          docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64 2>/dev/null || true
           echo "✅ Multi-arch FIPS PR image available (arch-specific tags removed):"
-          echo "  docker pull mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-fips"
+          echo "  docker pull mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}"
 
 
 
@@ -389,13 +389,13 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push AMD64 image
         run: |
           # Build AMD64 image with temp tag for cleanup
@@ -419,14 +419,14 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Build and push ARM64 image  
+
+      - name: Build and push ARM64 image
         run: |
           # Build ARM64 image with temp tag for cleanup
           SHORT_SHA=${GITHUB_SHA:0:7}
@@ -449,13 +449,13 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Create and push multi-arch manifest
         run: |
           # Create multi-platform manifest using commit SHA
@@ -464,34 +464,34 @@ jobs:
             --amend mattermost/mattermost-push-proxy:temp-${GITHUB_SHA}-amd64 \
             --amend mattermost/mattermost-push-proxy:temp-${GITHUB_SHA}-arm64
           docker manifest push mattermost/mattermost-push-proxy:${SHORT_SHA}
-          
+
           echo "✅ Clean unified multi-arch tag: mattermost/mattermost-push-proxy:${SHORT_SHA}"
-          
+
           # Cleanup temp tags using Docker Hub API with org-level cleanup token
           echo "🗑️  Cleaning up temp tags from Docker Hub..."
-          
+
           # Delete temp tags using Docker Hub API
           TEMP_AMD64_TAG="temp-${GITHUB_SHA}-amd64"
           TEMP_ARM64_TAG="temp-${GITHUB_SHA}-arm64"
-          
+
           # Get Docker Hub API token using org-level cleanup token
           DOCKER_HUB_TOKEN=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_CLEANUP_TOKEN }}"}' \
             https://hub.docker.com/v2/users/login/ | jq -r .token)
-          
+
           # Delete AMD64 temp tag
           curl -X DELETE \
             -H "Authorization: JWT ${DOCKER_HUB_TOKEN}" \
             "https://hub.docker.com/v2/repositories/mattermost/mattermost-push-proxy/tags/${TEMP_AMD64_TAG}/" \
             && echo "✅ Deleted AMD64 temp tag" || echo "⚠️  AMD64 temp tag not found or already deleted"
-          
+
           # Delete ARM64 temp tag
           curl -X DELETE \
             -H "Authorization: JWT ${DOCKER_HUB_TOKEN}" \
             "https://hub.docker.com/v2/repositories/mattermost/mattermost-push-proxy/tags/${TEMP_ARM64_TAG}/" \
             && echo "✅ Deleted ARM64 temp tag" || echo "⚠️  ARM64 temp tag not found or already deleted"
-          
+
           echo "✅ Temp tags cleaned up from Docker Hub"
 
       - name: Create release
@@ -513,27 +513,27 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard Identity
         uses: chainguard-dev/setup-chainctl@v0.3.2
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push FIPS AMD64 image
         run: |
           # Build FIPS AMD64 image with temp tag for cleanup
           SHORT_SHA=${GITHUB_SHA:0:7}
           make build-image-fips-amd64-with-tags
           # Retag with temp namespace for later cleanup
-          docker tag mattermost/mattermost-push-proxy-fips:master-fips-amd64 mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-amd64
+          docker tag mattermost/mattermost-push-proxy-fips:master-amd64 mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-amd64
           # Push temp FIPS AMD64 image
-          docker push mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-amd64
+          docker push mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-amd64
 
   fips-deploy-arm64:
     name: FIPS Deploy ARM64
@@ -548,27 +548,27 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           fetch-depth: 0
-      
+
       - name: Setup Chainguard Identity
         uses: chainguard-dev/setup-chainctl@v0.3.2
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push FIPS ARM64 image
         run: |
           # Build FIPS ARM64 image with temp tag for cleanup
           SHORT_SHA=${GITHUB_SHA:0:7}
           make build-image-fips-arm64-with-tags
           # Retag with temp namespace for later cleanup
-          docker tag mattermost/mattermost-push-proxy-fips:master-fips-arm64 mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-arm64
+          docker tag mattermost/mattermost-push-proxy-fips:master-arm64 mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-arm64
           # Push temp FIPS ARM64 image
-          docker push mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-arm64
+          docker push mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-arm64
 
   fips-deploy:
     name: FIPS Deploy
@@ -583,49 +583,49 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: matterbuild
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Create and push FIPS multi-arch manifest
         run: |
           # Create multi-platform manifest for FIPS using commit SHA
           SHORT_SHA=${GITHUB_SHA:0:7}
-          docker manifest create mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips \
-            --amend mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-amd64 \
-            --amend mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-fips-arm64
-          docker manifest push mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips
-          
-          echo "✅ Clean unified FIPS multi-arch tag: mattermost/mattermost-push-proxy-fips:${SHORT_SHA}-fips"
-          
+          docker manifest create mattermost/mattermost-push-proxy-fips:${SHORT_SHA} \
+            --amend mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-amd64 \
+            --amend mattermost/mattermost-push-proxy-fips:temp-${GITHUB_SHA}-arm64
+          docker manifest push mattermost/mattermost-push-proxy-fips:${SHORT_SHA}
+
+          echo "✅ Clean unified FIPS multi-arch tag: mattermost/mattermost-push-proxy-fips:${SHORT_SHA}"
+
           # Cleanup temp FIPS tags using Docker Hub API
           echo "🗑️  Cleaning up temp FIPS tags from Docker Hub..."
-          
+
           # Delete temp FIPS tags using Docker Hub API
-          TEMP_AMD64_TAG="temp-${GITHUB_SHA}-fips-amd64"
-          TEMP_ARM64_TAG="temp-${GITHUB_SHA}-fips-arm64"
-          
+          TEMP_AMD64_TAG="temp-${GITHUB_SHA}-amd64"
+          TEMP_ARM64_TAG="temp-${GITHUB_SHA}-arm64"
+
           # Get Docker Hub API token using org-level cleanup token
           DOCKER_HUB_TOKEN=$(curl -s -X POST \
             -H "Content-Type: application/json" \
             -d '{"username": "matterbuild", "password": "${{ secrets.DOCKERHUB_CLEANUP_TOKEN }}"}' \
             https://hub.docker.com/v2/users/login/ | jq -r .token)
-          
+
           # Delete FIPS AMD64 temp tag
           curl -X DELETE \
             -H "Authorization: JWT ${DOCKER_HUB_TOKEN}" \
             "https://hub.docker.com/v2/repositories/mattermost/mattermost-push-proxy-fips/tags/${TEMP_AMD64_TAG}/" \
             && echo "✅ Deleted FIPS AMD64 temp tag" || echo "⚠️  FIPS AMD64 temp tag not found or already deleted"
-          
+
           # Delete FIPS ARM64 temp tag
           curl -X DELETE \
             -H "Authorization: JWT ${DOCKER_HUB_TOKEN}" \
             "https://hub.docker.com/v2/repositories/mattermost/mattermost-push-proxy-fips/tags/${TEMP_ARM64_TAG}/" \
             && echo "✅ Deleted FIPS ARM64 temp tag" || echo "⚠️  FIPS ARM64 temp tag not found or already deleted"
-          
+
           echo "✅ Temp FIPS tags cleaned up from Docker Hub"
 
       - name: Create FIPS release
@@ -633,6 +633,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make github-release-fips
-      
+
       - name: Cleanup
         run: make clean
