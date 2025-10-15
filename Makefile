@@ -370,7 +370,7 @@ build-image-fips: ## Build the FIPS docker image for mattermost-push-proxy
 		--build-arg TARGETOS=$(TARGET_OS) \
 		--build-arg TARGETARCH=$(TARGET_ARCH) \
 		-f docker/Dockerfile.fips \
-		-t $(APP_NAME_FIPS):$(APP_VERSION) .
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) .
 
 .PHONY: buildx-image-fips
 buildx-image-fips: ## Builds and pushes the FIPS docker image for mattermost-push-proxy
@@ -382,7 +382,7 @@ buildx-image-fips: ## Builds and pushes the FIPS docker image for mattermost-pus
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=amd64 \
 		-f docker/Dockerfile.fips \
-		-t $(APP_NAME_FIPS):$(APP_VERSION) \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
 		--push .
 
 ## --------------------------------------
@@ -398,8 +398,8 @@ build-image-fips-amd64-with-tags: ## Build FIPS Docker image for AMD64 with tags
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=amd64 \
 		-f docker/Dockerfile.fips \
-		-t $(APP_NAME_FIPS):$(APP_VERSION)-amd64 \
-		-t $(APP_NAME_FIPS):$(APP_VERSION) \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64 \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
 		.
 
 .PHONY: build-image-fips-arm64-with-tags
@@ -411,8 +411,8 @@ build-image-fips-arm64-with-tags: ## Build FIPS Docker image for ARM64 with tags
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=arm64 \
 		-f docker/Dockerfile.fips \
-		-t $(APP_NAME_FIPS):$(APP_VERSION)-arm64 \
-		-t $(APP_NAME_FIPS):$(APP_VERSION) \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64 \
+		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
 		.
 
 .PHONY: docker-build-fips-parallel-with-tags
@@ -422,20 +422,20 @@ docker-build-fips-parallel-with-tags: ## Build FIPS Docker images for both archi
 	$(MAKE) build-image-fips-arm64-with-tags &
 	wait
 	@echo "Creating multi-platform manifests with clean tags"
-	docker manifest create $(APP_NAME_FIPS):$(APP_VERSION) \
-		--amend $(APP_NAME_FIPS):$(APP_VERSION)-amd64 \
-		--amend $(APP_NAME_FIPS):$(APP_VERSION)-arm64
+	docker manifest create $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
+		--amend $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64 \
+		--amend $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64
 	@echo "✅ Multi-platform manifests created"
 
 .PHONY: docker-push-fips-with-tags
 docker-push-fips-with-tags: ## Push FIPS Docker images with unified tags
 	@echo "Pushing FIPS Docker images to registry"
-	docker push $(APP_NAME_FIPS):$(APP_VERSION)-amd64
-	docker push $(APP_NAME_FIPS):$(APP_VERSION)-arm64
-	docker manifest push $(APP_NAME_FIPS):$(APP_VERSION)
+	docker push $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64
+	docker push $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64
+	docker manifest push $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
 	@echo "Cleaning up intermediate architecture-specific tags from registry"
-	docker rmi $(APP_NAME_FIPS):$(APP_VERSION)-amd64
-	docker rmi $(APP_NAME_FIPS):$(APP_VERSION)-arm64
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64
 	@echo "✅ FIPS multi-platform images pushed with unified tags"
 	@echo "✅ Intermediate architecture-specific tags cleaned up from registry"
 
@@ -451,10 +451,10 @@ github-release-fips: ## Create GitHub release for FIPS version
 .PHONY: cleanup-fips-tags
 cleanup-fips-tags: ## Clean up intermediate FIPS architecture-specific tags from registry
 	@echo "Cleaning up intermediate FIPS architecture-specific tags from registry"
-	@echo "Removing AMD64 tag: $(APP_NAME_FIPS):$(APP_VERSION)-amd64"
-	docker rmi $(APP_NAME_FIPS):$(APP_VERSION)-amd64 2>/dev/null || true
-	@echo "Removing ARM64 tag: $(APP_NAME_FIPS):$(APP_VERSION)-arm64"
-	docker rmi $(APP_NAME_FIPS):$(APP_VERSION)-arm64 2>/dev/null || true
+	@echo "Removing AMD64 tag: $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64"
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64 2>/dev/null || true
+	@echo "Removing ARM64 tag: $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64"
+	docker rmi $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64 2>/dev/null || true
 	@echo "✅ Intermediate FIPS architecture-specific tags cleaned up from registry"
 
 .PHONY: docker-push
@@ -734,12 +734,12 @@ scan: ## Scan Docker image for vulnerabilities using Docker Scout
 .PHONY: scan-fips
 scan-fips: ## Scan FIPS Docker image for vulnerabilities using Docker Scout
 	@echo Running Docker Scout vulnerability scan for FIPS image
-	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION) | grep -q .; then \
-		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION) not found locally. Please build it first with:"; \
+	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_NO_V) | grep -q .; then \
+		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_NO_V) not found locally. Please build it first with:"; \
 		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
 		exit 1; \
 	fi
-	docker scout cves $(APP_NAME_FIPS):$(APP_VERSION)
+	docker scout cves $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
 
 .PHONY: trivy
 trivy: ## Scan Docker image for vulnerabilities using Trivy
@@ -754,12 +754,12 @@ trivy: ## Scan Docker image for vulnerabilities using Trivy
 .PHONY: trivy-fips
 trivy-fips: ## Scan FIPS Docker image for vulnerabilities using Trivy
 	@echo Running Trivy vulnerability scan for FIPS image
-	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION) | grep -q .; then \
-		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION) not found locally. Please build it first with:"; \
+	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_NO_V) | grep -q .; then \
+		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_NO_V) not found locally. Please build it first with:"; \
 		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
 		exit 1; \
 	fi
-	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM $(APP_NAME_FIPS):$(APP_VERSION)
+	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
 
 .PHONY: security-all
 security-all: ## Run all vulnerability scans (Docker Scout and Trivy) for both regular and FIPS images
