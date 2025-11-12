@@ -39,9 +39,10 @@ type ApplePushSettings struct {
 }
 
 type AndroidPushSettings struct {
-	Type                string
-	AndroidAPIKey       string `json:"AndroidApiKey"`
-	ServiceFileLocation string `json:"ServiceFileLocation"`
+	Type                         string
+	AndroidAPIKey                string `json:"AndroidApiKey"`
+	ServiceFileLocation          string `json:"ServiceFileLocation"`
+	UseBasicNotificationTemplate bool   `json:"UseBasicNotificationTemplate"`
 }
 
 // FindConfigFile searches for the filepath in a list of directories

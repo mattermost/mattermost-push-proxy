@@ -78,6 +78,10 @@ func (me *AndroidNotificationServer) Initialize() error {
 		return errors.New("Android push notifications not configured.  Missing ServiceFileLocation.")
 	}
 
+	if me.AndroidPushSettings.UseBasicNotificationTemplate {
+		me.logger.Info("AndroidPushSettings.UseBasicNotificationTemplate enabled")
+	}
+
 	jsonKey, err := os.ReadFile(me.AndroidPushSettings.ServiceFileLocation)
 	if err != nil {
 		return fmt.Errorf("error reading service file: %v", err)
@@ -168,6 +172,13 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 		},
+	}
+
+	if me.AndroidPushSettings.UseBasicNotificationTemplate {
+		fcmMsg.Notification = &messaging.Notification{
+			Title: msg.ChannelName,
+			Body:  emoji.Sprint(msg.Message),
+		}
 	}
 
 	me.logger.Info(
