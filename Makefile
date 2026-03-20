@@ -741,8 +741,28 @@ scan-fips: ## Scan FIPS Docker image for vulnerabilities using Docker Scout
 	fi
 	docker scout cves $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
 
+.PHONY: grype
+grype: ## Scan Docker image for vulnerabilities using Grype
+	@echo Running Grype vulnerability scan
+	@if ! docker images -q ${APP_NAME}:${APP_VERSION_NO_V} | grep -q .; then \
+		echo "❌ Image ${APP_NAME}:${APP_VERSION_NO_V} not found locally. Please build it first with:"; \
+		echo "   make build-image-amd64-with-tags (or build-image-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	grype docker:${APP_NAME}:${APP_VERSION_NO_V} -o table --only-fixed
+
+.PHONY: grype-fips
+grype-fips: ## Scan FIPS Docker image for vulnerabilities using Grype
+	@echo Running Grype vulnerability scan for FIPS image
+	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_NO_V) | grep -q .; then \
+		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_NO_V) not found locally. Please build it first with:"; \
+		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
+		exit 1; \
+	fi
+	grype docker:$(APP_NAME_FIPS):$(APP_VERSION_NO_V) -o table --only-fixed
+
 .PHONY: security-all
-security-all: ## Run all vulnerability scans (Docker Scout) for both regular and FIPS images
+security-all: ## Run all vulnerability scans (Docker Scout and Grype) for both regular and FIPS images
 	@echo "🔍 Running comprehensive security scans for all images..."
 	@echo ""
 	@echo "=========================================="
@@ -756,6 +776,15 @@ security-all: ## Run all vulnerability scans (Docker Scout) for both regular and
 	$(MAKE) scan-fips
 	@echo ""
 	@echo "=========================================="
+	@echo "🛡️  Grype - Regular Image"
+	@echo "=========================================="
+	$(MAKE) grype
+	@echo ""
+	@echo "=========================================="
+	@echo "🛡️  Grype - FIPS Image"
+	@echo "=========================================="
+	$(MAKE) grype-fips
+	@echo ""
 	@echo "✅ All security scans completed!"
 
 .PHONY: security-build-and-scan
