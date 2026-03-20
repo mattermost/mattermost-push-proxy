@@ -146,12 +146,6 @@ jobs:
       - name: Build FIPS Docker image for scanning
         run: make build-image-fips-amd64-with-tags
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          image-ref: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
-          format: 'table'
-
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -165,12 +159,6 @@ jobs:
 
       - name: Build Docker image for scanning
         run: make build-image-amd64-with-tags
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          image-ref: "mattermost-push-proxy:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
-          format: 'table'
 
   pr-deploy-amd64:
     name: PR Deploy AMD64
