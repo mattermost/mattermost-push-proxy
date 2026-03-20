@@ -146,6 +146,13 @@ jobs:
       - name: Build FIPS Docker image for scanning
         run: make build-image-fips-amd64-with-tags
 
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        with:
+          image: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
+          output-format: table
+          fail-build: false
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -159,6 +166,13 @@ jobs:
 
       - name: Build Docker image for scanning
         run: make build-image-amd64-with-tags
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        with:
+          image: "mattermost-push-proxy:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
+          output-format: table
+          fail-build: false
 
   pr-deploy-amd64:
     name: PR Deploy AMD64
