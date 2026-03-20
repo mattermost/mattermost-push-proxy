@@ -741,28 +741,8 @@ scan-fips: ## Scan FIPS Docker image for vulnerabilities using Docker Scout
 	fi
 	docker scout cves $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
 
-.PHONY: trivy
-trivy: ## Scan Docker image for vulnerabilities using Trivy
-	@echo Running Trivy vulnerability scan
-	@if ! docker images -q ${APP_NAME}:${APP_VERSION_NO_V} | grep -q .; then \
-		echo "❌ Image ${APP_NAME}:${APP_VERSION_NO_V} not found locally. Please build it first with:"; \
-		echo "   make build-image-amd64-with-tags (or build-image-arm64-with-tags)"; \
-		exit 1; \
-	fi
-	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM ${APP_NAME}:${APP_VERSION_NO_V}
-
-.PHONY: trivy-fips
-trivy-fips: ## Scan FIPS Docker image for vulnerabilities using Trivy
-	@echo Running Trivy vulnerability scan for FIPS image
-	@if ! docker images -q $(APP_NAME_FIPS):$(APP_VERSION_NO_V) | grep -q .; then \
-		echo "❌ Image $(APP_NAME_FIPS):$(APP_VERSION_NO_V) not found locally. Please build it first with:"; \
-		echo "   make build-image-fips-amd64-with-tags (or build-image-fips-arm64-with-tags)"; \
-		exit 1; \
-	fi
-	trivy image --format table --exit-code 0 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH,MEDIUM $(APP_NAME_FIPS):$(APP_VERSION_NO_V)
-
 .PHONY: security-all
-security-all: ## Run all vulnerability scans (Docker Scout and Trivy) for both regular and FIPS images
+security-all: ## Run all vulnerability scans (Docker Scout) for both regular and FIPS images
 	@echo "🔍 Running comprehensive security scans for all images..."
 	@echo ""
 	@echo "=========================================="
@@ -776,15 +756,6 @@ security-all: ## Run all vulnerability scans (Docker Scout and Trivy) for both r
 	$(MAKE) scan-fips
 	@echo ""
 	@echo "=========================================="
-	@echo "🛡️  Trivy - Regular Image"
-	@echo "=========================================="
-	$(MAKE) trivy
-	@echo ""
-	@echo "=========================================="
-	@echo "🛡️  Trivy - FIPS Image"
-	@echo "=========================================="
-	$(MAKE) trivy-fips
-	@echo ""
 	@echo "✅ All security scans completed!"
 
 .PHONY: security-build-and-scan
