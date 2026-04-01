@@ -97,7 +97,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -120,7 +120,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -139,7 +139,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -147,7 +147,7 @@ jobs:
         run: make build-image-fips-amd64-with-tags
 
       - name: Run Grype vulnerability scanner
-        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
           image: "mattermost/mattermost-push-proxy-fips:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
           output-format: table
@@ -168,7 +168,7 @@ jobs:
         run: make build-image-amd64-with-tags
 
       - name: Run Grype vulnerability scanner
-        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
           image: "mattermost-push-proxy:${{ github.ref == 'refs/heads/master' && 'master' || format('dev-{0}', github.sha) }}"
           output-format: table
@@ -285,7 +285,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard Identity
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -323,7 +323,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard Identity
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -517,7 +517,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard Identity
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
@@ -552,7 +552,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Chainguard Identity
-        uses: chainguard-dev/setup-chainctl@c125f765e82b09a42af3185f3214465314d75c5d # v0.5.0
+        uses: chainguard-dev/setup-chainctl@2cddd35a2f120d9973e58094dc6878c93cf58c28 # v0.5.1
         with:
           identity: ${{ secrets.CHAINGUARD_IDENTITY }}
 
