@@ -31,11 +31,13 @@
     "AndroidPushSettings": [
         {
             "Type":"android",
-            "ServiceFileLocation":""
+            "ServiceFileLocation":"",
+            "UseBasicNotificationTemplate":false
         },
         {
             "Type":"android_rn",
-            "ServiceFileLocation":""
+            "ServiceFileLocation":"",
+            "UseBasicNotificationTemplate":false
         }
     ],
     "EnableConsoleLog": true,
