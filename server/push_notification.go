@@ -13,6 +13,15 @@ const (
 	PushTypeSession     = "session"
 	PushTypeTest        = "test"
 
+	// PushSubTypeCalls marks a notification originating from the Calls plugin.
+	PushSubTypeCalls = "calls"
+
+	// VoIP-prefixed Apple platforms. These platforms reuse the existing
+	// apple_rn / apple_rnbeta APNs target (same key, same bundle); the prefix
+	// tells the Apple notification server to emit a VoIP-shaped APNs request
+	// (apns-push-type=voip, topic=<bundle>.voip).
+	applePlatformVoIPPrefix = "apple_voip_"
+
 	PushMessageV2 = "v2"
 
 	PushSoundNone = "none"

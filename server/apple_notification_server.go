@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/kyokomi/emoji"
@@ -117,6 +118,9 @@ func (me *AppleNotificationServer) Initialize() error {
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+	if strings.HasPrefix(msg.Platform, applePlatformVoIPPrefix) {
+		return me.sendVoIPNotification(msg)
+	}
 
 	data := payload.NewPayload()
 	if msg.Badge == 0 && msg.Type == PushTypeClear && msg.AppVersion > 1 {
@@ -229,57 +233,68 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
-	if me.AppleClient != nil {
-		me.logger.Info(
-			"Sending apple push notification",
-			mlog.String("device", me.ApplePushSettings.Type),
-			mlog.String("type", msg.Type),
-			mlog.String("ack_id", msg.AckID),
+	return me.dispatchAndHandleResponse(notification, msg, pushType)
+}
+
+// dispatchAndHandleResponse sends the notification through APNs, handles
+// transport errors, decodes the response into a PushResponse, and updates
+// metrics. Shared between the standard alert and VoIP send paths.
+func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType string) PushResponse {
+	if me.AppleClient == nil {
+		return NewOkPushResponse()
+	}
+
+	me.logger.Info(
+		"Sending apple push notification",
+		mlog.String("device", me.ApplePushSettings.Type),
+		mlog.String("type", msg.Type),
+		mlog.String("sub_type", string(msg.SubType)),
+		mlog.String("ack_id", msg.AckID),
+	)
+
+	res, err := me.SendNotificationWithRetry(notification)
+	if err != nil {
+		me.logger.Error(
+			"Failed to send apple push",
+			mlog.String("sid", msg.ServerID),
+			mlog.String("did", msg.DeviceID),
+			mlog.Err(err),
+			mlog.String("type", me.ApplePushSettings.Type),
 		)
-
-		res, err := me.SendNotificationWithRetry(notification)
-		if err != nil {
-			me.logger.Error(
-				"Failed to send apple push",
-				mlog.String("sid", msg.ServerID),
-				mlog.String("did", msg.DeviceID),
-				mlog.Err(err),
-				mlog.String("type", me.ApplePushSettings.Type),
-			)
-			if me.metrics != nil {
-				me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
-			}
-			return NewErrorPushResponse("unknown transport error")
+		if me.metrics != nil {
+			me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
 		}
+		return NewErrorPushResponse("unknown transport error")
+	}
 
-		if !res.Sent() {
-			if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
-				me.logger.Info(
-					"Failed to send apple push sending remove code res",
-					mlog.String("ApnsID", res.ApnsID),
-					mlog.String("reason", res.Reason),
-					mlog.Int("code", res.StatusCode),
-					mlog.String("type", me.ApplePushSettings.Type),
-				)
-				if me.metrics != nil {
-					me.metrics.incrementRemoval(PushNotifyApple, pushType, res.Reason)
-				}
-				return NewRemovePushResponse()
-			}
-
-			me.logger.Error(
-				"Failed to send apple push with res",
+	if !res.Sent() {
+		if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
+			me.logger.Info(
+				"Failed to send apple push sending remove code res",
 				mlog.String("ApnsID", res.ApnsID),
 				mlog.String("reason", res.Reason),
 				mlog.Int("code", res.StatusCode),
 				mlog.String("type", me.ApplePushSettings.Type),
 			)
 			if me.metrics != nil {
-				me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
+				me.metrics.incrementRemoval(PushNotifyApple, pushType, res.Reason)
 			}
-			return NewErrorPushResponse("unknown send response error")
+			return NewRemovePushResponse()
 		}
+
+		me.logger.Error(
+			"Failed to send apple push with res",
+			mlog.String("ApnsID", res.ApnsID),
+			mlog.String("reason", res.Reason),
+			mlog.Int("code", res.StatusCode),
+			mlog.String("type", me.ApplePushSettings.Type),
+		)
+		if me.metrics != nil {
+			me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
+		}
+		return NewErrorPushResponse("unknown send response error")
 	}
+
 	if me.metrics != nil {
 		if msg.AckID != "" {
 			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType)
@@ -288,6 +303,67 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	return NewOkPushResponse()
+}
+
+// sendVoIPNotification dispatches a PushKit VoIP push using the same APNs key
+// configured for the standard target. The payload carries the routing fields
+// the mobile client needs to wake the call UI; the canonical Call state
+// (callID, hostID, participants, etc.) is fetched via the existing
+// GET /calls REST roundtrip once the app foregrounds and reconnects its
+// WebSocket.
+func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) PushResponse {
+	notification := me.buildVoIPNotification(msg)
+
+	if me.metrics != nil {
+		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type)
+	}
+
+	return me.dispatchAndHandleResponse(notification, msg, msg.Type)
+}
+
+// buildVoIPNotification constructs the APNs notification for a VoIP push.
+// Extracted so tests can verify the on-the-wire shape (topic, push type,
+// priority, custom keys) without needing a real APNs client.
+func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) *apns.Notification {
+	data := payload.NewPayload().
+		ContentAvailable().
+		Custom("type", msg.Type).
+		Custom("sub_type", msg.SubType).
+		Custom("channel_id", msg.ChannelID).
+		Custom("server_id", msg.ServerID).
+		Custom("post_id", msg.PostID).
+		Custom("thread_id", msg.RootID).
+		Custom("sender_id", msg.SenderID).
+		Custom("id_loaded", msg.IsIDLoaded)
+
+	// sender_name and channel_name are only populated by the server when
+	// PushNotificationContents is FullNotification or GenericNotification —
+	// for IdLoadedNotification they're omitted on purpose and the device
+	// fetches them via the ack-receipt round-trip.
+	if msg.SenderName != "" {
+		data.Custom("sender_name", msg.SenderName)
+	}
+	if msg.ChannelName != "" {
+		data.Custom("channel_name", msg.ChannelName)
+	}
+
+	if msg.AckID != "" {
+		data.Custom("ack_id", msg.AckID)
+	}
+
+	if msg.Signature == "" {
+		data.Custom("signature", "NO_SIGNATURE")
+	} else {
+		data.Custom("signature", msg.Signature)
+	}
+
+	return &apns.Notification{
+		DeviceToken: msg.DeviceID,
+		Payload:     data,
+		Topic:       me.ApplePushSettings.ApplePushTopic + ".voip",
+		Priority:    apns.PriorityHigh,
+		PushType:    apns.PushTypeVOIP,
+	}
 }
 
 func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.Notification) (*apns.Response, error) {
@@ -300,7 +376,7 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 	generalContext, cancelGeneralContext := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancelGeneralContext()
 
-	for retries := 0; retries < MAX_RETRIES; retries++ {
+	for retries := range MAX_RETRIES {
 		start := time.Now()
 
 		retryContext, cancelRetryContext := context.WithTimeout(generalContext, me.retryTimeout)

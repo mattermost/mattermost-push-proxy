@@ -241,7 +241,16 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	if server, ok := s.pushTargets[msg.Platform]; ok {
+	// VoIP variants reuse the existing apple_rn / apple_rnbeta APNs target.
+	// Strip the "_voip_" infix to find the configured target; the original
+	// platform value stays on the message so the Apple notification server
+	// can detect VoIP and emit the right APNs request shape.
+	targetPlatform := msg.Platform
+	if strings.HasPrefix(targetPlatform, applePlatformVoIPPrefix) {
+		targetPlatform = "apple_" + strings.TrimPrefix(targetPlatform, applePlatformVoIPPrefix)
+	}
+
+	if server, ok := s.pushTargets[targetPlatform]; ok {
 		rMsg := server.SendNotification(&msg)
 		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
 			s.logger.Error("Failed to write message", mlog.Err(err2))
