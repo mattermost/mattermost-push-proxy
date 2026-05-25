@@ -58,19 +58,19 @@ func TestBuildVoIPNotification(t *testing.T) {
 
 	t.Run("payload carries the routing fields the device needs", func(t *testing.T) {
 		msg := &PushNotification{
-			DeviceID:   "tok",
-			Type:       PushTypeMessage,
-			SubType:    PushSubTypeCalls,
-			ChannelID:  "channel1",
-			ServerID:   "server1",
-			PostID:     "post1",
-			RootID:     "thread1",
-			SenderID:   "sender1",
-			SenderName: "Sender Name",
+			DeviceID:    "tok",
+			Type:        PushTypeMessage,
+			SubType:     PushSubTypeCalls,
+			ChannelID:   "channel1",
+			ServerID:    "server1",
+			PostID:      "post1",
+			RootID:      "thread1",
+			SenderID:    "sender1",
+			SenderName:  "Sender Name",
 			ChannelName: "Channel Name",
-			IsIDLoaded: true,
-			AckID:      "ack1",
-			Signature:  "signed",
+			IsIDLoaded:  true,
+			AckID:       "ack1",
+			Signature:   "signed",
 		}
 		body := marshalPayload(t, srv.buildVoIPNotification(msg))
 

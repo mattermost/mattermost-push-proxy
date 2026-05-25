@@ -248,7 +248,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 		"Sending apple push notification",
 		mlog.String("device", me.ApplePushSettings.Type),
 		mlog.String("type", msg.Type),
-		mlog.String("sub_type", string(msg.SubType)),
+		mlog.String("sub_type", msg.SubType),
 		mlog.String("ack_id", msg.AckID),
 	)
 
@@ -260,7 +260,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.String("did", msg.DeviceID),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
-			mlog.String("sub_type", string(msg.SubType)),
+			mlog.String("sub_type", msg.SubType),
 		)
 		if me.metrics != nil {
 			me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
