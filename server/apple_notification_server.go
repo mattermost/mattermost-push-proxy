@@ -260,6 +260,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.String("did", msg.DeviceID),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
+			mlog.String("sub_type", string(msg.SubType)),
 		)
 		if me.metrics != nil {
 			me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
@@ -345,6 +346,13 @@ func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) 
 	}
 	if msg.ChannelName != "" {
 		data.Custom("channel_name", msg.ChannelName)
+	}
+
+	// Category is used by the mobile client to distinguish flavors of a
+	// cancel push (e.g. "answered_elsewhere" so CallKit ends with
+	// .answeredElsewhere instead of the default .unanswered).
+	if msg.Category != "" {
+		data.Custom("category", msg.Category)
 	}
 
 	if msg.AckID != "" {

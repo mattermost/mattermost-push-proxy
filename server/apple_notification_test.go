@@ -135,6 +135,28 @@ func TestBuildVoIPNotification(t *testing.T) {
 		_, hasAck := body["ack_id"]
 		assert.False(t, hasAck, "ack_id should not appear when not populated")
 	})
+
+	t.Run("category is forwarded when set (used by mobile to pick CallKit end reason)", func(t *testing.T) {
+		msg := &PushNotification{
+			DeviceID: "tok",
+			Type:     PushTypeClear,
+			SubType:  PushSubTypeCalls,
+			Category: "answered_elsewhere",
+		}
+		body := marshalPayload(t, srv.buildVoIPNotification(msg))
+		assert.Equal(t, "answered_elsewhere", body["category"])
+	})
+
+	t.Run("category is omitted when empty", func(t *testing.T) {
+		msg := &PushNotification{
+			DeviceID: "tok",
+			Type:     PushTypeMessage,
+			SubType:  PushSubTypeCalls,
+		}
+		body := marshalPayload(t, srv.buildVoIPNotification(msg))
+		_, hasCategory := body["category"]
+		assert.False(t, hasCategory, "category should not appear when not populated")
+	})
 }
 
 func marshalPayload(t *testing.T, n *apns.Notification) map[string]interface{} {
