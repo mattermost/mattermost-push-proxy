@@ -173,7 +173,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType)
+		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, "")
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
@@ -233,37 +233,38 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
-	return me.dispatchAndHandleResponse(notification, msg, pushType)
+	return me.dispatchAndHandleResponse(notification, msg, pushType, "")
 }
 
-// dispatchAndHandleResponse sends the notification through APNs, handles
-// transport errors, decodes the response into a PushResponse, and updates
-// metrics. Shared between the standard alert and VoIP send paths.
-func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType string) PushResponse {
+func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType, transport string) PushResponse {
 	if me.AppleClient == nil {
 		return NewOkPushResponse()
 	}
 
-	me.logger.Info(
-		"Sending apple push notification",
+	logFields := []mlog.Field{
 		mlog.String("device", me.ApplePushSettings.Type),
 		mlog.String("type", msg.Type),
-		mlog.String("sub_type", msg.SubType),
 		mlog.String("ack_id", msg.AckID),
-	)
+	}
+	if transport != "" {
+		logFields = append(logFields, mlog.String("transport", transport))
+	}
+	me.logger.Info("Sending apple push notification", logFields...)
 
 	res, err := me.SendNotificationWithRetry(notification)
 	if err != nil {
-		me.logger.Error(
-			"Failed to send apple push",
+		errFields := []mlog.Field{
 			mlog.String("sid", msg.ServerID),
 			mlog.String("did", msg.DeviceID),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
-			mlog.String("sub_type", msg.SubType),
-		)
+		}
+		if transport != "" {
+			errFields = append(errFields, mlog.String("transport", transport))
+		}
+		me.logger.Error("Failed to send apple push", errFields...)
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyApple, pushType, "RequestError")
+			me.metrics.incrementFailure(PushNotifyApple, pushType, transport, "RequestError")
 		}
 		return NewErrorPushResponse("unknown transport error")
 	}
@@ -278,7 +279,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 				mlog.String("type", me.ApplePushSettings.Type),
 			)
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyApple, pushType, res.Reason)
+				me.metrics.incrementRemoval(PushNotifyApple, pushType, transport, res.Reason)
 			}
 			return NewRemovePushResponse()
 		}
@@ -291,16 +292,16 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.String("type", me.ApplePushSettings.Type),
 		)
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyApple, pushType, res.Reason)
+			me.metrics.incrementFailure(PushNotifyApple, pushType, transport, res.Reason)
 		}
 		return NewErrorPushResponse("unknown send response error")
 	}
 
 	if me.metrics != nil {
 		if msg.AckID != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType)
+			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType, transport)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyApple, pushType)
+			me.metrics.incrementSuccess(PushNotifyApple, pushType, transport)
 		}
 	}
 	return NewOkPushResponse()
@@ -316,10 +317,10 @@ func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) P
 	notification := me.buildVoIPNotification(msg)
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type)
+		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type, PushTransportVoIP)
 	}
 
-	return me.dispatchAndHandleResponse(notification, msg, msg.Type)
+	return me.dispatchAndHandleResponse(notification, msg, msg.Type, PushTransportVoIP)
 }
 
 // buildVoIPNotification constructs the APNs notification for a VoIP push.

@@ -16,6 +16,9 @@ const (
 	// PushSubTypeCalls marks a notification originating from the Calls plugin.
 	PushSubTypeCalls = "calls"
 
+	// PushTransportVoIP is the sub_type metric label value for VoIP pushes.
+	PushTransportVoIP = "voip"
+
 	// VoIP-prefixed Apple platforms. These platforms reuse the existing
 	// apple_rn / apple_rnbeta APNs target (same key, same bundle); the prefix
 	// tells the Apple notification server to emit a VoIP-shaped APNs request
