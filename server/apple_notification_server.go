@@ -323,9 +323,6 @@ func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) P
 	return me.dispatchAndHandleResponse(notification, msg, msg.Type, PushTransportVoIP)
 }
 
-// buildVoIPNotification constructs the APNs notification for a VoIP push.
-// Extracted so tests can verify the on-the-wire shape (topic, push type,
-// priority, custom keys) without needing a real APNs client.
 func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) *apns.Notification {
 	data := payload.NewPayload().
 		ContentAvailable().
