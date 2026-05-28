@@ -5,32 +5,58 @@ package server
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	apns "github.com/sideshow/apns2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestVoIPPlatformDispatchAlias(t *testing.T) {
+// SendNotification must route apple_voip_* platforms through the VoIP path
+// (observable via the transport="voip" metric label) and everything else
+// through the standard alert path (transport="").
+func TestSendNotificationTransportRouting(t *testing.T) {
 	for _, tc := range []struct {
-		name          string
-		inputPlatform string
-		expected      string
+		name     string
+		platform string
+		want     string
 	}{
-		{"apple_voip_rn aliases to apple_rn", "apple_voip_rn", "apple_rn"},
-		{"apple_voip_rnbeta aliases to apple_rnbeta", "apple_voip_rnbeta", "apple_rnbeta"},
-		{"apple_rn is unchanged", "apple_rn", "apple_rn"},
-		{"apple_rnbeta is unchanged", "apple_rnbeta", "apple_rnbeta"},
-		{"android_rn is unchanged", "android_rn", "android_rn"},
+		{"VoIP standard", "apple_voip_rn", PushTransportVoIP},
+		{"VoIP beta", "apple_voip_rnbeta", PushTransportVoIP},
+		{"standard alert", "apple_rn", ""},
+		{"standard alert beta", "apple_rnbeta", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			target := tc.inputPlatform
-			if strings.HasPrefix(target, applePlatformVoIPPrefix) {
-				target = "apple_" + strings.TrimPrefix(target, applePlatformVoIPPrefix)
+			m := newMetrics()
+			defer m.shutdown()
+
+			srv := &AppleNotificationServer{
+				ApplePushSettings: ApplePushSettings{
+					ApplePushTopic: "com.mattermost.rnbeta",
+				},
+				metrics: m,
 			}
-			assert.Equal(t, tc.expected, target)
+
+			msg := &PushNotification{
+				Platform: tc.platform,
+				DeviceID: "tok",
+				Type:     PushTypeMessage,
+			}
+			resp := srv.SendNotification(msg)
+			require.Equal(t, NewOkPushResponse(), resp)
+
+			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, tc.want))
+			require.Equal(t, float64(1), got, "expected notifications_total{transport=%q} to be 1", tc.want)
+
+			// And the opposite transport label is untouched, so we know the
+			// branch picked the right one rather than incrementing both.
+			other := ""
+			if tc.want == "" {
+				other = PushTransportVoIP
+			}
+			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, other))
+			require.Equal(t, float64(0), otherCount, "expected notifications_total{transport=%q} to be 0", other)
 		})
 	}
 }
@@ -80,8 +106,8 @@ func TestBuildVoIPNotification(t *testing.T) {
 		assert.Equal(t, "post1", body["post_id"])
 		assert.Equal(t, "thread1", body["thread_id"])
 		assert.Equal(t, "sender1", body["sender_id"])
-		assert.Equal(t, string(PushTypeMessage), body["type"])
-		assert.Equal(t, string(PushSubTypeCalls), body["sub_type"])
+		assert.Equal(t, PushTypeMessage, body["type"])
+		assert.Equal(t, PushSubTypeCalls, body["sub_type"])
 		assert.Equal(t, true, body["id_loaded"])
 		assert.Equal(t, "ack1", body["ack_id"])
 		assert.Equal(t, "signed", body["signature"])
@@ -91,7 +117,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 		assert.Equal(t, "Channel Name", body["channel_name"])
 
 		// content-available=1 so iOS wakes the app even when locked.
-		aps, ok := body["aps"].(map[string]interface{})
+		aps, ok := body["aps"].(map[string]any)
 		require.True(t, ok, "aps section missing")
 		assert.EqualValues(t, 1, aps["content-available"])
 	})
@@ -159,11 +185,11 @@ func TestBuildVoIPNotification(t *testing.T) {
 	})
 }
 
-func marshalPayload(t *testing.T, n *apns.Notification) map[string]interface{} {
+func marshalPayload(t *testing.T, n *apns.Notification) map[string]any {
 	t.Helper()
 	raw, err := n.MarshalJSON()
 	require.NoError(t, err)
-	var body map[string]interface{}
+	var body map[string]any
 	require.NoError(t, json.Unmarshal(raw, &body))
 	return body
 }
