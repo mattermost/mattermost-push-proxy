@@ -33,7 +33,7 @@ const (
 )
 
 type NotificationServer interface {
-	SendNotification(msg *PushNotification) PushResponse
+	SendNotification(appVersion int, msg *model.PushNotification) PushResponse
 	Initialize() error
 }
 
@@ -177,7 +177,7 @@ func (s *Server) responseTimeMiddleware(f func(w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) {
-	var msg PushNotification
+	var msg model.PushNotification
 	err := json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
 		rMsg := fmt.Sprintf("Failed to read message body: %v", err)
@@ -192,7 +192,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if msg.ServerID == "" {
+	if msg.ServerId == "" {
 		rMsg := "Failed because of missing server Id"
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
@@ -205,8 +205,8 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if msg.DeviceID == "" {
-		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerID)
+	if msg.DeviceId == "" {
+		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId)
 		s.logger.Error(rMsg)
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
@@ -227,15 +227,14 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Parse the app version if available
-	index := strings.Index(msg.Platform, "-v")
-	platform := msg.Platform
-	msg.AppVersion = 1
-	if index > -1 {
+	appVersion := 1
+	if index := strings.Index(msg.Platform, "-v"); index > -1 {
+		platform := msg.Platform
 		msg.Platform = platform[:index]
 		appVersionString := platform[index+2:]
 		version, e := strconv.Atoi(appVersionString)
 		if e == nil {
-			msg.AppVersion = version
+			appVersion = version
 		} else {
 			rMsg := fmt.Sprintf("Could not determine the app version in %v appVersion=%v", msg.Platform, appVersionString)
 			s.logger.Error(rMsg)
@@ -243,13 +242,13 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if server, ok := s.pushTargets[msg.Platform]; ok {
-		rMsg := server.SendNotification(&msg)
+		rMsg := server.SendNotification(appVersion, &msg)
 		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
 			s.logger.Error("Failed to write message", mlog.Err(err2))
 		}
 		return
 	}
-	rMsg := fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerID)
+	rMsg := fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerId)
 	s.logger.Error(rMsg)
 	resp := NewErrorPushResponse(rMsg)
 	err = json.NewEncoder(w).Encode(resp)

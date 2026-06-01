@@ -13,6 +13,7 @@ import (
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,10 +32,10 @@ func TestBasicServer(t *testing.T) {
 
 	time.Sleep(time.Second * 2)
 
-	msg := PushNotification{}
+	msg := model.PushNotification{}
 	msg.Message = "test"
 	msg.Badge = 1
-	msg.DeviceID = "test"
+	msg.DeviceId = "test"
 
 	// Test for missing server Id
 	client := http.Client{}
@@ -51,7 +52,7 @@ func TestBasicServer(t *testing.T) {
 	}
 
 	// Test for missing platform type
-	msg.ServerID = "test"
+	msg.ServerId = "test"
 	client = http.Client{}
 	buf, err = json.Marshal(msg)
 	require.NoError(t, err)
@@ -97,12 +98,12 @@ func TestAndroidSend(t *testing.T) {
 
 	time.Sleep(time.Second * 2)
 
-	msg := PushNotification{}
+	msg := model.PushNotification{}
 	msg.Message = "test"
 	msg.Badge = 1
 	msg.Platform = PushNotifyAndroid
-	msg.ServerID = "test"
-	msg.DeviceID = "test"
+	msg.ServerId = "test"
+	msg.DeviceId = "test"
 
 	client := http.Client{}
 	buf, err := json.Marshal(msg)

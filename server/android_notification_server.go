@@ -114,16 +114,16 @@ func (me *AndroidNotificationServer) Initialize() error {
 	return nil
 }
 
-func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNotification) PushResponse {
 	pushType := msg.Type
 	data := map[string]string{
-		"ack_id":         msg.AckID,
+		"ack_id":         msg.AckId,
 		"type":           pushType,
-		"sub_type":       msg.SubType,
+		"sub_type":       string(msg.SubType),
 		"version":        msg.Version,
-		"channel_id":     msg.ChannelID,
+		"channel_id":     msg.ChannelId,
 		"is_crt_enabled": strconv.FormatBool(msg.IsCRTEnabled),
-		"server_id":      msg.ServerID,
+		"server_id":      msg.ServerId,
 		"category":       msg.Category,
 	}
 
@@ -131,8 +131,8 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["badge"] = strconv.Itoa(msg.Badge)
 	}
 
-	if msg.RootID != "" {
-		data["root_id"] = msg.RootID
+	if msg.RootId != "" {
+		data["root_id"] = msg.RootId
 	}
 
 	if msg.Signature == "" {
@@ -141,20 +141,20 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["signature"] = msg.Signature
 	}
 
-	if msg.IsIDLoaded {
-		data["post_id"] = msg.PostID
+	if msg.IsIdLoaded {
+		data["post_id"] = msg.PostId
 		data["message"] = msg.Message
 		data["id_loaded"] = "true"
-		data["sender_id"] = msg.SenderID
+		data["sender_id"] = msg.SenderId
 		data["sender_name"] = "Someone"
-		data["team_id"] = msg.TeamID
+		data["team_id"] = msg.TeamId
 	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
-		data["team_id"] = msg.TeamID
-		data["sender_id"] = msg.SenderID
+		data["team_id"] = msg.TeamId
+		data["sender_id"] = msg.SenderId
 		data["sender_name"] = msg.SenderName
 		data["message"] = emoji.Sprint(msg.Message)
 		data["channel_name"] = msg.ChannelName
-		data["post_id"] = msg.PostID
+		data["post_id"] = msg.PostId
 		data["override_username"] = msg.OverrideUsername
 		data["override_icon_url"] = msg.OverrideIconURL
 		data["from_webhook"] = msg.FromWebhook
@@ -164,7 +164,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, model.PushTransportStandard)
 	}
 	fcmMsg := &messaging.Message{
-		Token: msg.DeviceID,
+		Token: msg.DeviceId,
 		Data:  data,
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
@@ -175,7 +175,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		"Sending android push notification",
 		mlog.String("device", me.AndroidPushSettings.Type),
 		mlog.String("type", msg.Type),
-		mlog.String("ack_id", msg.AckID),
+		mlog.String("ack_id", msg.AckId),
 	)
 	err := me.SendNotificationWithRetry(fcmMsg)
 	if err != nil {
@@ -186,8 +186,8 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 		me.logger.Error(
 			"Failed to send FCM push",
-			mlog.String("sid", msg.ServerID),
-			mlog.String("did", redactToken(msg.DeviceID)),
+			mlog.String("sid", msg.ServerId),
+			mlog.String("did", redactToken(msg.DeviceId)),
 			mlog.Err(err),
 			mlog.String("type", me.AndroidPushSettings.Type),
 			mlog.String("errorCode", errorCode),
@@ -225,7 +225,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if me.metrics != nil {
-		if msg.AckID != "" {
+		if msg.AckId != "" {
 			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, model.PushTransportStandard)
 		} else {
 			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, model.PushTransportStandard)

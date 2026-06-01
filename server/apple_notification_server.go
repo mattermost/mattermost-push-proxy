@@ -117,26 +117,26 @@ func (me *AppleNotificationServer) Initialize() error {
 	return fmt.Errorf("apple push notifications not configured: missing ApplePushCertPrivate for type=%v", me.ApplePushSettings.Type)
 }
 
-func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.PushNotification) PushResponse {
 	if msg.Transport == model.PushTransportVoIP {
 		return me.sendVoIPNotification(msg)
 	}
 
 	data := payload.NewPayload()
-	if msg.Badge == 0 && msg.Type == PushTypeClear && msg.AppVersion > 1 {
+	if msg.Badge == 0 && msg.Type == PushTypeClear && appVersion > 1 {
 		data.Badge(1)
 	} else if msg.Badge != -1 {
 		data.Badge(msg.Badge)
 	}
 
 	notification := &apns.Notification{}
-	notification.DeviceToken = msg.DeviceID
+	notification.DeviceToken = msg.DeviceId
 	notification.Payload = data
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
 	notification.Priority = apns.PriorityHigh
 
 	pushType := msg.Type
-	if msg.IsIDLoaded {
+	if msg.IsIdLoaded {
 		data.Category(msg.Category)
 		data.Sound("default")
 		data.Custom("version", msg.Version)
@@ -177,21 +177,21 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
-	data.Custom("server_id", msg.ServerID)
+	data.Custom("server_id", msg.ServerId)
 
-	if msg.AckID != "" {
-		data.Custom("ack_id", msg.AckID)
+	if msg.AckId != "" {
+		data.Custom("ack_id", msg.AckId)
 	}
 
 	data.Custom("is_crt_enabled", msg.IsCRTEnabled)
 
-	if msg.ChannelID != "" {
-		data.Custom("channel_id", msg.ChannelID)
+	if msg.ChannelId != "" {
+		data.Custom("channel_id", msg.ChannelId)
 
-		if msg.IsCRTEnabled && msg.RootID != "" {
-			data.ThreadID(msg.RootID)
+		if msg.IsCRTEnabled && msg.RootId != "" {
+			data.ThreadID(msg.RootId)
 		} else {
-			data.ThreadID(msg.ChannelID)
+			data.ThreadID(msg.ChannelId)
 		}
 	}
 
@@ -201,24 +201,24 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("signature", msg.Signature)
 	}
 
-	if msg.TeamID != "" {
-		data.Custom("team_id", msg.TeamID)
+	if msg.TeamId != "" {
+		data.Custom("team_id", msg.TeamId)
 	}
 
-	if msg.SenderID != "" {
-		data.Custom("sender_id", msg.SenderID)
+	if msg.SenderId != "" {
+		data.Custom("sender_id", msg.SenderId)
 	}
 
 	if msg.SenderName != "" {
 		data.Custom("sender_name", msg.SenderName)
 	}
 
-	if msg.PostID != "" {
-		data.Custom("post_id", msg.PostID)
+	if msg.PostId != "" {
+		data.Custom("post_id", msg.PostId)
 	}
 
-	if msg.RootID != "" {
-		data.Custom("root_id", msg.RootID)
+	if msg.RootId != "" {
+		data.Custom("root_id", msg.RootId)
 	}
 
 	if msg.OverrideUsername != "" {
@@ -236,7 +236,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	return me.dispatchAndHandleResponse(notification, msg, pushType, model.PushTransportStandard)
 }
 
-func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType string, transport model.PushTransport) PushResponse {
+func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *model.PushNotification, pushType string, transport model.PushTransport) PushResponse {
 	if me.AppleClient == nil {
 		return NewOkPushResponse()
 	}
@@ -244,7 +244,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	logFields := []mlog.Field{
 		mlog.String("device", me.ApplePushSettings.Type),
 		mlog.String("type", msg.Type),
-		mlog.String("ack_id", msg.AckID),
+		mlog.String("ack_id", msg.AckId),
 	}
 	if transport != model.PushTransportStandard {
 		logFields = append(logFields, mlog.String("transport", string(transport)))
@@ -254,8 +254,8 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	res, err := me.SendNotificationWithRetry(notification)
 	if err != nil {
 		errFields := []mlog.Field{
-			mlog.String("sid", msg.ServerID),
-			mlog.String("did", redactToken(msg.DeviceID)),
+			mlog.String("sid", msg.ServerId),
+			mlog.String("did", redactToken(msg.DeviceId)),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
 		}
@@ -298,7 +298,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	}
 
 	if me.metrics != nil {
-		if msg.AckID != "" {
+		if msg.AckId != "" {
 			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType, transport)
 		} else {
 			me.metrics.incrementSuccess(PushNotifyApple, pushType, transport)
@@ -313,7 +313,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 // (callID, hostID, participants, etc.) is fetched via the existing
 // GET /calls REST roundtrip once the app foregrounds and reconnects its
 // WebSocket.
-func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) PushResponse {
+func (me *AppleNotificationServer) sendVoIPNotification(msg *model.PushNotification) PushResponse {
 	notification := me.buildVoIPNotification(msg)
 
 	if me.metrics != nil {
@@ -323,17 +323,17 @@ func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) P
 	return me.dispatchAndHandleResponse(notification, msg, msg.Type, model.PushTransportVoIP)
 }
 
-func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) *apns.Notification {
+func (me *AppleNotificationServer) buildVoIPNotification(msg *model.PushNotification) *apns.Notification {
 	data := payload.NewPayload().
 		ContentAvailable().
 		Custom("type", msg.Type).
 		Custom("sub_type", msg.SubType).
-		Custom("channel_id", msg.ChannelID).
-		Custom("server_id", msg.ServerID).
-		Custom("post_id", msg.PostID).
-		Custom("thread_id", msg.RootID).
-		Custom("sender_id", msg.SenderID).
-		Custom("id_loaded", msg.IsIDLoaded)
+		Custom("channel_id", msg.ChannelId).
+		Custom("server_id", msg.ServerId).
+		Custom("post_id", msg.PostId).
+		Custom("thread_id", msg.RootId).
+		Custom("sender_id", msg.SenderId).
+		Custom("id_loaded", msg.IsIdLoaded)
 
 	// sender_name and channel_name are only populated by the server when
 	// PushNotificationContents is FullNotification or GenericNotification —
@@ -346,8 +346,8 @@ func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) 
 		data.Custom("channel_name", msg.ChannelName)
 	}
 
-	if msg.AckID != "" {
-		data.Custom("ack_id", msg.AckID)
+	if msg.AckId != "" {
+		data.Custom("ack_id", msg.AckId)
 	}
 
 	if msg.Signature == "" {
@@ -357,7 +357,7 @@ func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) 
 	}
 
 	return &apns.Notification{
-		DeviceToken: msg.DeviceID,
+		DeviceToken: msg.DeviceId,
 		Payload:     data,
 		Topic:       me.ApplePushSettings.ApplePushTopic + ".voip",
 		Priority:    apns.PriorityHigh,
