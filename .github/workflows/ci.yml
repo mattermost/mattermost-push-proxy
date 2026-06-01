@@ -12,10 +12,10 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC authentication with Chainguard identity
+  id-token: write # Required for OIDC authentication with Chainguard identity
 
 env:
-  GO_VERSION: 1.24.6
+  GO_VERSION: 1.26.3
   FIPS_ENABLED: true
 
 jobs:
@@ -375,8 +375,6 @@ jobs:
           docker rmi mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}-arm64 2>/dev/null || true
           echo "✅ Multi-arch FIPS PR image available (arch-specific tags removed):"
           echo "  docker pull mattermost/mattermost-push-proxy-fips:dev-${{ github.sha }}"
-
-
 
   deploy-amd64:
     name: Deploy AMD64
