@@ -65,7 +65,7 @@ endif
 
 ## Docker Images
 DOCKER_IMAGE_GO         ?= "golang:${GO_VERSION}"
-DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v1.64.4@sha256:e83b903d722c12402c9d88948a6cac42ea0e34bf336fc6a170ade9adeecb2d0e"
+DOCKER_IMAGE_GOLINT     ?= "golangci/golangci-lint:v2.12.2@sha256:91b27804074a0bacea298707f016911e60cf0cdbc6c7bf5ccacb5f0606d18d60"
 DOCKER_IMAGE_DOCKERLINT ?= "hadolint/hadolint:v2.12.0"
 DOCKER_IMAGE_COSIGN     ?= "bitnami/cosign:1.8.0@sha256:8c2c61c546258fffff18b47bb82a65af6142007306b737129a7bd5429d53629a"
 DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371e36e62bd24ddd42d9e4c720a7e9954cb599475e24d1407af7190e2a5685"
