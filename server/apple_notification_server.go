@@ -59,7 +59,7 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 
 		err := http2.ConfigureTransport(transport)
 		if err != nil {
-			return fmt.Errorf("Transport Error: %v", err)
+			return fmt.Errorf("transport error: %v", err)
 		}
 
 		me.AppleClient.HTTPClient.Transport = transport
@@ -78,7 +78,7 @@ func (me *AppleNotificationServer) Initialize() error {
 	if me.ApplePushSettings.AppleAuthKeyFile != "" && me.ApplePushSettings.AppleAuthKeyID != "" && me.ApplePushSettings.AppleTeamID != "" {
 		authKey, err := token.AuthKeyFromFile(me.ApplePushSettings.AppleAuthKeyFile)
 		if err != nil {
-			return fmt.Errorf("Failed to initialize apple notification service with AuthKey file err=%v ", err)
+			return fmt.Errorf("failed to initialize apple notification service with AuthKey file err=%v ", err)
 		}
 
 		appleToken := &token.Token{
@@ -100,7 +100,7 @@ func (me *AppleNotificationServer) Initialize() error {
 	if me.ApplePushSettings.ApplePushCertPrivate != "" {
 		appleCert, appleCertErr := certificate.FromPemFile(me.ApplePushSettings.ApplePushCertPrivate, me.ApplePushSettings.ApplePushCertPassword)
 		if appleCertErr != nil {
-			return fmt.Errorf("Failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
+			return fmt.Errorf("failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 		}
 
 		if me.ApplePushSettings.ApplePushUseDevelopment {
@@ -113,7 +113,7 @@ func (me *AppleNotificationServer) Initialize() error {
 		return me.setupProxySettings(&appleCert)
 	}
 
-	return fmt.Errorf("Apple push notifications not configured.  Missing ApplePushCertPrivate. for type=%v", me.ApplePushSettings.Type)
+	return fmt.Errorf("apple push notifications not configured: missing ApplePushCertPrivate for type=%v", me.ApplePushSettings.Type)
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
@@ -134,7 +134,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 	notification.Topic = me.ApplePushSettings.ApplePushTopic
 	notification.Priority = apns.PriorityHigh
 
-	var pushType = msg.Type
+	pushType := msg.Type
 	if msg.IsIDLoaded {
 		data.Category(msg.Category)
 		data.Sound("default")

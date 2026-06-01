@@ -75,7 +75,7 @@ func (me *AndroidNotificationServer) Initialize() error {
 	}
 
 	if me.AndroidPushSettings.ServiceFileLocation == "" {
-		return errors.New("Android push notifications not configured.  Missing ServiceFileLocation.")
+		return errors.New("android push notifications not configured: missing ServiceFileLocation")
 	}
 
 	jsonKey, err := os.ReadFile(me.AndroidPushSettings.ServiceFileLocation)
@@ -177,7 +177,6 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		mlog.String("ack_id", msg.AckID),
 	)
 	err := me.SendNotificationWithRetry(fcmMsg)
-
 	if err != nil {
 		errorCode, hasStatusCode := getErrorCode(err)
 		if !hasStatusCode {
@@ -312,7 +311,7 @@ func getErrorCode(err error) (string, bool) {
 	}
 
 	errorPointer := reflect.ValueOf(err)
-	if errorPointer.Kind() != reflect.Ptr {
+	if errorPointer.Kind() != reflect.Pointer {
 		return "", false
 	}
 
