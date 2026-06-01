@@ -3,9 +3,9 @@
 
 package server
 
-// RedactToken returns the first 8 chars of a device token followed by an
+// redactToken returns the first 8 chars of a device token followed by an
 // ellipsis, for safe inclusion in logs.
-func RedactToken(token string) string {
+func redactToken(token string) string {
 	if len(token) <= 8 {
 		return token
 	}
@@ -24,6 +24,10 @@ const (
 
 	// PushSubTypeCalls marks a notification originating from the Calls plugin.
 	PushSubTypeCalls = "calls"
+
+	// PushTransportDefault is the default PushNotification.Transport value;
+	// the proxy dispatches via the regular APNs/FCM alert path.
+	PushTransportDefault = ""
 
 	// PushTransportVoIP is the value of PushNotification.Transport that
 	// dispatches via the PushKit/VoIP send path.

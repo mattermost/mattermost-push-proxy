@@ -172,7 +172,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, "")
+		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, PushTransportDefault)
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
@@ -254,11 +254,11 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	if err != nil {
 		errFields := []mlog.Field{
 			mlog.String("sid", msg.ServerID),
-			mlog.String("did", RedactToken(msg.DeviceID)),
+			mlog.String("did", redactToken(msg.DeviceID)),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
 		}
-		if transport != "" {
+		if transport != PushTransportDefault {
 			errFields = append(errFields, mlog.String("transport", transport))
 		}
 		me.logger.Error("Failed to send apple push", errFields...)
@@ -390,13 +390,13 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 
 		me.logger.Error(
 			"Failed to send apple push",
-			mlog.String("did", RedactToken(notification.DeviceToken)),
+			mlog.String("did", redactToken(notification.DeviceToken)),
 			mlog.Int("retry", retries),
 			mlog.Err(err),
 		)
 
 		if retries == MAX_RETRIES-1 {
-			me.logger.Error("Max retries reached", mlog.String("did", RedactToken(notification.DeviceToken)))
+			me.logger.Error("Max retries reached", mlog.String("did", redactToken(notification.DeviceToken)))
 			break
 		}
 
@@ -408,7 +408,7 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 		if generalContext.Err() != nil {
 			me.logger.Info(
 				"Not retrying because context error",
-				mlog.String("did", RedactToken(notification.DeviceToken)),
+				mlog.String("did", redactToken(notification.DeviceToken)),
 				mlog.Int("retry", retries),
 				mlog.Err(generalContext.Err()),
 			)

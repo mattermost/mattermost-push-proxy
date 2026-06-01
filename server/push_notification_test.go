@@ -22,7 +22,7 @@ func TestRedactToken(t *testing.T) {
 		{"long token truncated", "abcdef0123456789cafebabe", "abcdef01…"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, RedactToken(tc.token))
+			assert.Equal(t, tc.want, redactToken(tc.token))
 		})
 	}
 }

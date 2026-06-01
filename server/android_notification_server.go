@@ -160,7 +160,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, "")
+		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, PushTransportDefault)
 	}
 	fcmMsg := &messaging.Message{
 		Token: msg.DeviceID,
@@ -187,7 +187,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		me.logger.Error(
 			"Failed to send FCM push",
 			mlog.String("sid", msg.ServerID),
-			mlog.String("did", RedactToken(msg.DeviceID)),
+			mlog.String("did", redactToken(msg.DeviceID)),
 			mlog.Err(err),
 			mlog.String("type", me.AndroidPushSettings.Type),
 			mlog.String("errorCode", errorCode),
@@ -196,7 +196,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, "", unregistered)
+				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, PushTransportDefault, unregistered)
 			}
 			return NewRemovePushResponse()
 		}
@@ -238,7 +238,7 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 	var err error
 	waitTime := time.Second
 
-	logger := me.logger.With(mlog.String("did", RedactToken(fcmMsg.Token)))
+	logger := me.logger.With(mlog.String("did", redactToken(fcmMsg.Token)))
 
 	// Keep a general context to make sure the whole retry
 	// doesn't take longer than the timeout.

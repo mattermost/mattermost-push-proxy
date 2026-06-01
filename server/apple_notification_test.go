@@ -22,7 +22,7 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 		transport string
 	}{
 		{"VoIP transport", PushTransportVoIP},
-		{"standard transport", ""},
+		{"default transport", PushTransportDefault},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newMetrics()
@@ -49,8 +49,8 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 
 			// The opposite transport label is untouched — proves the branch
 			// picked the right one rather than incrementing both.
-			other := ""
-			if tc.transport == "" {
+			other := PushTransportDefault
+			if tc.transport == PushTransportDefault {
 				other = PushTransportVoIP
 			}
 			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, other))

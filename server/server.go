@@ -318,7 +318,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	// Increment ACK
 	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.ID))
 	if s.metrics != nil {
-		s.metrics.incrementDelivered(ack.Platform, ack.Type, "")
+		s.metrics.incrementDelivered(ack.Platform, ack.Type, PushTransportDefault)
 	}
 
 	rMsg := NewOkPushResponse()
