@@ -4,7 +4,7 @@ See https://developers.mattermost.com/contribute/mobile/push-notifications/servi
 
 ## VoIP push notifications (iOS Calls)
 
-The proxy delivers PushKit / VoIP pushes for iOS calls under the platform identifiers `apple_voip_rn` and `apple_voip_rnbeta`. These are aliased internally to the existing `apple_rn` / `apple_rnbeta` `ApplePushSettings` entries — no extra configuration block is required; the same APNs key is reused. The proxy emits a VoIP-shaped APNs request (`apns-push-type: voip`, topic `<ApplePushTopic>.voip`, minimal payload) when an incoming notification's platform carries the `apple_voip_` prefix.
+The proxy delivers PushKit / VoIP pushes for iOS calls. Dispatch is driven by the `transport` field on the incoming notification: when `transport=voip`, the proxy emits a VoIP-shaped APNs request (`apns-push-type: voip`, topic `<ApplePushTopic>.voip`, minimal payload) using the existing `apple_rn` / `apple_rnbeta` `ApplePushSettings` entry indicated by the message's `platform`. No extra configuration block is required; the same APNs key is reused for both standard and VoIP pushes.
 
 Operator prerequisites:
 
