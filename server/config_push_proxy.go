@@ -76,7 +76,7 @@ func LoadConfig(fileName string) (*ConfigPushProxy, error) {
 	var cfg *ConfigPushProxy
 	err = json.Unmarshal(buf, &cfg)
 	if err != nil {
-		fmt.Println(buf, err)
+		fmt.Println(string(buf), err)
 		return nil, err
 	}
 

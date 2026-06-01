@@ -1,24 +1,38 @@
-# options for analysis running
-run:
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  timeout: 5m
-
-linters-settings:
-  gofmt:
-    simplify: true
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - gofmt
-    - gosimple
+    - copyloopvar
     - govet
     - ineffassign
-    - copyloopvar
     - staticcheck
     - unconvert
     - unused
+  settings:
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
