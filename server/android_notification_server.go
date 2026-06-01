@@ -187,7 +187,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		me.logger.Error(
 			"Failed to send FCM push",
 			mlog.String("sid", msg.ServerID),
-			mlog.String("did", msg.DeviceID),
+			mlog.String("did", RedactToken(msg.DeviceID)),
 			mlog.Err(err),
 			mlog.String("type", me.AndroidPushSettings.Type),
 			mlog.String("errorCode", errorCode),
@@ -238,7 +238,7 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 	var err error
 	waitTime := time.Second
 
-	logger := me.logger.With(mlog.String("did", fcmMsg.Token))
+	logger := me.logger.With(mlog.String("did", RedactToken(fcmMsg.Token)))
 
 	// Keep a general context to make sure the whole retry
 	// doesn't take longer than the timeout.

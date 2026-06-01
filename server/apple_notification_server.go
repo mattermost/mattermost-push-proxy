@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/kyokomi/emoji"
@@ -118,7 +117,7 @@ func (me *AppleNotificationServer) Initialize() error {
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
-	if strings.HasPrefix(msg.Platform, applePlatformVoIPPrefix) {
+	if msg.Transport == PushTransportVoIP {
 		return me.sendVoIPNotification(msg)
 	}
 
@@ -255,7 +254,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	if err != nil {
 		errFields := []mlog.Field{
 			mlog.String("sid", msg.ServerID),
-			mlog.String("did", msg.DeviceID),
+			mlog.String("did", RedactToken(msg.DeviceID)),
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
 		}
@@ -346,13 +345,6 @@ func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) 
 		data.Custom("channel_name", msg.ChannelName)
 	}
 
-	// Category is used by the mobile client to distinguish flavors of a
-	// cancel push (e.g. "answered_elsewhere" so CallKit ends with
-	// .answeredElsewhere instead of the default .unanswered).
-	if msg.Category != "" {
-		data.Custom("category", msg.Category)
-	}
-
 	if msg.AckID != "" {
 		data.Custom("ack_id", msg.AckID)
 	}
@@ -398,13 +390,13 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 
 		me.logger.Error(
 			"Failed to send apple push",
-			mlog.String("did", notification.DeviceToken),
+			mlog.String("did", RedactToken(notification.DeviceToken)),
 			mlog.Int("retry", retries),
 			mlog.Err(err),
 		)
 
 		if retries == MAX_RETRIES-1 {
-			me.logger.Error("Max retries reached", mlog.String("did", notification.DeviceToken))
+			me.logger.Error("Max retries reached", mlog.String("did", RedactToken(notification.DeviceToken)))
 			break
 		}
 
@@ -416,7 +408,7 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 		if generalContext.Err() != nil {
 			me.logger.Info(
 				"Not retrying because context error",
-				mlog.String("did", notification.DeviceToken),
+				mlog.String("did", RedactToken(notification.DeviceToken)),
 				mlog.Int("retry", retries),
 				mlog.Err(generalContext.Err()),
 			)

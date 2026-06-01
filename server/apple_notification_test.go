@@ -13,19 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// SendNotification must route apple_voip_* platforms through the VoIP path
-// (observable via the transport="voip" metric label) and everything else
-// through the standard alert path (transport="").
+// SendNotification dispatches by msg.Transport: "voip" routes through the
+// VoIP send path, anything else through the standard alert path. Routing is
+// observable via the transport label.
 func TestSendNotificationTransportRouting(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		platform string
-		want     string
+		name      string
+		transport string
 	}{
-		{"VoIP standard", "apple_voip_rn", PushTransportVoIP},
-		{"VoIP beta", "apple_voip_rnbeta", PushTransportVoIP},
-		{"standard alert", "apple_rn", ""},
-		{"standard alert beta", "apple_rnbeta", ""},
+		{"VoIP transport", PushTransportVoIP},
+		{"standard transport", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newMetrics()
@@ -39,20 +36,21 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 			}
 
 			msg := &PushNotification{
-				Platform: tc.platform,
-				DeviceID: "tok",
-				Type:     PushTypeMessage,
+				Platform:  PushNotifyApple + "_rn",
+				DeviceID:  "tok",
+				Type:      PushTypeMessage,
+				Transport: tc.transport,
 			}
 			resp := srv.SendNotification(msg)
 			require.Equal(t, NewOkPushResponse(), resp)
 
-			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, tc.want))
-			require.Equal(t, float64(1), got, "expected notifications_total{transport=%q} to be 1", tc.want)
+			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, tc.transport))
+			require.Equal(t, float64(1), got, "expected notifications_total{transport=%q} to be 1", tc.transport)
 
-			// And the opposite transport label is untouched, so we know the
-			// branch picked the right one rather than incrementing both.
+			// The opposite transport label is untouched — proves the branch
+			// picked the right one rather than incrementing both.
 			other := ""
-			if tc.want == "" {
+			if tc.transport == "" {
 				other = PushTransportVoIP
 			}
 			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, other))
@@ -162,27 +160,6 @@ func TestBuildVoIPNotification(t *testing.T) {
 		assert.False(t, hasAck, "ack_id should not appear when not populated")
 	})
 
-	t.Run("category is forwarded when set (used by mobile to pick CallKit end reason)", func(t *testing.T) {
-		msg := &PushNotification{
-			DeviceID: "tok",
-			Type:     PushTypeClear,
-			SubType:  PushSubTypeCalls,
-			Category: "answered_elsewhere",
-		}
-		body := marshalPayload(t, srv.buildVoIPNotification(msg))
-		assert.Equal(t, "answered_elsewhere", body["category"])
-	})
-
-	t.Run("category is omitted when empty", func(t *testing.T) {
-		msg := &PushNotification{
-			DeviceID: "tok",
-			Type:     PushTypeMessage,
-			SubType:  PushSubTypeCalls,
-		}
-		body := marshalPayload(t, srv.buildVoIPNotification(msg))
-		_, hasCategory := body["category"]
-		assert.False(t, hasCategory, "category should not appear when not populated")
-	})
 }
 
 func marshalPayload(t *testing.T, n *apns.Notification) map[string]any {

@@ -3,6 +3,15 @@
 
 package server
 
+// RedactToken returns the first 8 chars of a device token followed by an
+// ellipsis, for safe inclusion in logs.
+func RedactToken(token string) string {
+	if len(token) <= 8 {
+		return token
+	}
+	return token[:8] + "…"
+}
+
 const (
 	PushNotifyApple   = "apple"
 	PushNotifyAndroid = "android"
@@ -16,14 +25,9 @@ const (
 	// PushSubTypeCalls marks a notification originating from the Calls plugin.
 	PushSubTypeCalls = "calls"
 
-	// PushTransportVoIP is the sub_type metric label value for VoIP pushes.
+	// PushTransportVoIP is the value of PushNotification.Transport that
+	// dispatches via the PushKit/VoIP send path.
 	PushTransportVoIP = "voip"
-
-	// VoIP-prefixed Apple platforms. These platforms reuse the existing
-	// apple_rn / apple_rnbeta APNs target (same key, same bundle); the prefix
-	// tells the Apple notification server to emit a VoIP-shaped APNs request
-	// (apns-push-type=voip, topic=<bundle>.voip).
-	applePlatformVoIPPrefix = "apple_voip_"
 
 	PushMessageV2 = "v2"
 
@@ -52,6 +56,7 @@ type PushNotification struct {
 	ChannelName      string `json:"channel_name"`
 	Type             string `json:"type"`
 	SubType          string `json:"sub_type,omitempty"`
+	Transport        string `json:"transport,omitempty"`
 	SenderName       string `json:"sender_name"`
 	SenderID         string `json:"sender_id"`
 	OverrideUsername string `json:"override_username"`
