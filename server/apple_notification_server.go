@@ -172,7 +172,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, PushTransportDefault)
+		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, PushTransportStandard)
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
@@ -232,7 +232,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
-	return me.dispatchAndHandleResponse(notification, msg, pushType, "")
+	return me.dispatchAndHandleResponse(notification, msg, pushType, PushTransportStandard)
 }
 
 func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType, transport string) PushResponse {
@@ -245,7 +245,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 		mlog.String("type", msg.Type),
 		mlog.String("ack_id", msg.AckID),
 	}
-	if transport != "" {
+	if transport != PushTransportStandard {
 		logFields = append(logFields, mlog.String("transport", transport))
 	}
 	me.logger.Info("Sending apple push notification", logFields...)
@@ -258,7 +258,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
 		}
-		if transport != PushTransportDefault {
+		if transport != PushTransportStandard {
 			errFields = append(errFields, mlog.String("transport", transport))
 		}
 		me.logger.Error("Failed to send apple push", errFields...)

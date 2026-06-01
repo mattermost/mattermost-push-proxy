@@ -160,7 +160,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, PushTransportDefault)
+		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, PushTransportStandard)
 	}
 	fcmMsg := &messaging.Message{
 		Token: msg.DeviceID,
@@ -196,7 +196,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, PushTransportDefault, unregistered)
+				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, PushTransportStandard, unregistered)
 			}
 			return NewRemovePushResponse()
 		}
@@ -218,7 +218,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 		}
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyAndroid, pushType, "", reason)
+			me.metrics.incrementFailure(PushNotifyAndroid, pushType, PushTransportStandard, reason)
 		}
 
 		return NewErrorPushResponse(err.Error())
@@ -226,9 +226,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	if me.metrics != nil {
 		if msg.AckID != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, "")
+			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, PushTransportStandard)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, "")
+			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, PushTransportStandard)
 		}
 	}
 	return NewOkPushResponse()

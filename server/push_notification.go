@@ -25,9 +25,9 @@ const (
 	// PushSubTypeCalls marks a notification originating from the Calls plugin.
 	PushSubTypeCalls = "calls"
 
-	// PushTransportDefault is the default PushNotification.Transport value;
+	// PushTransportStandard is the default PushNotification.Transport value;
 	// the proxy dispatches via the regular APNs/FCM alert path.
-	PushTransportDefault = ""
+	PushTransportStandard = ""
 
 	// PushTransportVoIP is the value of PushNotification.Transport that
 	// dispatches via the PushKit/VoIP send path.
