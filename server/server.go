@@ -261,7 +261,7 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
-	var ack PushNotificationAck
+	var ack model.PushNotificationAck
 	err := json.NewDecoder(r.Body).Decode(&ack)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to read ack body: %v", err)
@@ -276,7 +276,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ack.ID == "" {
+	if ack.Id == "" {
 		msg := "Failed because of missing ack Id"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -289,7 +289,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ack.Platform == "" {
+	if ack.ClientPlatform == "" {
 		msg := "Failed because of missing ack platform"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -302,7 +302,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ack.Type == "" {
+	if ack.NotificationType == "" {
 		msg := "Failed because of missing ack type"
 		s.logger.Error(msg)
 		resp := NewErrorPushResponse(msg)
@@ -316,9 +316,9 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment ACK
-	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.ID))
+	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.Id))
 	if s.metrics != nil {
-		s.metrics.incrementDelivered(ack.Platform, ack.Type, model.PushTransportStandard)
+		s.metrics.incrementDelivered(ack.ClientPlatform, ack.NotificationType, model.PushTransportStandard)
 	}
 
 	rMsg := NewOkPushResponse()
