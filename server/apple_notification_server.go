@@ -18,6 +18,7 @@ import (
 	"github.com/sideshow/apns2/token"
 	"golang.org/x/net/http2"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
@@ -117,7 +118,7 @@ func (me *AppleNotificationServer) Initialize() error {
 }
 
 func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushResponse {
-	if msg.Transport == PushTransportVoIP {
+	if msg.Transport == model.PushTransportVoIP {
 		return me.sendVoIPNotification(msg)
 	}
 
@@ -172,7 +173,7 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		}
 	}
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, PushTransportStandard)
+		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, model.PushTransportStandard)
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
@@ -232,10 +233,10 @@ func (me *AppleNotificationServer) SendNotification(msg *PushNotification) PushR
 		data.Custom("from_webhook", msg.FromWebhook)
 	}
 
-	return me.dispatchAndHandleResponse(notification, msg, pushType, PushTransportStandard)
+	return me.dispatchAndHandleResponse(notification, msg, pushType, model.PushTransportStandard)
 }
 
-func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType, transport string) PushResponse {
+func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.Notification, msg *PushNotification, pushType string, transport model.PushTransport) PushResponse {
 	if me.AppleClient == nil {
 		return NewOkPushResponse()
 	}
@@ -245,8 +246,8 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 		mlog.String("type", msg.Type),
 		mlog.String("ack_id", msg.AckID),
 	}
-	if transport != PushTransportStandard {
-		logFields = append(logFields, mlog.String("transport", transport))
+	if transport != model.PushTransportStandard {
+		logFields = append(logFields, mlog.String("transport", string(transport)))
 	}
 	me.logger.Info("Sending apple push notification", logFields...)
 
@@ -258,8 +259,8 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.Err(err),
 			mlog.String("type", me.ApplePushSettings.Type),
 		}
-		if transport != PushTransportStandard {
-			errFields = append(errFields, mlog.String("transport", transport))
+		if transport != model.PushTransportStandard {
+			errFields = append(errFields, mlog.String("transport", string(transport)))
 		}
 		me.logger.Error("Failed to send apple push", errFields...)
 		if me.metrics != nil {
@@ -316,10 +317,10 @@ func (me *AppleNotificationServer) sendVoIPNotification(msg *PushNotification) P
 	notification := me.buildVoIPNotification(msg)
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type, PushTransportVoIP)
+		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type, model.PushTransportVoIP)
 	}
 
-	return me.dispatchAndHandleResponse(notification, msg, msg.Type, PushTransportVoIP)
+	return me.dispatchAndHandleResponse(notification, msg, msg.Type, model.PushTransportVoIP)
 }
 
 func (me *AppleNotificationServer) buildVoIPNotification(msg *PushNotification) *apns.Notification {

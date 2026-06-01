@@ -20,6 +20,7 @@ import (
 	throttledStore "gopkg.in/throttled/throttled.v1/store"
 
 	"github.com/mattermost/mattermost-push-proxy/internal/version"
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
@@ -318,7 +319,7 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	// Increment ACK
 	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.ID))
 	if s.metrics != nil {
-		s.metrics.incrementDelivered(ack.Platform, ack.Type, PushTransportStandard)
+		s.metrics.incrementDelivered(ack.Platform, ack.Type, model.PushTransportStandard)
 	}
 
 	rMsg := NewOkPushResponse()

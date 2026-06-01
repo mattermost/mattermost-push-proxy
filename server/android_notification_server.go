@@ -19,6 +19,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
@@ -160,7 +161,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 	}
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, PushTransportStandard)
+		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, model.PushTransportStandard)
 	}
 	fcmMsg := &messaging.Message{
 		Token: msg.DeviceID,
@@ -195,7 +196,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, PushTransportStandard, unregistered)
+				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
 			}
 			return NewRemovePushResponse()
 		}
@@ -217,7 +218,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 		}
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyAndroid, pushType, PushTransportStandard, reason)
+			me.metrics.incrementFailure(PushNotifyAndroid, pushType, model.PushTransportStandard, reason)
 		}
 
 		return NewErrorPushResponse(err.Error())
@@ -225,9 +226,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	if me.metrics != nil {
 		if msg.AckID != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, PushTransportStandard)
+			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, model.PushTransportStandard)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, PushTransportStandard)
+			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, model.PushTransportStandard)
 		}
 	}
 	return NewOkPushResponse()

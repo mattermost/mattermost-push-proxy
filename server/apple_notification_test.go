@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	apns "github.com/sideshow/apns2"
 	"github.com/stretchr/testify/assert"
@@ -19,10 +20,10 @@ import (
 func TestSendNotificationTransportRouting(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
-		transport string
+		transport model.PushTransport
 	}{
-		{"VoIP transport", PushTransportVoIP},
-		{"default transport", PushTransportStandard},
+		{"VoIP transport", model.PushTransportVoIP},
+		{"default transport", model.PushTransportStandard},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m := newMetrics()
@@ -44,16 +45,16 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 			resp := srv.SendNotification(msg)
 			require.Equal(t, NewOkPushResponse(), resp)
 
-			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, tc.transport))
+			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, string(tc.transport)))
 			require.Equal(t, float64(1), got, "expected notifications_total{transport=%q} to be 1", tc.transport)
 
 			// The opposite transport label is untouched — proves the branch
 			// picked the right one rather than incrementing both.
-			other := PushTransportStandard
-			if tc.transport == PushTransportStandard {
-				other = PushTransportVoIP
+			other := model.PushTransportStandard
+			if tc.transport == model.PushTransportStandard {
+				other = model.PushTransportVoIP
 			}
-			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, other))
+			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, string(other)))
 			require.Equal(t, float64(0), otherCount, "expected notifications_total{transport=%q} to be 0", other)
 		})
 	}
