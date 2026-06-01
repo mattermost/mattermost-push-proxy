@@ -123,7 +123,7 @@ func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.P
 	}
 
 	data := payload.NewPayload()
-	if msg.Badge == 0 && msg.Type == PushTypeClear && appVersion > 1 {
+	if msg.Badge == 0 && msg.Type == model.PushTypeClear && appVersion > 1 {
 		data.Badge(1)
 	} else if msg.Badge != -1 {
 		data.Badge(msg.Badge)
@@ -146,12 +146,12 @@ func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.P
 		data.ContentAvailable()
 	} else {
 		switch msg.Type {
-		case PushTypeMessage, PushTypeSession:
+		case model.PushTypeMessage, model.PushTypeSession:
 			data.Category(msg.Category)
 			data.Sound("default")
 			data.Custom("version", msg.Version)
 			data.MutableContent()
-			if msg.Type == PushTypeMessage {
+			if msg.Type == model.PushTypeMessage {
 				data.ContentAvailable()
 			}
 
@@ -166,14 +166,14 @@ func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.P
 					data.Custom("channel_name", msg.ChannelName)
 				}
 			}
-		case PushTypeClear, PushTypeTest:
+		case model.PushTypeClear, model.PushTypeTest:
 			data.ContentAvailable()
-		case PushTypeUpdateBadge:
+		case model.PushTypeUpdateBadge:
 			// Handled by the apps, nothing else to do here
 		}
 	}
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, pushType, model.PushTransportStandard)
+		me.metrics.incrementNotificationTotal(model.PushNotifyApple, pushType, model.PushTransportStandard)
 	}
 	data.Custom("type", pushType)
 	data.Custom("sub_type", msg.SubType)
@@ -264,7 +264,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 		}
 		me.logger.Error("Failed to send apple push", errFields...)
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyApple, pushType, transport, "RequestError")
+			me.metrics.incrementFailure(model.PushNotifyApple, pushType, transport, "RequestError")
 		}
 		return NewErrorPushResponse("unknown transport error")
 	}
@@ -279,7 +279,7 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 				mlog.String("type", me.ApplePushSettings.Type),
 			)
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyApple, pushType, transport, res.Reason)
+				me.metrics.incrementRemoval(model.PushNotifyApple, pushType, transport, res.Reason)
 			}
 			return NewRemovePushResponse()
 		}
@@ -292,16 +292,16 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 			mlog.String("type", me.ApplePushSettings.Type),
 		)
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyApple, pushType, transport, res.Reason)
+			me.metrics.incrementFailure(model.PushNotifyApple, pushType, transport, res.Reason)
 		}
 		return NewErrorPushResponse("unknown send response error")
 	}
 
 	if me.metrics != nil {
 		if msg.AckId != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyApple, pushType, transport)
+			me.metrics.incrementSuccessWithAck(model.PushNotifyApple, pushType, transport)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyApple, pushType, transport)
+			me.metrics.incrementSuccess(model.PushNotifyApple, pushType, transport)
 		}
 	}
 	return NewOkPushResponse()
@@ -317,7 +317,7 @@ func (me *AppleNotificationServer) sendVoIPNotification(msg *model.PushNotificat
 	notification := me.buildVoIPNotification(msg)
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyApple, msg.Type, model.PushTransportVoIP)
+		me.metrics.incrementNotificationTotal(model.PushNotifyApple, msg.Type, model.PushTransportVoIP)
 	}
 
 	return me.dispatchAndHandleResponse(notification, msg, msg.Type, model.PushTransportVoIP)
@@ -382,7 +382,7 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 		defer cancelRetryContext()
 		res, err = me.AppleClient.PushWithContext(retryContext, notification)
 		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyApple, time.Since(start).Seconds())
+			me.metrics.observerNotificationResponse(model.PushNotifyApple, time.Since(start).Seconds())
 		}
 
 		if err == nil {

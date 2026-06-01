@@ -183,9 +183,9 @@ func (m *metrics) observeServiceResponse(dur float64) {
 func (m *metrics) observerNotificationResponse(platform string, dur float64) {
 	m.metricNotificationResponse.WithLabelValues(platform).Observe(dur)
 	switch platform {
-	case PushNotifyApple:
+	case model.PushNotifyApple:
 		m.observeAPNSResponse(dur)
-	case PushNotifyAndroid:
+	case model.PushNotifyAndroid:
 		m.observeFCMResponse(dur)
 	}
 }

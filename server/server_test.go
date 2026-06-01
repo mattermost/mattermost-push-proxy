@@ -101,7 +101,7 @@ func TestAndroidSend(t *testing.T) {
 	msg := model.PushNotification{}
 	msg.Message = "test"
 	msg.Badge = 1
-	msg.Platform = PushNotifyAndroid
+	msg.Platform = model.PushNotifyAndroid
 	msg.ServerId = "test"
 	msg.DeviceId = "test"
 

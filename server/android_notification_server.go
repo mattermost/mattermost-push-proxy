@@ -148,7 +148,7 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 		data["sender_id"] = msg.SenderId
 		data["sender_name"] = "Someone"
 		data["team_id"] = msg.TeamId
-	} else if pushType == PushTypeMessage || pushType == PushTypeSession {
+	} else if pushType == model.PushTypeMessage || pushType == model.PushTypeSession {
 		data["team_id"] = msg.TeamId
 		data["sender_id"] = msg.SenderId
 		data["sender_name"] = msg.SenderName
@@ -161,7 +161,7 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 	}
 
 	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, model.PushTransportStandard)
+		me.metrics.incrementNotificationTotal(model.PushNotifyAndroid, pushType, model.PushTransportStandard)
 	}
 	fcmMsg := &messaging.Message{
 		Token: msg.DeviceId,
@@ -196,7 +196,7 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
+				me.metrics.incrementRemoval(model.PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
 			}
 			return NewRemovePushResponse()
 		}
@@ -218,7 +218,7 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 
 		}
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyAndroid, pushType, model.PushTransportStandard, reason)
+			me.metrics.incrementFailure(model.PushNotifyAndroid, pushType, model.PushTransportStandard, reason)
 		}
 
 		return NewErrorPushResponse(err.Error())
@@ -226,9 +226,9 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 
 	if me.metrics != nil {
 		if msg.AckId != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, model.PushTransportStandard)
+			me.metrics.incrementSuccessWithAck(model.PushNotifyAndroid, pushType, model.PushTransportStandard)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, model.PushTransportStandard)
+			me.metrics.incrementSuccess(model.PushNotifyAndroid, pushType, model.PushTransportStandard)
 		}
 	}
 	return NewOkPushResponse()
@@ -252,7 +252,7 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 		defer cancelRetryContext()
 		_, err = me.client.Send(retryContext, fcmMsg)
 		if me.metrics != nil {
-			me.metrics.observerNotificationResponse(PushNotifyAndroid, time.Since(start).Seconds())
+			me.metrics.observerNotificationResponse(model.PushNotifyAndroid, time.Since(start).Seconds())
 		}
 
 		if err == nil || !isRetryable(err) {

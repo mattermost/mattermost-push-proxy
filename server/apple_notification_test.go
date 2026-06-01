@@ -37,15 +37,15 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 			}
 
 			msg := &model.PushNotification{
-				Platform:  PushNotifyApple + "_rn",
+				Platform:  model.PushNotifyApple + "_rn",
 				DeviceId:  "tok",
-				Type:      PushTypeMessage,
+				Type:      model.PushTypeMessage,
 				Transport: tc.transport,
 			}
 			resp := srv.SendNotification(1, msg)
 			require.Equal(t, NewOkPushResponse(), resp)
 
-			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, string(tc.transport)))
+			got := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(model.PushNotifyApple, model.PushTypeMessage, string(tc.transport)))
 			require.Equal(t, float64(1), got, "expected notifications_total{transport=%q} to be 1", tc.transport)
 
 			// The opposite transport label is untouched — proves the branch
@@ -54,7 +54,7 @@ func TestSendNotificationTransportRouting(t *testing.T) {
 			if tc.transport == model.PushTransportStandard {
 				other = model.PushTransportVoIP
 			}
-			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(PushNotifyApple, PushTypeMessage, string(other)))
+			otherCount := testutil.ToFloat64(m.metricNotificationsTotal.WithLabelValues(model.PushNotifyApple, model.PushTypeMessage, string(other)))
 			require.Equal(t, float64(0), otherCount, "expected notifications_total{transport=%q} to be 0", other)
 		})
 	}
@@ -70,7 +70,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 	t.Run("APNs envelope shape (VoIP-specific)", func(t *testing.T) {
 		msg := &model.PushNotification{
 			DeviceId: "abcd1234",
-			Type:     PushTypeMessage,
+			Type:     model.PushTypeMessage,
 			SubType:  model.PushSubTypeCalls,
 		}
 		n := srv.buildVoIPNotification(msg)
@@ -84,7 +84,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 	t.Run("payload carries the routing fields the device needs", func(t *testing.T) {
 		msg := &model.PushNotification{
 			DeviceId:    "tok",
-			Type:        PushTypeMessage,
+			Type:        model.PushTypeMessage,
 			SubType:     model.PushSubTypeCalls,
 			ChannelId:   "channel1",
 			ServerId:    "server1",
@@ -105,7 +105,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 		assert.Equal(t, "post1", body["post_id"])
 		assert.Equal(t, "thread1", body["thread_id"])
 		assert.Equal(t, "sender1", body["sender_id"])
-		assert.Equal(t, PushTypeMessage, body["type"])
+		assert.Equal(t, model.PushTypeMessage, body["type"])
 		assert.Equal(t, string(model.PushSubTypeCalls), body["sub_type"])
 		assert.Equal(t, true, body["id_loaded"])
 		assert.Equal(t, "ack1", body["ack_id"])
@@ -124,7 +124,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 	t.Run("sender_name and channel_name are omitted when empty (IdLoaded mode)", func(t *testing.T) {
 		msg := &model.PushNotification{
 			DeviceId:   "tok",
-			Type:       PushTypeMessage,
+			Type:       model.PushTypeMessage,
 			SubType:    model.PushSubTypeCalls,
 			ChannelId:  "channel1",
 			ServerId:   "server1",
@@ -143,7 +143,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 	t.Run("missing signature falls back to NO_SIGNATURE sentinel", func(t *testing.T) {
 		msg := &model.PushNotification{
 			DeviceId: "tok",
-			Type:     PushTypeMessage,
+			Type:     model.PushTypeMessage,
 			SubType:  model.PushSubTypeCalls,
 		}
 		body := marshalPayload(t, srv.buildVoIPNotification(msg))
@@ -153,7 +153,7 @@ func TestBuildVoIPNotification(t *testing.T) {
 	t.Run("missing ack_id is omitted (no empty value on wire)", func(t *testing.T) {
 		msg := &model.PushNotification{
 			DeviceId: "tok",
-			Type:     PushTypeMessage,
+			Type:     model.PushTypeMessage,
 			SubType:  model.PushSubTypeCalls,
 		}
 		body := marshalPayload(t, srv.buildVoIPNotification(msg))

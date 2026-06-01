@@ -12,21 +12,6 @@ func redactToken(token string) string {
 	return token[:8] + "…"
 }
 
-const (
-	PushNotifyApple   = "apple"
-	PushNotifyAndroid = "android"
-
-	PushTypeMessage     = "message"
-	PushTypeClear       = "clear"
-	PushTypeUpdateBadge = "update_badge"
-	PushTypeSession     = "session"
-	PushTypeTest        = "test"
-
-	PushMessageV2 = "v2"
-
-	PushSoundNone = "none"
-)
-
 type PushNotificationAck struct {
 	ID       string `json:"id"`
 	Platform string `json:"platform"`
