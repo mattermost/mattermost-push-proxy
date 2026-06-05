@@ -48,33 +48,33 @@ func newMetrics() *metrics {
 		metricNotificationsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricNotificationsTotalName,
 			Help: "Number of notifications sent"},
-			[]string{"platform", "type"}),
+			[]string{"platform", "type", "transport"}),
 		metricSuccess: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricSuccessName,
 			Help: "Number of push success."},
-			[]string{"platform", "type"}),
+			[]string{"platform", "type", "transport"}),
 		metricSuccessWithAck: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricSuccessWithAckName,
 			Help: "Number of push success that contains ackId."},
-			[]string{"platform", "type"},
+			[]string{"platform", "type", "transport"},
 		),
 		metricDelivered: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricDeliveredName,
 			Help: "Number of push delivered."},
-			[]string{"platform", "type"},
+			[]string{"platform", "type", "transport"},
 		),
 		metricFailure: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricFailureName,
 			Help: "Number of push errors."},
-			[]string{"platform", "type"}),
+			[]string{"platform", "type", "transport"}),
 		metricFailureWithReason: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricFailureWithReasonName,
 			Help: "Number of push errors with reasons."},
-			[]string{"platform", "type", "reason"}),
+			[]string{"platform", "type", "transport", "reason"}),
 		metricRemoval: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricRemovalName,
 			Help: "Number of device token errors."},
-			[]string{"platform", "reason"}),
+			[]string{"platform", "transport", "reason"}),
 		metricBadRequest: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: metricBadRequestName,
 			Help: "Request to push proxy was a bad request",
@@ -134,33 +134,33 @@ func (m *metrics) shutdown() {
 	)
 }
 
-func (m *metrics) incrementNotificationTotal(platform, pushType string) {
-	m.metricNotificationsTotal.WithLabelValues(platform, pushType).Inc()
+func (m *metrics) incrementNotificationTotal(platform, pushType, transport string) {
+	m.metricNotificationsTotal.WithLabelValues(platform, pushType, transport).Inc()
 }
 
-func (m *metrics) incrementSuccess(platform, pushType string) {
-	m.metricSuccess.WithLabelValues(platform, pushType).Inc()
+func (m *metrics) incrementSuccess(platform, pushType, transport string) {
+	m.metricSuccess.WithLabelValues(platform, pushType, transport).Inc()
 }
 
-func (m *metrics) incrementSuccessWithAck(platform, pushType string) {
-	m.incrementSuccess(platform, pushType)
-	m.metricSuccessWithAck.WithLabelValues(platform, pushType).Inc()
+func (m *metrics) incrementSuccessWithAck(platform, pushType, transport string) {
+	m.incrementSuccess(platform, pushType, transport)
+	m.metricSuccessWithAck.WithLabelValues(platform, pushType, transport).Inc()
 }
 
-func (m *metrics) incrementDelivered(platform, pushType string) {
-	m.metricDelivered.WithLabelValues(platform, pushType).Inc()
+func (m *metrics) incrementDelivered(platform, pushType, transport string) {
+	m.metricDelivered.WithLabelValues(platform, pushType, transport).Inc()
 }
 
-func (m *metrics) incrementFailure(platform, pushType, reason string) {
-	m.metricFailure.WithLabelValues(platform, pushType).Inc()
+func (m *metrics) incrementFailure(platform, pushType, transport, reason string) {
+	m.metricFailure.WithLabelValues(platform, pushType, transport).Inc()
 	if reason != "" {
-		m.metricFailureWithReason.WithLabelValues(platform, pushType, reason).Inc()
+		m.metricFailureWithReason.WithLabelValues(platform, pushType, transport, reason).Inc()
 	}
 }
 
-func (m *metrics) incrementRemoval(platform, pushType, reason string) {
-	m.metricRemoval.WithLabelValues(platform, reason).Inc()
-	m.incrementFailure(platform, pushType, reason)
+func (m *metrics) incrementRemoval(platform, pushType, transport, reason string) {
+	m.metricRemoval.WithLabelValues(platform, transport, reason).Inc()
+	m.incrementFailure(platform, pushType, transport, reason)
 }
 
 func (m *metrics) incrementBadRequest() {

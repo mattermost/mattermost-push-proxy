@@ -3,6 +3,15 @@
 
 package server
 
+// redactToken returns the first 8 chars of a device token followed by an
+// ellipsis, for safe inclusion in logs.
+func redactToken(token string) string {
+	if len(token) <= 8 {
+		return token
+	}
+	return token[:8] + "…"
+}
+
 const (
 	PushNotifyApple   = "apple"
 	PushNotifyAndroid = "android"
@@ -12,6 +21,17 @@ const (
 	PushTypeUpdateBadge = "update_badge"
 	PushTypeSession     = "session"
 	PushTypeTest        = "test"
+
+	// PushSubTypeCalls marks a notification originating from the Calls plugin.
+	PushSubTypeCalls = "calls"
+
+	// PushTransportStandard is the default PushNotification.Transport value;
+	// the proxy dispatches via the regular APNs/FCM alert path.
+	PushTransportStandard = ""
+
+	// PushTransportVoIP is the value of PushNotification.Transport that
+	// dispatches via the PushKit/VoIP send path.
+	PushTransportVoIP = "voip"
 
 	PushMessageV2 = "v2"
 
@@ -40,6 +60,7 @@ type PushNotification struct {
 	ChannelName      string `json:"channel_name"`
 	Type             string `json:"type"`
 	SubType          string `json:"sub_type,omitempty"`
+	Transport        string `json:"transport,omitempty"`
 	SenderName       string `json:"sender_name"`
 	SenderID         string `json:"sender_id"`
 	OverrideUsername string `json:"override_username"`
