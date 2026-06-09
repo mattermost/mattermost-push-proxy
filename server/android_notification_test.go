@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -80,4 +81,39 @@ func TestGetErrorCode(t *testing.T) {
 	extractedCode, found = getErrorCode(errors.New("non firebase error"))
 	require.Equal(t, "", extractedCode)
 	require.False(t, found)
+}
+
+func TestBuildAndroidMessageTransportRouting(t *testing.T) {
+	t.Run("VoIP transport sets voip flag and short TTL", func(t *testing.T) {
+		msg := &PushNotification{
+			DeviceID:  "tok",
+			Type:      PushTypeMessage,
+			SubType:   PushSubTypeCalls,
+			ChannelID: "ch",
+			ServerID:  "srv",
+			Transport: PushTransportVoIP,
+		}
+		fcmMsg, transport := buildAndroidMessage(msg)
+
+		require.Equal(t, PushTransportVoIP, transport)
+		require.Equal(t, "true", fcmMsg.Data["voip"])
+		require.Equal(t, "calls", fcmMsg.Data["sub_type"])
+		require.NotNil(t, fcmMsg.Android)
+		require.Equal(t, "high", fcmMsg.Android.Priority)
+		require.NotNil(t, fcmMsg.Android.TTL, "VoIP path must set TTL so stale rings drop")
+		require.Equal(t, 30*time.Second, *fcmMsg.Android.TTL)
+	})
+
+	t.Run("standard transport has no voip flag and no TTL override", func(t *testing.T) {
+		msg := &PushNotification{
+			DeviceID: "tok",
+			Type:     PushTypeMessage,
+		}
+		fcmMsg, transport := buildAndroidMessage(msg)
+
+		require.Equal(t, PushTransportStandard, transport)
+		_, hasVoIP := fcmMsg.Data["voip"]
+		require.False(t, hasVoIP, "standard path must not carry the voip dispatch flag")
+		require.Nil(t, fcmMsg.Android.TTL)
+	})
 }

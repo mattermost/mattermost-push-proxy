@@ -113,8 +113,15 @@ func (me *AndroidNotificationServer) Initialize() error {
 	return nil
 }
 
-func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+// buildAndroidMessage assembles the FCM message payload and resolves the
+// transport label.
+func buildAndroidMessage(msg *PushNotification) (*messaging.Message, string) {
 	pushType := msg.Type
+	transport := msg.Transport
+	if transport == "" {
+		transport = PushTransportStandard
+	}
+
 	data := map[string]string{
 		"ack_id":         msg.AckID,
 		"type":           pushType,
@@ -159,23 +166,44 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		data["from_webhook"] = msg.FromWebhook
 	}
 
-	if me.metrics != nil {
-		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, PushTransportStandard)
+	androidConfig := &messaging.AndroidConfig{
+		Priority: "high",
 	}
-	fcmMsg := &messaging.Message{
-		Token: msg.DeviceID,
-		Data:  data,
-		Android: &messaging.AndroidConfig{
-			Priority: "high",
-		},
+	if transport == PushTransportVoIP {
+		// Dispatch flag the mobile FCM receiver reads to route this message
+		// to the Telecom/CallStyle ring path instead of the standard
+		// notification path. 30s TTL absorbs brief network blips without
+		// letting a stale ring reach the device long after the caller has
+		// hung up (best effort).
+		data["voip"] = "true"
+		ttl := 30 * time.Second
+		androidConfig.TTL = &ttl
 	}
 
-	me.logger.Info(
-		"Sending android push notification",
+	return &messaging.Message{
+		Token:   msg.DeviceID,
+		Data:    data,
+		Android: androidConfig,
+	}, transport
+}
+
+func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) PushResponse {
+	pushType := msg.Type
+	fcmMsg, transport := buildAndroidMessage(msg)
+
+	if me.metrics != nil {
+		me.metrics.incrementNotificationTotal(PushNotifyAndroid, pushType, transport)
+	}
+
+	fields := []mlog.Field{
 		mlog.String("device", me.AndroidPushSettings.Type),
 		mlog.String("type", msg.Type),
 		mlog.String("ack_id", msg.AckID),
-	)
+	}
+	if transport != PushTransportStandard {
+		fields = append(fields, mlog.String("transport", transport))
+	}
+	me.logger.Info("Sending android push notification", fields...)
 	err := me.SendNotificationWithRetry(fcmMsg)
 	if err != nil {
 		errorCode, hasStatusCode := getErrorCode(err)
@@ -195,7 +223,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
 			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
 			if me.metrics != nil {
-				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, PushTransportStandard, unregistered)
+				me.metrics.incrementRemoval(PushNotifyAndroid, pushType, transport, unregistered)
 			}
 			return NewRemovePushResponse()
 		}
@@ -217,7 +245,7 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 		}
 		if me.metrics != nil {
-			me.metrics.incrementFailure(PushNotifyAndroid, pushType, PushTransportStandard, reason)
+			me.metrics.incrementFailure(PushNotifyAndroid, pushType, transport, reason)
 		}
 
 		return NewErrorPushResponse(err.Error())
@@ -225,9 +253,9 @@ func (me *AndroidNotificationServer) SendNotification(msg *PushNotification) Pus
 
 	if me.metrics != nil {
 		if msg.AckID != "" {
-			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, PushTransportStandard)
+			me.metrics.incrementSuccessWithAck(PushNotifyAndroid, pushType, transport)
 		} else {
-			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, PushTransportStandard)
+			me.metrics.incrementSuccess(PushNotifyAndroid, pushType, transport)
 		}
 	}
 	return NewOkPushResponse()
