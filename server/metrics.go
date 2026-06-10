@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -134,32 +135,32 @@ func (m *metrics) shutdown() {
 	)
 }
 
-func (m *metrics) incrementNotificationTotal(platform, pushType, transport string) {
-	m.metricNotificationsTotal.WithLabelValues(platform, pushType, transport).Inc()
+func (m *metrics) incrementNotificationTotal(platform, pushType string, transport model.PushTransport) {
+	m.metricNotificationsTotal.WithLabelValues(platform, pushType, string(transport)).Inc()
 }
 
-func (m *metrics) incrementSuccess(platform, pushType, transport string) {
-	m.metricSuccess.WithLabelValues(platform, pushType, transport).Inc()
+func (m *metrics) incrementSuccess(platform, pushType string, transport model.PushTransport) {
+	m.metricSuccess.WithLabelValues(platform, pushType, string(transport)).Inc()
 }
 
-func (m *metrics) incrementSuccessWithAck(platform, pushType, transport string) {
+func (m *metrics) incrementSuccessWithAck(platform, pushType string, transport model.PushTransport) {
 	m.incrementSuccess(platform, pushType, transport)
-	m.metricSuccessWithAck.WithLabelValues(platform, pushType, transport).Inc()
+	m.metricSuccessWithAck.WithLabelValues(platform, pushType, string(transport)).Inc()
 }
 
-func (m *metrics) incrementDelivered(platform, pushType, transport string) {
-	m.metricDelivered.WithLabelValues(platform, pushType, transport).Inc()
+func (m *metrics) incrementDelivered(platform, pushType string, transport model.PushTransport) {
+	m.metricDelivered.WithLabelValues(platform, pushType, string(transport)).Inc()
 }
 
-func (m *metrics) incrementFailure(platform, pushType, transport, reason string) {
-	m.metricFailure.WithLabelValues(platform, pushType, transport).Inc()
+func (m *metrics) incrementFailure(platform, pushType string, transport model.PushTransport, reason string) {
+	m.metricFailure.WithLabelValues(platform, pushType, string(transport)).Inc()
 	if reason != "" {
-		m.metricFailureWithReason.WithLabelValues(platform, pushType, transport, reason).Inc()
+		m.metricFailureWithReason.WithLabelValues(platform, pushType, string(transport), reason).Inc()
 	}
 }
 
-func (m *metrics) incrementRemoval(platform, pushType, transport, reason string) {
-	m.metricRemoval.WithLabelValues(platform, transport, reason).Inc()
+func (m *metrics) incrementRemoval(platform, pushType string, transport model.PushTransport, reason string) {
+	m.metricRemoval.WithLabelValues(platform, string(transport), reason).Inc()
 	m.incrementFailure(platform, pushType, transport, reason)
 }
 
@@ -182,9 +183,9 @@ func (m *metrics) observeServiceResponse(dur float64) {
 func (m *metrics) observerNotificationResponse(platform string, dur float64) {
 	m.metricNotificationResponse.WithLabelValues(platform).Observe(dur)
 	switch platform {
-	case PushNotifyApple:
+	case model.PushNotifyApple:
 		m.observeAPNSResponse(dur)
-	case PushNotifyAndroid:
+	case model.PushNotifyAndroid:
 		m.observeFCMResponse(dur)
 	}
 }

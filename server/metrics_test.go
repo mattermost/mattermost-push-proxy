@@ -10,13 +10,14 @@ import (
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
 func TestMetricDisabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	platform := "junk"
-	pushType := PushTypeMessage
+	pushType := model.PushTypeMessage
 
 	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)
@@ -44,8 +45,8 @@ func TestMetricDisabled(t *testing.T) {
 	m.incrementSuccess(platform, pushType, "")
 	m.incrementRemoval(platform, pushType, "", "not registered")
 	m.incrementFailure(platform, pushType, "", "error")
-	m.observerNotificationResponse(PushNotifyApple, 1)
-	m.observerNotificationResponse(PushNotifyAndroid, 1)
+	m.observerNotificationResponse(model.PushNotifyApple, 1)
+	m.observerNotificationResponse(model.PushNotifyAndroid, 1)
 	m.observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
@@ -66,7 +67,7 @@ func TestMetricDisabled(t *testing.T) {
 func TestMetricEnabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
 	platform := "junk"
-	pushType := PushTypeMessage
+	pushType := model.PushTypeMessage
 
 	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)
@@ -91,8 +92,8 @@ func TestMetricEnabled(t *testing.T) {
 	srv.metrics.incrementSuccess(platform, pushType, "")
 	srv.metrics.incrementRemoval(platform, pushType, "", "not registered")
 	srv.metrics.incrementFailure(platform, pushType, "", "error")
-	srv.metrics.observerNotificationResponse(PushNotifyApple, 1)
-	srv.metrics.observerNotificationResponse(PushNotifyAndroid, 1)
+	srv.metrics.observerNotificationResponse(model.PushNotifyApple, 1)
+	srv.metrics.observerNotificationResponse(model.PushNotifyAndroid, 1)
 	srv.metrics.observeServiceResponse(1)
 
 	resp, err := http.Get("http://localhost:8066/metrics")
