@@ -17,9 +17,9 @@ func TestRedactToken(t *testing.T) {
 	}{
 		{"empty", "", ""},
 		{"short token passes through", "1234", "1234"},
-		{"8 chars passes through", "12345678", "12345678"},
-		{"9 chars truncated", "123456789", "12345678…"},
-		{"long token truncated", "abcdef0123456789cafebabe", "abcdef01…"},
+		{"16 chars passes through", "0123456789abcdef", "0123456789abcdef"},
+		{"17 chars truncated", "0123456789abcdefg", "0123456789abcdef…"},
+		{"long token truncated", "abcdef0123456789cafebabe1234", "abcdef0123456789…"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, redactToken(tc.token))

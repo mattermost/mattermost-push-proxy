@@ -3,13 +3,13 @@
 
 package server
 
-// redactToken returns the first 8 chars of a device token followed by an
+// redactToken returns the first 16 chars of a device token followed by an
 // ellipsis, for safe inclusion in logs.
 func redactToken(token string) string {
-	if len(token) <= 8 {
+	if len(token) <= 16 {
 		return token
 	}
-	return token[:8] + "…"
+	return token[:16] + "…"
 }
 
 const (
