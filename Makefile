@@ -74,7 +74,7 @@ DOCKER_IMAGE_GH_CLI     ?= "ghcr.io/supportpal/github-gh-cli:2.31.0@sha256:71371
 # Requires Docker to be installed and running
 FIPS_ENABLED ?= false
 BUILD_IMAGE_FIPS ?= cgr.dev/mattermost.com/go-msft-fips:1.26.3
-BASE_IMAGE_FIPS ?= cgr.dev/mattermost.com/glibc-openssl-fips:15.1
+BASE_IMAGE_FIPS ?= cgr.dev/mattermost.com/glibc-openssl-fips:15.2
 
 ## Cosign Variables
 # The public key
