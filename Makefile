@@ -76,6 +76,18 @@ FIPS_ENABLED ?= false
 BUILD_IMAGE_FIPS ?= cgr.dev/mattermost.com/go-msft-fips:1.26.3
 BASE_IMAGE_FIPS ?= cgr.dev/mattermost.com/glibc-openssl-fips:15.1
 
+# Version stamping values are computed here on the host (where git is available)
+# and passed into the FIPS Docker build, since git is not available in the
+# FIPS build image. See docker/Dockerfile.fips.
+FIPS_VERSION_BUILD_ARGS := \
+	--build-arg APP_NAME="$(APP_NAME)" \
+	--build-arg GIT_VERSION="$(GIT_VERSION)" \
+	--build-arg BUILD_HASH="$(BUILD_HASH)" \
+	--build-arg BUILD_TAG_LATEST="$(BUILD_TAG_LATEST)" \
+	--build-arg BUILD_TAG_CURRENT="$(BUILD_TAG_CURRENT)" \
+	--build-arg GIT_TREESTATE="$(GIT_TREESTATE)" \
+	--build-arg BUILD_DATE="$(BUILD_DATE)"
+
 ## Cosign Variables
 # The public key
 COSIGN_PUBLIC_KEY       ?= akey
@@ -369,6 +381,7 @@ build-image-fips: ## Build the FIPS docker image for mattermost-push-proxy
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
 		--build-arg TARGETOS=$(TARGET_OS) \
 		--build-arg TARGETARCH=$(TARGET_ARCH) \
+		$(FIPS_VERSION_BUILD_ARGS) \
 		-f docker/Dockerfile.fips \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) .
 
@@ -381,6 +394,7 @@ buildx-image-fips: ## Builds and pushes the FIPS docker image for mattermost-pus
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=amd64 \
+		$(FIPS_VERSION_BUILD_ARGS) \
 		-f docker/Dockerfile.fips \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
 		--push .
@@ -397,6 +411,7 @@ build-image-fips-amd64-with-tags: ## Build FIPS Docker image for AMD64 with tags
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=amd64 \
+		$(FIPS_VERSION_BUILD_ARGS) \
 		-f docker/Dockerfile.fips \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-amd64 \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
@@ -410,6 +425,7 @@ build-image-fips-arm64-with-tags: ## Build FIPS Docker image for ARM64 with tags
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_FIPS) \
 		--build-arg TARGETOS=linux \
 		--build-arg TARGETARCH=arm64 \
+		$(FIPS_VERSION_BUILD_ARGS) \
 		-f docker/Dockerfile.fips \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V)-arm64 \
 		-t $(APP_NAME_FIPS):$(APP_VERSION_NO_V) \
@@ -642,7 +658,7 @@ go-build-docker: # to build binaries under a controlled docker dedicated go cont
 _build-fips-internal: ## Internal FIPS build target (used by Dockerfile.fips and build-fips)
 	@echo "Building mattermost-push-proxy (FIPS)"
 	@mkdir -p $(GO_OUT_BIN_DIR)
-	GO111MODULE=on GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=1 go build -tags=fips,goexperiment.opensslcrypto -trimpath -o $(GO_OUT_BIN_DIR)/mattermost-push-proxy ./main.go
+	GO111MODULE=on GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) CGO_ENABLED=1 go build -tags=fips,goexperiment.opensslcrypto -trimpath -ldflags '$(GO_LDFLAGS)' -o $(GO_OUT_BIN_DIR)/mattermost-push-proxy ./main.go
 
 .PHONY: build-fips
 build-fips: ## Build the mattermost-push-proxy with FIPS-compliant settings using containerized build
@@ -657,7 +673,7 @@ build-fips: ## Build the mattermost-push-proxy with FIPS-compliant settings usin
 		-e HOST_UID=$(shell id -u) \
 		-e HOST_GID=$(shell id -g) \
 		$(BUILD_IMAGE_FIPS) \
-		sh -c "cd /app && make _build-fips-internal TARGET_OS=\$$TARGET_OS TARGET_ARCH=\$$TARGET_ARCH && mv $(GO_OUT_BIN_DIR)/mattermost-push-proxy $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH) && chown \$$HOST_UID:\$$HOST_GID $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH)"
+		sh -c "cd /app && make _build-fips-internal TARGET_OS=\$$TARGET_OS TARGET_ARCH=\$$TARGET_ARCH APP_NAME='$(APP_NAME)' GIT_VERSION='$(GIT_VERSION)' BUILD_HASH='$(BUILD_HASH)' BUILD_TAG_LATEST='$(BUILD_TAG_LATEST)' BUILD_TAG_CURRENT='$(BUILD_TAG_CURRENT)' GIT_TREESTATE='$(GIT_TREESTATE)' BUILD_DATE='$(BUILD_DATE)' && mv $(GO_OUT_BIN_DIR)/mattermost-push-proxy $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH) && chown \$$HOST_UID:\$$HOST_GID $(GO_OUT_BIN_DIR)/mattermost-push-proxy-fips-$(TARGET_ARCH)"
 
 .PHONY: build-fips-amd64
 build-fips-amd64: ## Build the mattermost-push-proxy with FIPS-compliant settings for AMD64

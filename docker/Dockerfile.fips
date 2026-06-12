@@ -7,6 +7,16 @@ FROM ${BUILD_IMAGE} AS builder
 ARG TARGETARCH
 ARG TARGETOS
 
+# Version stamping values are computed on the host (where git is available) and
+# passed in as build args, since git is not available in the FIPS build image.
+ARG APP_NAME=mattermost-push-proxy
+ARG GIT_VERSION=dev
+ARG BUILD_HASH=unknown
+ARG BUILD_TAG_LATEST=unknown
+ARG BUILD_TAG_CURRENT=
+ARG GIT_TREESTATE=unknown
+ARG BUILD_DATE=unknown
+
 WORKDIR /workspace
 COPY . .
 
@@ -17,7 +27,14 @@ COPY config/mattermost-push-proxy.sample.json /workspace/mattermost-push-proxy.j
 ENV CGO_ENABLED=1
 ENV GOFIPS=1
 ENV GOEXPERIMENT=systemcrypto
-RUN make _build-fips-internal TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH
+RUN make _build-fips-internal TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH \
+  APP_NAME="$APP_NAME" \
+  GIT_VERSION="$GIT_VERSION" \
+  BUILD_HASH="$BUILD_HASH" \
+  BUILD_TAG_LATEST="$BUILD_TAG_LATEST" \
+  BUILD_TAG_CURRENT="$BUILD_TAG_CURRENT" \
+  GIT_TREESTATE="$GIT_TREESTATE" \
+  BUILD_DATE="$BUILD_DATE"
 
 FROM ${BASE_IMAGE}
 
