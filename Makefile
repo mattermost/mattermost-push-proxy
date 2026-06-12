@@ -488,6 +488,7 @@ docker-push-fips: ## to push the FIPS docker image (builds for default TARGET_AR
 	$(AT)$(DOCKER) build \
 	--no-cache --pull \
 	--platform $(TARGET_OS)/$(TARGET_ARCH) \
+	$(FIPS_VERSION_BUILD_ARGS) \
 	-f ${DOCKER_FILE}.fips . \
 	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
 	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips || ${FAIL}
@@ -499,6 +500,7 @@ docker-push-fips-linux-amd64: ## to push the FIPS docker image for Linux AMD64
 	$(AT)$(DOCKER) build \
 	--no-cache --pull \
 	--platform linux/amd64 \
+	$(FIPS_VERSION_BUILD_ARGS) \
 	-f ${DOCKER_FILE}.fips . \
 	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-amd64 || ${FAIL}
 	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-amd64 || ${FAIL}
@@ -510,6 +512,7 @@ docker-push-fips-linux-arm64: ## to push the FIPS docker image for Linux ARM64
 	$(AT)$(DOCKER) build \
 	--no-cache --pull \
 	--platform linux/arm64 \
+	$(FIPS_VERSION_BUILD_ARGS) \
 	-f ${DOCKER_FILE}.fips . \
 	-t $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-arm64 || ${FAIL}
 	$(AT)$(DOCKER) push $(DOCKER_REGISTRY)/${DOCKER_REGISTRY_REPO}:${APP_VERSION_NO_V}-fips-linux-arm64 || ${FAIL}
