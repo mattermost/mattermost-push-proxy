@@ -7,12 +7,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/expfmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
+
+func TestIncrementNotificationByAppVersion(t *testing.T) {
+	m := newMetrics()
+	defer m.shutdown()
+
+	platform := model.PushNotifyApple
+
+	// Versions 1 and 2 are tracked discretely; everything else collapses
+	// into the "other" sentinel to keep cardinality bounded.
+	m.incrementNotificationByAppVersion(platform, 1)
+	m.incrementNotificationByAppVersion(platform, 2)
+	m.incrementNotificationByAppVersion(platform, 3)
+	m.incrementNotificationByAppVersion(platform, 99)
+
+	assert.Equal(t, float64(1), testutil.ToFloat64(m.metricNotificationByAppVersion.WithLabelValues(platform, "1")))
+	assert.Equal(t, float64(1), testutil.ToFloat64(m.metricNotificationByAppVersion.WithLabelValues(platform, "2")))
+	assert.Equal(t, float64(2), testutil.ToFloat64(m.metricNotificationByAppVersion.WithLabelValues(platform, appVersionOther)))
+}
 
 func TestMetricDisabled(t *testing.T) {
 	t.Log("Testing Metrics Enabled")
@@ -42,6 +62,7 @@ func TestMetricDisabled(t *testing.T) {
 
 	m.incrementBadRequest()
 	m.incrementNotificationTotal(platform, pushType, "")
+	m.incrementNotificationByAppVersion(platform, 1)
 	m.incrementSuccess(platform, pushType, "")
 	m.incrementRemoval(platform, pushType, "", "not registered")
 	m.incrementFailure(platform, pushType, "", "error")
@@ -89,6 +110,7 @@ func TestMetricEnabled(t *testing.T) {
 
 	srv.metrics.incrementBadRequest()
 	srv.metrics.incrementNotificationTotal(platform, pushType, "")
+	srv.metrics.incrementNotificationByAppVersion(platform, 1)
 	srv.metrics.incrementSuccess(platform, pushType, "")
 	srv.metrics.incrementRemoval(platform, pushType, "", "not registered")
 	srv.metrics.incrementFailure(platform, pushType, "", "error")
@@ -105,7 +127,7 @@ func TestMetricEnabled(t *testing.T) {
 	parser := &expfmt.TextParser{}
 	metrics, _ := parser.TextToMetricFamilies(resp.Body)
 
-	counters := []string{metricSuccessName, metricFailureName, metricFailureWithReasonName, metricRemovalName, metricBadRequestName, metricNotificationsTotalName}
+	counters := []string{metricSuccessName, metricFailureName, metricFailureWithReasonName, metricRemovalName, metricBadRequestName, metricNotificationsTotalName, metricNotificationByAppVersionName}
 	for _, cn := range counters {
 		if m, ok := metrics[cn]; !ok {
 			t.Fatalf("metric not found. name: %s", cn)

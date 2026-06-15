@@ -242,6 +242,9 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if server, ok := s.pushTargets[msg.Platform]; ok {
+		if s.metrics != nil {
+			s.metrics.incrementNotificationByAppVersion(msg.Platform, appVersion)
+		}
 		rMsg := server.SendNotification(appVersion, &msg)
 		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
 			s.logger.Error("Failed to write message", mlog.Err(err2))

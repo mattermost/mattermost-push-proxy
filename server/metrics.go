@@ -9,18 +9,19 @@ import (
 )
 
 const (
-	metricNotificationsTotalName   = "service_notifications_total"
-	metricSuccessName              = "service_success_total"
-	metricSuccessWithAckName       = "service_success_with_ack_total"
-	metricDeliveredName            = "service_delivered_total"
-	metricFailureName              = "service_failure_total"
-	metricFailureWithReasonName    = "service_failure_with_reason_total"
-	metricRemovalName              = "service_removal_total"
-	metricBadRequestName           = "service_bad_request_total"
-	metricFCMResponseName          = "service_fcm_request_duration_seconds"
-	metricAPNSResponseName         = "service_apns_request_duration_seconds"
-	metricServiceResponseName      = "service_request_duration_seconds"
-	metricNotificationResponseName = "service_notification_duration_seconds"
+	metricNotificationsTotalName       = "service_notifications_total"
+	metricNotificationByAppVersionName = "service_notifications_by_app_version_total"
+	metricSuccessName                  = "service_success_total"
+	metricSuccessWithAckName           = "service_success_with_ack_total"
+	metricDeliveredName                = "service_delivered_total"
+	metricFailureName                  = "service_failure_total"
+	metricFailureWithReasonName        = "service_failure_with_reason_total"
+	metricRemovalName                  = "service_removal_total"
+	metricBadRequestName               = "service_bad_request_total"
+	metricFCMResponseName              = "service_fcm_request_duration_seconds"
+	metricAPNSResponseName             = "service_apns_request_duration_seconds"
+	metricServiceResponseName          = "service_request_duration_seconds"
+	metricNotificationResponseName     = "service_notification_duration_seconds"
 )
 
 // NewPrometheusHandler returns the http.Handler to expose Prometheus metrics
@@ -29,18 +30,19 @@ func NewPrometheusHandler() http.Handler {
 }
 
 type metrics struct {
-	metricNotificationsTotal   *prometheus.CounterVec
-	metricSuccess              *prometheus.CounterVec
-	metricSuccessWithAck       *prometheus.CounterVec
-	metricDelivered            *prometheus.CounterVec
-	metricFailure              *prometheus.CounterVec
-	metricFailureWithReason    *prometheus.CounterVec
-	metricRemoval              *prometheus.CounterVec
-	metricBadRequest           prometheus.Counter
-	metricAPNSResponse         prometheus.Histogram
-	metricFCMResponse          prometheus.Histogram
-	metricNotificationResponse *prometheus.HistogramVec
-	metricServiceResponse      prometheus.Histogram
+	metricNotificationsTotal       *prometheus.CounterVec
+	metricNotificationByAppVersion *prometheus.CounterVec
+	metricSuccess                  *prometheus.CounterVec
+	metricSuccessWithAck           *prometheus.CounterVec
+	metricDelivered                *prometheus.CounterVec
+	metricFailure                  *prometheus.CounterVec
+	metricFailureWithReason        *prometheus.CounterVec
+	metricRemoval                  *prometheus.CounterVec
+	metricBadRequest               prometheus.Counter
+	metricAPNSResponse             prometheus.Histogram
+	metricFCMResponse              prometheus.Histogram
+	metricNotificationResponse     *prometheus.HistogramVec
+	metricServiceResponse          prometheus.Histogram
 }
 
 // newMetrics initializes the metrics and registers them
@@ -50,6 +52,10 @@ func newMetrics() *metrics {
 			Name: metricNotificationsTotalName,
 			Help: "Number of notifications sent"},
 			[]string{"platform", "type", "transport"}),
+		metricNotificationByAppVersion: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: metricNotificationByAppVersionName,
+			Help: "Number of notifications sent, by reported app version. A version of 1 indicates a client that did not report an app version."},
+			[]string{"platform", "app_version"}),
 		metricSuccess: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: metricSuccessName,
 			Help: "Number of push success."},
@@ -100,6 +106,7 @@ func newMetrics() *metrics {
 
 	prometheus.MustRegister(
 		m.metricNotificationsTotal,
+		m.metricNotificationByAppVersion,
 		m.metricSuccess,
 		m.metricSuccessWithAck,
 		m.metricFailure,
@@ -122,6 +129,7 @@ func (m *metrics) shutdown() {
 		}
 	}(
 		m.metricNotificationsTotal,
+		m.metricNotificationByAppVersion,
 		m.metricSuccess,
 		m.metricSuccessWithAck,
 		m.metricFailure,
@@ -137,6 +145,21 @@ func (m *metrics) shutdown() {
 
 func (m *metrics) incrementNotificationTotal(platform, pushType string, transport model.PushTransport) {
 	m.metricNotificationsTotal.WithLabelValues(platform, pushType, string(transport)).Inc()
+}
+
+// appVersionOther is the sentinel label value for app versions outside the
+// explicitly tracked set, keeping the metric's cardinality bounded.
+const appVersionOther = "other"
+
+func (m *metrics) incrementNotificationByAppVersion(platform string, appVersion int) {
+	appVersionLabel := appVersionOther
+	switch appVersion {
+	case 1:
+		appVersionLabel = "1"
+	case 2:
+		appVersionLabel = "2"
+	}
+	m.metricNotificationByAppVersion.WithLabelValues(platform, appVersionLabel).Inc()
 }
 
 func (m *metrics) incrementSuccess(platform, pushType string, transport model.PushTransport) {
