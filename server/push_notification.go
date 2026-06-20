@@ -11,3 +11,10 @@ func redactToken(token string) string {
 	}
 	return token[:16] + "…"
 }
+
+const (
+	// PushNotifyWebPush identifies the UnifiedPush WebPush relay platform,
+	// alongside model.PushNotifyApple/PushNotifyAndroid. It has no model
+	// package equivalent yet since WebPush support hasn't been upstreamed.
+	PushNotifyWebPush = "unified_push"
+)

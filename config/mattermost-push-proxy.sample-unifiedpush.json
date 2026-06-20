@@ -1,0 +1,25 @@
+{
+    "ListenAddress":":8066",
+    "ThrottlePerSec":300,
+    "ThrottleMemoryStoreSize":50000,
+    "ThrottleVaryByHeader":"X-Forwarded-For",
+    "EnableMetrics": false,
+    "SendTimeoutSec": 30,
+    "RetryTimeoutSec": 8,
+    "WebPushSettings": [
+        {
+            "Type":"unified_push",
+            "RequestTimeout":30,
+            "VAPIDPublicKey":"",
+            "VAPIDPrivateKey":"",
+            "Subscriber":"mailto:push-admin@example.com",
+            "AllowedHosts": [],
+            "MaxErrorBodyBytes": 8192,
+            "TTLSeconds": 30
+        }
+    ],
+    "EnableConsoleLog": true,
+    "EnableFileLog": false,
+    "LogFileLocation": "",
+    "LogFormat": "plain"
+}

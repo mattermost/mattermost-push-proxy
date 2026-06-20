@@ -91,6 +91,16 @@ func (s *Server) Start() {
 		s.pushTargets[settings.Type] = server
 	}
 
+	for _, settings := range s.cfg.WebPushSettings {
+		server := NewWebPushNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec)
+		err := server.Initialize()
+		if err != nil {
+			s.logger.Error("Failed to initialize client", mlog.Err(err))
+			continue
+		}
+		s.pushTargets[settings.Type] = server
+	}
+
 	router := mux.NewRouter()
 	vary := throttled.VaryBy{}
 	vary.RemoteAddr = false
