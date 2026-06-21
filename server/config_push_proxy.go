@@ -46,15 +46,14 @@ type AndroidPushSettings struct {
 }
 
 type WebPushSettings struct {
-	Type                           string
-	RequestTimeout                 int
-	VAPIDPublicKey                 string
-	VAPIDPrivateKey                string
-	Subscriber                     string
-	AllowedHosts                   []string
-	MaxErrorBodyBytes              int
-	TTLSeconds                     int
-	InsecureSkipDestinationIPCheck bool
+	Type                   string
+	RequestTimeout         int
+	VAPIDPublicKey         string
+	VAPIDPrivateKey        string
+	Subscriber             string
+	AllowedHosts           []string
+	MaxErrorBodyBytes      int
+	TTLSeconds             int
 	AdditionalBlockedCIDRs []string
 }
 

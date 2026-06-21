@@ -41,7 +41,7 @@ configured with a `WebPushSettings` block:
 | `VAPIDPublicKey` | yes | P-256 VAPID public key, base64url. Must be the same key the client uses as its `applicationServerKey` at subscribe time. |
 | `VAPIDPrivateKey` | yes | P-256 VAPID private key, base64url. **Secret** — provision per deployment, never commit. |
 | `Subscriber` | yes | VAPID `sub` contact (RFC8292): a `mailto:` or `https:` URI a relay operator can reach. |
-| `AllowedHosts` | no | Hosts (`hostname` or `hostname:port`, exact match, no scheme/path/wildcard) exempt from the private-IP check below and allowed to use plain `http://`. Empty by default. |
+| `AllowedHosts` | no | Hosts (`hostname` or `hostname:port`, exact match, no scheme/path/wildcard) exempt from the private-IP check below. Still must use `https://`. Empty by default. |
 | `MaxErrorBodyBytes` | no | Cap, in bytes, on the relay's response body before it's echoed back in the push error. Applies to status codes other than 200/201/202 (success), 404/410 (gone), and 429 (rate limited), which don't read the body. The relay is client-chosen and could return an arbitrarily large body otherwise. Defaults to `8192`. |
 | `TTLSeconds` | no | Relay hold time for an undelivered push (RFC8030 `TTL` header). Defaults to `30`. |
 | `AdditionalBlockedCIDRs` | no | Extra CIDRs (e.g. `"203.0.113.0/24"`) to block on top of the built-in denylist below — for a range found to be abused after launch, without waiting on a new release. A malformed entry fails startup for that `Type`, same as the other fields here. Empty by default. |
@@ -54,16 +54,15 @@ notification later.
 
 The WebPush `endpoint` comes from the client, so the proxy rejects any
 destination that resolves to a private or internal IP (loopback, RFC1918,
-link-local, cloud metadata, etc.) and requires `https://`, both by default.
-Redirects are never followed, even to an allowlisted host.
+link-local, cloud metadata, etc.) and always requires `https://` — there is
+no setting to disable either check. Redirects are never followed, even to
+an allowlisted host.
 
 To use a relay that's only reachable on a private network — e.g. NAT
 hairpin or split-horizon DNS pointing `ntfy.mydomain.com` at
 `192.168.1.11` — add its `host` or `host:port` to `AllowedHosts` for that
-`Type`; that's the supported way to do it. There's also an
-`InsecureSkipDestinationIPCheck` field that disables the check entirely
-for a `Type`, but it exists for tests against a local server, not
-production — leave it unset.
+`Type` to exempt it from the private-IP check; it must still be served over
+`https://`.
 
 Going the other direction, `AdditionalBlockedCIDRs` extends the denylist
 for a `Type` — e.g. to block a range discovered to be abused for SSRF

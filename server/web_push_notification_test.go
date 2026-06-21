@@ -38,34 +38,33 @@ func generateTestVAPIDKeys() (string, string) {
 	return priv, pub
 }
 
-// testWebPushSettings disables the SSRF guard, since most tests hit an
-// httptest.Server on loopback and aren't testing SSRF behavior themselves.
+// testWebPushSettings provides the base VAPID/subscriber config every test
+// needs. The private-IP SSRF guard and the https requirement are always on
+// (there's no global bypass), so tests that need to reach a local httptest
+// server use testWebPushSettingsAllowing and trustTestServerCert instead.
 func testWebPushSettings() WebPushSettings {
 	return WebPushSettings{
-		Type:                           PushNotifyWebPush,
-		VAPIDPublicKey:                 testVAPIDPublicKey,
-		VAPIDPrivateKey:                testVAPIDPrivateKey,
-		Subscriber:                     "mailto:test@example.com",
-		InsecureSkipDestinationIPCheck: true,
+		Type:            PushNotifyWebPush,
+		VAPIDPublicKey:  testVAPIDPublicKey,
+		VAPIDPrivateKey: testVAPIDPrivateKey,
+		Subscriber:      "mailto:test@example.com",
 	}
 }
 
-// testWebPushSettingsAllowing leaves the SSRF guard enabled and exercises
-// AllowedHosts directly, for tests that prove the allowlist mechanism itself.
+// testWebPushSettingsAllowing exempts host from the private-IP SSRF guard
+// (it must still be https), for tests that prove the allowlist mechanism
+// itself or just need to reach a local httptest.NewTLSServer.
 func testWebPushSettingsAllowing(host string) WebPushSettings {
 	s := testWebPushSettings()
-	s.InsecureSkipDestinationIPCheck = false
 	s.AllowedHosts = []string{host}
 	return s
 }
 
-// testWebPushSettingsGuarded leaves the SSRF guard enabled with no
-// AllowedHosts exceptions, for tests that prove the guard itself blocks a
-// destination.
-func testWebPushSettingsGuarded() WebPushSettings {
-	s := testWebPushSettings()
-	s.InsecureSkipDestinationIPCheck = false
-	return s
+// trustTestServerCert makes webPushSrv's normalClient trust srv's
+// self-signed certificate, so an AllowedHosts-exempted send in a test can
+// reach an httptest.NewTLSServer.
+func trustTestServerCert(webPushSrv *WebPushNotificationServer, srv *httptest.Server) {
+	webPushSrv.normalClient.Transport = srv.Client().Transport
 }
 
 // recipientKeys is a recipient's WebPush subscription keypair, generated
@@ -161,7 +160,7 @@ func TestWebPushSendNotification_EncryptRoundTrip(t *testing.T) {
 	keys := newRecipientKeys(t)
 
 	var capturedBody []byte
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		capturedBody = body
@@ -172,7 +171,9 @@ func TestWebPushSendNotification_EncryptRoundTrip(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
+	host := strings.TrimPrefix(srv.URL, "https://")
+	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
+	trustTestServerCert(webPushSrv, srv)
 
 	msg := &model.PushNotification{
 		ServerId:     "server1",
@@ -209,12 +210,12 @@ func TestWebPushSendNotification_TransportErrorRedactsEndpoint(t *testing.T) {
 
 	// Port 1 is closed, so SendNotification gets a connection-refused url.Error.
 	const secretTopic = "supersecret-bearer-topic"
-	endpoint := "http://127.0.0.1:1/" + secretTopic
+	endpoint := "https://127.0.0.1:1/" + secretTopic
 
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
+	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing("127.0.0.1:1"), logger, nil, 5)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -245,7 +246,7 @@ func TestWebPushSendNotification_StatusMapping(t *testing.T) {
 		{"500 Internal Server Error maps to error", http.StatusInternalServerError, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = io.ReadAll(r.Body)
 				w.WriteHeader(tc.statusCode)
 			}))
@@ -254,7 +255,9 @@ func TestWebPushSendNotification_StatusMapping(t *testing.T) {
 			logger, err := mlog.NewLogger()
 			require.NoError(t, err)
 
-			webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
+			host := strings.TrimPrefix(srv.URL, "https://")
+			webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
+			trustTestServerCert(webPushSrv, srv)
 
 			msg := &model.PushNotification{
 				ServerId: "server1",
@@ -287,7 +290,7 @@ func TestWebPushSendNotification_CapsErrorBody(t *testing.T) {
 		{"configured cap is honored", 100, 100},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = io.ReadAll(r.Body)
 				w.WriteHeader(http.StatusBadRequest)
 				_, _ = w.Write([]byte(oversizedBody))
@@ -297,9 +300,11 @@ func TestWebPushSendNotification_CapsErrorBody(t *testing.T) {
 			logger, err := mlog.NewLogger()
 			require.NoError(t, err)
 
-			settings := testWebPushSettings()
+			host := strings.TrimPrefix(srv.URL, "https://")
+			settings := testWebPushSettingsAllowing(host)
 			settings.MaxErrorBodyBytes = tc.maxErrorBodyBytes
 			webPushSrv := NewWebPushNotificationServer(settings, logger, nil, 5)
+			trustTestServerCert(webPushSrv, srv)
 
 			msg := &model.PushNotification{
 				ServerId: "server1",
@@ -327,7 +332,7 @@ func TestWebPushSendNotification_TTL(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotTTL string
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gotTTL = r.Header.Get("TTL")
 				_, _ = io.ReadAll(r.Body)
 				w.WriteHeader(http.StatusCreated)
@@ -337,9 +342,11 @@ func TestWebPushSendNotification_TTL(t *testing.T) {
 			logger, err := mlog.NewLogger()
 			require.NoError(t, err)
 
-			settings := testWebPushSettings()
+			host := strings.TrimPrefix(srv.URL, "https://")
+			settings := testWebPushSettingsAllowing(host)
 			settings.TTLSeconds = tc.ttlSeconds
 			webPushSrv := NewWebPushNotificationServer(settings, logger, nil, 5)
+			trustTestServerCert(webPushSrv, srv)
 
 			msg := &model.PushNotification{
 				ServerId: "server1",
@@ -466,7 +473,7 @@ func TestNewWebPushNotificationServer_ParanoidClientBlocksLoopback(t *testing.T)
 	require.True(t, errors.Is(err, errDestinationBlocked), "got: %v", err)
 }
 
-func TestWebPushSendNotification_RequiresHTTPSUnlessAllowed(t *testing.T) {
+func TestWebPushSendNotification_RequiresHTTPSAlways(t *testing.T) {
 	keys := newRecipientKeys(t)
 
 	logger, err := mlog.NewLogger()
@@ -485,7 +492,7 @@ func TestWebPushSendNotification_RequiresHTTPSUnlessAllowed(t *testing.T) {
 		require.Contains(t, resp[PUSH_STATUS_ERROR_MSG], "must use https")
 	})
 
-	t.Run("http to allowlisted host succeeds", func(t *testing.T) {
+	t.Run("http to allowlisted host still fails: AllowedHosts only exempts the IP check, not the scheme", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = io.ReadAll(r.Body)
 			w.WriteHeader(http.StatusCreated)
@@ -501,13 +508,12 @@ func TestWebPushSendNotification_RequiresHTTPSUnlessAllowed(t *testing.T) {
 		}
 
 		resp := webPushSrv.SendNotification(1, msg)
-		require.Equal(t, NewOkPushResponse(), resp)
+		require.Equal(t, PUSH_STATUS_FAIL, resp[PUSH_STATUS])
+		require.Contains(t, resp[PUSH_STATUS_ERROR_MSG], "must use https")
 	})
 
-	t.Run("https to non-allowlisted host is unaffected by the scheme check", func(t *testing.T) {
-		s := testWebPushSettings()
-		s.InsecureSkipDestinationIPCheck = false
-		webPushSrv := NewWebPushNotificationServer(s, logger, nil, 5)
+	t.Run("https to non-allowlisted host passes the scheme check and is blocked by the IP guard instead", func(t *testing.T) {
+		webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
 		msg := &model.PushNotification{
 			ServerId: "server1",
 			Type:     model.PushTypeMessage,
@@ -524,7 +530,7 @@ func TestWebPushSendNotification_AllowedHostBypassesIPCheck(t *testing.T) {
 	keys := newRecipientKeys(t)
 
 	var hit bool
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hit = true
 		_, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusCreated)
@@ -534,8 +540,9 @@ func TestWebPushSendNotification_AllowedHostBypassesIPCheck(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	host := strings.TrimPrefix(srv.URL, "http://")
+	host := strings.TrimPrefix(srv.URL, "https://")
 	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
+	trustTestServerCert(webPushSrv, srv)
 
 	msg := &model.PushNotification{
 		ServerId: "server1",
@@ -561,7 +568,7 @@ func TestWebPushSendNotification_BlocksPrivateIP(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		webPushSrv := NewWebPushNotificationServer(testWebPushSettingsGuarded(), logger, nil, 5)
+		webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
 		msg := &model.PushNotification{
 			ServerId: "server1",
 			Type:     model.PushTypeMessage,
@@ -588,7 +595,7 @@ func TestWebPushSendNotification_BlocksPrivateIP(t *testing.T) {
 			if strings.Contains(host, ":") {
 				endpointHost = "[" + host + "]"
 			}
-			webPushSrv := NewWebPushNotificationServer(testWebPushSettingsGuarded(), logger, nil, 5)
+			webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
 			msg := &model.PushNotification{
 				ServerId: "server1",
 				Type:     model.PushTypeMessage,
@@ -611,7 +618,7 @@ func TestWebPushSendNotification_BlocksCGNAT(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsGuarded(), logger, nil, 2)
+	webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 2)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -631,7 +638,7 @@ func TestWebPushSendNotification_BlocksAdditionalConfiguredCIDR(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	s := testWebPushSettingsGuarded()
+	s := testWebPushSettings()
 	s.AdditionalBlockedCIDRs = []string{"203.0.113.0/24"}
 	webPushSrv := NewWebPushNotificationServer(s, logger, nil, 2)
 	msg := &model.PushNotification{
@@ -653,7 +660,7 @@ func TestWebPushSendNotification_BlocksLocalhostHostname(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsGuarded(), logger, nil, 5)
+	webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -670,12 +677,12 @@ func TestWebPushSendNotification_DeniesRedirect(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer target.Close()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target.URL, http.StatusFound)
 	}))
 	defer srv.Close()
@@ -683,8 +690,9 @@ func TestWebPushSendNotification_DeniesRedirect(t *testing.T) {
 	// The original host is allowlisted (normalClient, no IP-range check) —
 	// proving redirect denial applies unconditionally, not just to
 	// paranoidClient.
-	host := strings.TrimPrefix(srv.URL, "http://")
+	host := strings.TrimPrefix(srv.URL, "https://")
 	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
+	trustTestServerCert(webPushSrv, srv)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -708,7 +716,7 @@ func TestWebPushSendNotification_BlocksIPv4MappedIPv6(t *testing.T) {
 		"[::ffff:169.254.169.254]",
 	} {
 		t.Run(host, func(t *testing.T) {
-			webPushSrv := NewWebPushNotificationServer(testWebPushSettingsGuarded(), logger, nil, 5)
+			webPushSrv := NewWebPushNotificationServer(testWebPushSettings(), logger, nil, 5)
 			msg := &model.PushNotification{
 				ServerId: "server1",
 				Type:     model.PushTypeMessage,

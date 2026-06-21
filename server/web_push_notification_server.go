@@ -251,10 +251,6 @@ func (me *WebPushNotificationServer) Initialize() error {
 		return fmt.Errorf("failed to initialize WebPush notification service for type=%q: %w", me.WebPushSettings.Type, err)
 	}
 
-	if me.WebPushSettings.InsecureSkipDestinationIPCheck {
-		me.logger.Warn("InsecureSkipDestinationIPCheck is enabled: the private-IP-range SSRF guard is disabled for this WebPush type", mlog.String("type", me.WebPushSettings.Type))
-	}
-
 	return nil
 }
 
@@ -379,17 +375,15 @@ func (me *WebPushNotificationServer) SendNotification(_ int, msg *model.PushNoti
 		return NewErrorPushResponse(fmt.Sprintf("invalid WebPush device id: %v", err))
 	}
 
-	skipGuard := me.WebPushSettings.InsecureSkipDestinationIPCheck || isAllowedHost(endpointURL.Host, me.WebPushSettings.AllowedHosts)
-
-	if endpointURL.Scheme != "https" && !skipGuard {
+	if endpointURL.Scheme != "https" {
 		if me.metrics != nil {
 			me.metrics.incrementFailure(PushNotifyWebPush, pushType, model.PushTransportStandard, "SCHEME_NOT_ALLOWED")
 		}
-		return NewErrorPushResponse("endpoint must use https, or be in AllowedHosts to use http")
+		return NewErrorPushResponse("endpoint must use https")
 	}
 
 	thisClient := me.paranoidClient
-	if skipGuard {
+	if isAllowedHost(endpointURL.Host, me.WebPushSettings.AllowedHosts) {
 		thisClient = me.normalClient
 	}
 
