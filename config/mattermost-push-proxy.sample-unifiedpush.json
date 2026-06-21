@@ -15,7 +15,8 @@
             "Subscriber":"mailto:push-admin@example.com",
             "AllowedHosts": [],
             "MaxErrorBodyBytes": 8192,
-            "TTLSeconds": 30
+            "TTLSeconds": 30,
+            "AdditionalBlockedCIDRs": []
         }
     ],
     "EnableConsoleLog": true,

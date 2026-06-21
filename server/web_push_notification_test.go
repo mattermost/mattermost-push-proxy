@@ -28,9 +28,6 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
-// throwaway keypair, generated fresh per test run so it never reads as a
-// real credential to secret scanners. Real deployments bring their own (see
-// README).
 var testVAPIDPrivateKey, testVAPIDPublicKey = generateTestVAPIDKeys()
 
 func generateTestVAPIDKeys() (string, string) {
@@ -437,6 +434,18 @@ func TestWebPushInitialize(t *testing.T) {
 		s.AllowedHosts = []string{"ntfy.mydomain.com", "192.168.1.123:8123"}
 		require.NoError(t, newServer(s).Initialize())
 	})
+
+	t.Run("bad AdditionalBlockedCIDRs entry fails fast", func(t *testing.T) {
+		s := testWebPushSettings()
+		s.AdditionalBlockedCIDRs = []string{"not-a-cidr"}
+		require.Error(t, newServer(s).Initialize())
+	})
+
+	t.Run("valid AdditionalBlockedCIDRs entries initialize", func(t *testing.T) {
+		s := testWebPushSettings()
+		s.AdditionalBlockedCIDRs = []string{"203.0.113.0/24"}
+		require.NoError(t, newServer(s).Initialize())
+	})
 }
 
 // Exercises paranoidClient directly, to prove the dialer wiring itself works
@@ -593,10 +602,11 @@ func TestWebPushSendNotification_BlocksPrivateIP(t *testing.T) {
 	}
 }
 
-// Documents a known gap rather than testing a feature: paranoidhttp doesn't
-// block CGNAT addresses. If a future upgrade starts blocking them, this test
-// starts failing, which is the signal to revisit it.
-func TestWebPushSendNotification_CGNATGapDocumented(t *testing.T) {
+// RFC 6598 CGNAT addresses (100.64.0.0/10) aren't in paranoidhttp's own
+// denylist; baseForbiddenCIDRs adds them so paranoidhttp's dialer blocks them
+// the same way it blocks everything else. This literal-IP endpoint is
+// rejected pre-dial, so the test doesn't depend on network reachability.
+func TestWebPushSendNotification_BlocksCGNAT(t *testing.T) {
 	keys := newRecipientKeys(t)
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
@@ -610,7 +620,29 @@ func TestWebPushSendNotification_CGNATGapDocumented(t *testing.T) {
 
 	resp := webPushSrv.SendNotification(1, msg)
 	require.Equal(t, PUSH_STATUS_FAIL, resp[PUSH_STATUS])
-	require.NotEqual(t, "destination not permitted", resp[PUSH_STATUS_ERROR_MSG])
+	require.Equal(t, "destination not permitted", resp[PUSH_STATUS_ERROR_MSG])
+}
+
+// 203.0.113.0/24 (TEST-NET-3) is otherwise-routable space, not in
+// baseForbiddenCIDRs, so this only blocks because AdditionalBlockedCIDRs is
+// merged into the SSRF guard's denylist at construction time.
+func TestWebPushSendNotification_BlocksAdditionalConfiguredCIDR(t *testing.T) {
+	keys := newRecipientKeys(t)
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	s := testWebPushSettingsGuarded()
+	s.AdditionalBlockedCIDRs = []string{"203.0.113.0/24"}
+	webPushSrv := NewWebPushNotificationServer(s, logger, nil, 2)
+	msg := &model.PushNotification{
+		ServerId: "server1",
+		Type:     model.PushTypeMessage,
+		DeviceId: webPushDeviceID(t, "https://203.0.113.1/topic", keys.p256dh(), keys.auth()),
+	}
+
+	resp := webPushSrv.SendNotification(1, msg)
+	require.Equal(t, PUSH_STATUS_FAIL, resp[PUSH_STATUS])
+	require.Equal(t, "destination not permitted", resp[PUSH_STATUS_ERROR_MSG])
 }
 
 // paranoidhttp blocks the literal hostname "localhost" via a separate code

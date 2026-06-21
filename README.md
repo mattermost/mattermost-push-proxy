@@ -28,7 +28,8 @@ configured with a `WebPushSettings` block:
         "Subscriber": "mailto:push-admin@example.com",
         "AllowedHosts": [],
         "MaxErrorBodyBytes": 8192,
-        "TTLSeconds": 30
+        "TTLSeconds": 30,
+        "AdditionalBlockedCIDRs": []
     }
 ]
 ```
@@ -43,6 +44,7 @@ configured with a `WebPushSettings` block:
 | `AllowedHosts` | no | Hosts (`hostname` or `hostname:port`, exact match, no scheme/path/wildcard) exempt from the private-IP check below and allowed to use plain `http://`. Empty by default. |
 | `MaxErrorBodyBytes` | no | Cap, in bytes, on the relay's response body before it's echoed back in the push error. Applies to status codes other than 200/201/202 (success), 404/410 (gone), and 429 (rate limited), which don't read the body. The relay is client-chosen and could return an arbitrarily large body otherwise. Defaults to `8192`. |
 | `TTLSeconds` | no | Relay hold time for an undelivered push (RFC8030 `TTL` header). Defaults to `30`. |
+| `AdditionalBlockedCIDRs` | no | Extra CIDRs (e.g. `"203.0.113.0/24"`) to block on top of the built-in denylist below — for a range found to be abused after launch, without waiting on a new release. A malformed entry fails startup for that `Type`, same as the other fields here. Empty by default. |
 
 A bad value in any of these fields fails startup for that `Type` only —
 logged with the precise reason — rather than failing silently per
@@ -62,6 +64,10 @@ hairpin or split-horizon DNS pointing `ntfy.mydomain.com` at
 `InsecureSkipDestinationIPCheck` field that disables the check entirely
 for a `Type`, but it exists for tests against a local server, not
 production — leave it unset.
+
+Going the other direction, `AdditionalBlockedCIDRs` extends the denylist
+for a `Type` — e.g. to block a range discovered to be abused for SSRF
+after launch, without waiting on a new release.
 
 ### Generating a VAPID keypair
 

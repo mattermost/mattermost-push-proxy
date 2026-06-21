@@ -55,6 +55,7 @@ type WebPushSettings struct {
 	MaxErrorBodyBytes              int
 	TTLSeconds                     int
 	InsecureSkipDestinationIPCheck bool
+	AdditionalBlockedCIDRs []string
 }
 
 // FindConfigFile searches for the filepath in a list of directories

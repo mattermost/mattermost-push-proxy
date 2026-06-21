@@ -45,6 +45,68 @@ type WebPushNotificationServer struct {
 // errDestinationBlocked marks a send rejected by paranoidClient's SSRF guard.
 var errDestinationBlocked = errors.New("destination resolves to a forbidden IP range")
 
+// baseForbiddenCIDRs restates paranoidhttp's own default denylist (the
+// unexported list in its init()) and then adds the ranges it misses.
+// paranoidhttp's ForbiddenIPNets option replaces its default list rather
+// than merging with it, and the default isn't exported, so keeping
+// paranoidhttp's coverage means copying it here before extending it.
+var baseForbiddenCIDRs = []string{
+	// IPv4 — paranoidhttp's defaults
+	"10.0.0.0/8",     // private class A
+	"172.16.0.0/12",  // private class B
+	"192.168.0.0/16", // private class C
+	"192.0.2.0/24",   // test net 1
+	"192.88.99.0/24", // 6to4 relay
+
+	// IPv6 — paranoidhttp's defaults: block everything except 2000::/3
+	// (RFC 2373 global unicast), then carve out special ranges within it
+	"0000::/3",      // 0000-0010
+	"4000::/2",      // 0100-1000
+	"8000::/1",      // 1000-1111
+	"2001::/32",     // Teredo tunneling
+	"2001:10::/28",  // Deprecated (previously ORCHID)
+	"2001:20::/28",  // ORCHIDv2
+	"2001:db8::/32", // Addresses used in documentation and example source code
+	"2002::/16",     // 6to4
+
+	// Ranges missing from paranoidhttp's defaults
+	"100.64.0.0/10", // RFC 6598 shared address space (carrier-grade NAT)
+	"0.0.0.0/8",     // RFC 1122 "this network"
+	"198.18.0.0/15", // RFC 2544 benchmarking
+	"192.0.0.0/24",  // RFC 6890 IETF protocol assignments
+}
+
+func mustParseCIDR(s string) *net.IPNet {
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		panic("invalid hardcoded CIDR " + s + ": " + err.Error())
+	}
+	return ipnet
+}
+
+var baseForbiddenIPNets = func() []*net.IPNet {
+	nets := make([]*net.IPNet, len(baseForbiddenCIDRs))
+	for i, c := range baseForbiddenCIDRs {
+		nets[i] = mustParseCIDR(c)
+	}
+	return nets
+}()
+
+// parseForbiddenIPNets parses operator-supplied CIDRs (WebPushSettings.
+// AdditionalBlockedCIDRs), as opposed to mustParseCIDR above for the
+// hardcoded list, which is trusted and panics instead of returning an error.
+func parseForbiddenIPNets(cidrs []string) ([]*net.IPNet, error) {
+	nets := make([]*net.IPNet, len(cidrs))
+	for i, c := range cidrs {
+		_, ipnet, err := net.ParseCIDR(c)
+		if err != nil {
+			return nil, fmt.Errorf("AdditionalBlockedCIDRs entry %q is not a valid CIDR: %w", c, err)
+		}
+		nets[i] = ipnet
+	}
+	return nets, nil
+}
+
 func denyRedirect(_ *http.Request, _ []*http.Request) error {
 	return errors.New("redirects are not followed")
 }
@@ -131,9 +193,20 @@ func NewWebPushNotificationServer(settings WebPushSettings, logger *mlog.Logger,
 	timeout := time.Duration(timeoutSecs) * time.Second
 
 	// Mirrors the unified push proxy reference implementation's use of
-	// paranoidhttp. Known gap: its denylist misses CGNAT addresses — see
-	// TestWebPushSendNotification_CGNATGapDocumented.
-	paranoidClient, paranoidTransport, _ := paranoidhttp.NewClient()
+	// paranoidhttp, but with our own forbidden-range list (see
+	// baseForbiddenCIDRs) instead of paranoidhttp's, since that one has
+	// gaps and can't be merged with rather than replaced.
+	//
+	// Malformed AdditionalBlockedCIDRs entries are dropped here rather than
+	// erroring construction; Initialize validates the same field and its
+	// caller discards this server entirely if that validation fails.
+	additionalForbiddenIPNets, err := parseForbiddenIPNets(settings.AdditionalBlockedCIDRs)
+	if err != nil {
+		additionalForbiddenIPNets = nil
+	}
+	forbiddenIPNets := append(append([]*net.IPNet{}, baseForbiddenIPNets...), additionalForbiddenIPNets...)
+
+	paranoidClient, paranoidTransport, _ := paranoidhttp.NewClient(paranoidhttp.ForbiddenIPNets(forbiddenIPNets...))
 	paranoidClient.Timeout = timeout
 	paranoidClient.CheckRedirect = denyRedirect
 	paranoidTransport.DialContext = wrapBlockedIPSentinel(paranoidTransport.DialContext)
@@ -171,6 +244,10 @@ func (me *WebPushNotificationServer) Initialize() error {
 	}
 
 	if err := validateAllowedHosts(me.WebPushSettings.AllowedHosts); err != nil {
+		return fmt.Errorf("failed to initialize WebPush notification service for type=%q: %w", me.WebPushSettings.Type, err)
+	}
+
+	if _, err := parseForbiddenIPNets(me.WebPushSettings.AdditionalBlockedCIDRs); err != nil {
 		return fmt.Errorf("failed to initialize WebPush notification service for type=%q: %w", me.WebPushSettings.Type, err)
 	}
 
