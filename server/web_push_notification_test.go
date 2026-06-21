@@ -28,12 +28,18 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
-// throwaway keypair, used only in tests
-// real deployments bring their own (see README)
-const (
-	testVAPIDPublicKey  = "BFCh47i5zUl0v_vV_2IMlaDkzWotHVowaUEKjCR3TfO-Vd3pHZFUVyTds5-skzW9z5gVDPoXkVQdu4FGbcHGpaE"
-	testVAPIDPrivateKey = "XclKHTrsPPvV-_6sg3jos3sYgxgG_C_0seirMpowJOE"
-)
+// throwaway keypair, generated fresh per test run so it never reads as a
+// real credential to secret scanners. Real deployments bring their own (see
+// README).
+var testVAPIDPrivateKey, testVAPIDPublicKey = generateTestVAPIDKeys()
+
+func generateTestVAPIDKeys() (string, string) {
+	priv, pub, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		panic(err)
+	}
+	return priv, pub
+}
 
 // testWebPushSettings disables the SSRF guard, since most tests hit an
 // httptest.Server on loopback and aren't testing SSRF behavior themselves.
