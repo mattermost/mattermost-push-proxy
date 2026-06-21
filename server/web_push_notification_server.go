@@ -251,6 +251,10 @@ func (me *WebPushNotificationServer) Initialize() error {
 		return fmt.Errorf("failed to initialize WebPush notification service for type=%q: %w", me.WebPushSettings.Type, err)
 	}
 
+	if me.WebPushSettings.TTLSeconds < 0 {
+		return fmt.Errorf("failed to initialize WebPush notification service for type=%q: TTLSeconds must not be negative, got %d", me.WebPushSettings.Type, me.WebPushSettings.TTLSeconds)
+	}
+
 	return nil
 }
 

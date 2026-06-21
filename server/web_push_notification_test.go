@@ -10,13 +10,18 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
@@ -60,11 +65,28 @@ func testWebPushSettingsAllowing(host string) WebPushSettings {
 	return s
 }
 
-// trustTestServerCert makes webPushSrv's normalClient trust srv's
-// self-signed certificate, so an AllowedHosts-exempted send in a test can
-// reach an httptest.NewTLSServer.
-func trustTestServerCert(webPushSrv *WebPushNotificationServer, srv *httptest.Server) {
-	webPushSrv.normalClient.Transport = srv.Client().Transport
+// trustTestServerCert makes webPushSrv's normalClient trust the given
+// httptest.NewTLSServer(s)' self-signed certificate(s), so an
+// AllowedHosts-exempted send in a test can reach them.
+func trustTestServerCert(webPushSrv *WebPushNotificationServer, srvs ...*httptest.Server) {
+	pool := x509.NewCertPool()
+	for _, srv := range srvs {
+		pool.AddCert(srv.Certificate())
+	}
+	webPushSrv.normalClient.Transport = &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: pool},
+	}
+}
+
+// unusedLoopbackPort returns a loopback port that was free at the time of
+// the call, for tests that need a closed port to force connection-refused
+// rather than depending on a hardcoded port being unused on the host.
+func unusedLoopbackPort(t *testing.T) int {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := l.Addr().(*net.TCPAddr).Port
+	require.NoError(t, l.Close())
+	return port
 }
 
 // recipientKeys is a recipient's WebPush subscription keypair, generated
@@ -208,14 +230,18 @@ func TestWebPushSendNotification_EncryptRoundTrip(t *testing.T) {
 func TestWebPushSendNotification_TransportErrorRedactsEndpoint(t *testing.T) {
 	keys := newRecipientKeys(t)
 
-	// Port 1 is closed, so SendNotification gets a connection-refused url.Error.
+	// Reserve a port and immediately free it, so SendNotification gets a
+	// connection-refused url.Error without depending on what else is
+	// running on the host.
+	closedPort := unusedLoopbackPort(t)
 	const secretTopic = "supersecret-bearer-topic"
-	endpoint := "https://127.0.0.1:1/" + secretTopic
+	host := fmt.Sprintf("127.0.0.1:%d", closedPort)
+	endpoint := "https://" + host + "/" + secretTopic
 
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
-	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing("127.0.0.1:1"), logger, nil, 5)
+	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -453,6 +479,12 @@ func TestWebPushInitialize(t *testing.T) {
 		s.AdditionalBlockedCIDRs = []string{"203.0.113.0/24"}
 		require.NoError(t, newServer(s).Initialize())
 	})
+
+	t.Run("negative TTLSeconds fails fast", func(t *testing.T) {
+		s := testWebPushSettings()
+		s.TTLSeconds = -1
+		require.Error(t, newServer(s).Initialize())
+	})
 }
 
 // Exercises paranoidClient directly, to prove the dialer wiring itself works
@@ -677,7 +709,9 @@ func TestWebPushSendNotification_DeniesRedirect(t *testing.T) {
 	logger, err := mlog.NewLogger()
 	require.NoError(t, err)
 
+	var targetCalled atomic.Bool
 	target := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetCalled.Store(true)
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer target.Close()
@@ -692,7 +726,10 @@ func TestWebPushSendNotification_DeniesRedirect(t *testing.T) {
 	// paranoidClient.
 	host := strings.TrimPrefix(srv.URL, "https://")
 	webPushSrv := NewWebPushNotificationServer(testWebPushSettingsAllowing(host), logger, nil, 5)
-	trustTestServerCert(webPushSrv, srv)
+	// Trust target's cert too, not just srv's: otherwise a regression that
+	// follows the redirect would still fail (and the test would still
+	// pass) on an unrelated TLS verification error against target.
+	trustTestServerCert(webPushSrv, srv, target)
 	msg := &model.PushNotification{
 		ServerId: "server1",
 		Type:     model.PushTypeMessage,
@@ -701,6 +738,7 @@ func TestWebPushSendNotification_DeniesRedirect(t *testing.T) {
 
 	resp := webPushSrv.SendNotification(1, msg)
 	require.Equal(t, PUSH_STATUS_FAIL, resp[PUSH_STATUS])
+	require.False(t, targetCalled.Load(), "redirect target was reached; CheckRedirect should have blocked the follow-up request")
 }
 
 // IPv4-mapped IPv6 literals are a common SSRF-filter bypass; paranoidhttp
