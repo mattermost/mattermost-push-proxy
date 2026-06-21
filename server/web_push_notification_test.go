@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/elliptic"
+	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -74,14 +74,12 @@ func testWebPushSettingsGuarded() WebPushSettings {
 // recipientKeys is a recipient's WebPush subscription keypair, generated
 // in-test to stand in for a real browser/UnifiedPush subscriber.
 type recipientKeys struct {
-	privateKey []byte // raw ECDH scalar
-	publicKey  []byte // uncompressed P-256 point
+	privateKey *ecdh.PrivateKey
 	authSecret []byte // 16-byte auth secret
 }
 
 func newRecipientKeys(t *testing.T) recipientKeys {
-	curve := elliptic.P256()
-	priv, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+	priv, err := ecdh.P256().GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	auth := make([]byte, 16)
@@ -90,13 +88,16 @@ func newRecipientKeys(t *testing.T) recipientKeys {
 
 	return recipientKeys{
 		privateKey: priv,
-		publicKey:  elliptic.Marshal(curve, x, y),
 		authSecret: auth,
 	}
 }
 
+func (k recipientKeys) publicKey() []byte {
+	return k.privateKey.PublicKey().Bytes()
+}
+
 func (k recipientKeys) p256dh() string {
-	return base64.RawURLEncoding.EncodeToString(k.publicKey)
+	return base64.RawURLEncoding.EncodeToString(k.publicKey())
 }
 
 func (k recipientKeys) auth() string {
@@ -110,24 +111,21 @@ func (k recipientKeys) decrypt(t *testing.T, body []byte) []byte {
 
 	salt := body[:16]
 	idLen := int(body[20])
-	senderPublicKey := body[21 : 21+idLen]
+	senderPublicKeyBytes := body[21 : 21+idLen]
 	ciphertext := body[21+idLen:]
 
-	curve := elliptic.P256()
-	sx, sy := elliptic.Unmarshal(curve, senderPublicKey)
-	require.NotNil(t, sx, "sender public key is not a valid curve point")
+	senderPublicKey, err := ecdh.P256().NewPublicKey(senderPublicKeyBytes)
+	require.NoError(t, err, "sender public key is not a valid curve point")
 
-	shx, _ := curve.ScalarMult(sx, sy, k.privateKey)
-	mlen := curve.Params().BitSize / 8
-	sharedSecret := make([]byte, mlen)
-	shx.FillBytes(sharedSecret)
+	sharedSecret, err := k.privateKey.ECDH(senderPublicKey)
+	require.NoError(t, err)
 
 	infoBuf := bytes.NewBuffer([]byte("WebPush: info\x00"))
-	infoBuf.Write(k.publicKey)
-	infoBuf.Write(senderPublicKey)
+	infoBuf.Write(k.publicKey())
+	infoBuf.Write(senderPublicKeyBytes)
 
 	ikm := make([]byte, 32)
-	_, err := io.ReadFull(hkdf.New(sha256.New, sharedSecret, k.authSecret, infoBuf.Bytes()), ikm)
+	_, err = io.ReadFull(hkdf.New(sha256.New, sharedSecret, k.authSecret, infoBuf.Bytes()), ikm)
 	require.NoError(t, err)
 
 	cek := make([]byte, 16)
