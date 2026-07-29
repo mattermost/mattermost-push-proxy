@@ -122,6 +122,51 @@ func TestAndroidSend(t *testing.T) {
 	time.Sleep(time.Second * 2)
 }
 
+func TestHandleAckNotificationIncrementsStats(t *testing.T) {
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	srv := New(&ConfigPushProxy{}, logger)
+
+	ack := model.PushNotificationAck{
+		Id:               "ack1",
+		ClientPlatform:   model.PushNotifyAndroid,
+		NotificationType: model.PushTypeMessage,
+	}
+	buf, err := json.Marshal(ack)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ack", bytes.NewReader(buf))
+	res := httptest.NewRecorder()
+	srv.handleAckNotification(res, req)
+	require.Equal(t, http.StatusOK, res.Code)
+
+	_, _, acks := srv.stats.swap()
+	assert.Equal(t, int64(1), acks)
+}
+
+func TestLogThroughput(t *testing.T) {
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	srv := New(&ConfigPushProxy{}, logger)
+
+	srv.stats.incrementAndroidSend()
+	srv.stats.incrementAppleSend()
+	srv.stats.incrementAck()
+
+	// Emitting the throughput report must consume (reset) the counters.
+	assert.NotPanics(t, srv.logThroughput)
+
+	android, apple, acks := srv.stats.swap()
+	assert.Equal(t, int64(0), android)
+	assert.Equal(t, int64(0), apple)
+	assert.Equal(t, int64(0), acks)
+
+	// A report over an empty window is a safe no-op.
+	assert.NotPanics(t, srv.logThroughput)
+}
+
 func TestServer_version(t *testing.T) {
 	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)

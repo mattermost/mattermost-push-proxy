@@ -5,6 +5,8 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
@@ -27,22 +29,41 @@ func NewLogger(cfg *ConfigPushProxy) (*mlog.Logger, error) {
 
 func buildLogConfig(cfg *ConfigPushProxy) mlog.LoggerConfiguration {
 	logConf := make(mlog.LoggerConfiguration)
+	levels := levelsFor(cfg.LogLevel)
 
 	if cfg.EnableFileLog && cfg.LogFileLocation != "" {
-		logConf["file"] = buildLogFileConfig(cfg.LogFileLocation, cfg.LogFormat)
+		logConf["file"] = buildLogFileConfig(cfg.LogFileLocation, cfg.LogFormat, levels)
 	}
 
 	if cfg.EnableConsoleLog || cfg.LogFileLocation == "" || !cfg.EnableFileLog {
-		logConf["console"] = buildConsoleLogConfig(cfg.LogFormat)
+		logConf["console"] = buildConsoleLogConfig(cfg.LogFormat, levels)
 	}
 
 	return logConf
 }
 
-func buildConsoleLogConfig(format string) mlog.TargetCfg {
+// levelsFor maps the configured log level to the set of levels emitted by the
+// log targets. It always includes Panic/Fatal/Error and LvlStdLog; higher
+// verbosity levels are added as the threshold is lowered. Defaults to "info".
+func levelsFor(level string) []mlog.Level {
+	base := []mlog.Level{mlog.LvlPanic, mlog.LvlFatal, mlog.LvlError, mlog.LvlStdLog}
+
+	switch strings.ToLower(level) {
+	case "error":
+		return base
+	case "warn":
+		return append(base, mlog.LvlWarn)
+	case "debug":
+		return mlog.StdAll
+	default: // "info"
+		return append(base, mlog.LvlWarn, mlog.LvlInfo)
+	}
+}
+
+func buildConsoleLogConfig(format string, levels []mlog.Level) mlog.TargetCfg {
 	return mlog.TargetCfg{
 		Type:          "console",
-		Levels:        mlog.StdAll,
+		Levels:        levels,
 		Format:        format,
 		Options:       json.RawMessage(`{"out": "stdout"}`),
 		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
@@ -50,7 +71,7 @@ func buildConsoleLogConfig(format string) mlog.TargetCfg {
 	}
 }
 
-func buildLogFileConfig(filename string, format string) mlog.TargetCfg {
+func buildLogFileConfig(filename string, format string, levels []mlog.Level) mlog.TargetCfg {
 	opts := struct {
 		Filename    string `json:"filename"`
 		Max_size    int    `json:"max_size"`
@@ -68,7 +89,7 @@ func buildLogFileConfig(filename string, format string) mlog.TargetCfg {
 
 	return mlog.TargetCfg{
 		Type:          "file",
-		Levels:        mlog.StdAll,
+		Levels:        levels,
 		Format:        format,
 		Options:       optsJsonString,
 		FormatOptions: json.RawMessage(`{"enable_color": true, "enable_caller": true}`),
