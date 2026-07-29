@@ -46,6 +46,10 @@ type AndroidNotificationServer struct {
 	client              *messaging.Client
 	sendTimeout         time.Duration
 	retryTimeout        time.Duration
+	// validateToken mints an OAuth2 token from the service account to verify
+	// the credentials are still accepted by Google. It is nil until a service
+	// account has been loaded in Initialize.
+	validateToken func(context.Context) error
 }
 
 // serviceAccount contains a subset of the fields in service-account.json.
@@ -97,6 +101,11 @@ func (me *AndroidNotificationServer) Initialize() error {
 		return fmt.Errorf("error parsing service account JSON: %v", err)
 	}
 
+	me.validateToken = func(ctx context.Context) error {
+		_, tErr := cfg.TokenSource(ctx).Token()
+		return tErr
+	}
+
 	opt := option.WithTokenSource(cfg.TokenSource(context.Background()))
 	conf := &firebase.Config{
 		ProjectID:        serviceAcc.ProjectID,
@@ -114,6 +123,27 @@ func (me *AndroidNotificationServer) Initialize() error {
 	me.client = client
 
 	return nil
+}
+
+// checkCredentialExpiry validates the FCM service account credentials by
+// minting an OAuth2 token. The service account key carries no readable expiry,
+// so this actively probes whether the key is still accepted (it fails once the
+// key is revoked, disabled, or deleted) and logs an Error to alert on.
+func (me *AndroidNotificationServer) checkCredentialExpiry() {
+	if me.validateToken == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancel()
+
+	if err := me.validateToken(ctx); err != nil {
+		me.logger.Error(
+			"FCM credentials rejected; the service account key may be revoked, disabled, or expired",
+			mlog.String("target_type", me.AndroidPushSettings.Type),
+			mlog.Err(err),
+		)
+	}
 }
 
 func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNotification) PushResponse {

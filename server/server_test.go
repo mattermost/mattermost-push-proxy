@@ -167,6 +167,43 @@ func TestLogThroughput(t *testing.T) {
 	assert.NotPanics(t, srv.logThroughput)
 }
 
+type fakeExpiryTarget struct {
+	calls int
+}
+
+func (f *fakeExpiryTarget) SendNotification(_ int, _ *model.PushNotification) PushResponse {
+	return NewOkPushResponse()
+}
+func (f *fakeExpiryTarget) Initialize() error      { return nil }
+func (f *fakeExpiryTarget) checkCredentialExpiry() { f.calls++ }
+
+// plainTarget implements NotificationServer but not the credential-expiry
+// interface, so it must be skipped by the periodic check.
+type plainTarget struct{}
+
+func (plainTarget) SendNotification(_ int, _ *model.PushNotification) PushResponse {
+	return NewOkPushResponse()
+}
+func (plainTarget) Initialize() error { return nil }
+
+func TestServerCheckCredentialExpiry(t *testing.T) {
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	srv := New(&ConfigPushProxy{}, logger)
+	ft := &fakeExpiryTarget{}
+	srv.pushTargets["apple"] = ft
+	srv.pushTargets["android"] = plainTarget{}
+
+	// Targets that implement checkCredentialExpiry are called; those that
+	// don't are skipped without panicking.
+	assert.NotPanics(t, srv.checkCredentialExpiry)
+	assert.Equal(t, 1, ft.calls)
+
+	srv.checkCredentialExpiry()
+	assert.Equal(t, 2, ft.calls)
+}
+
 func TestServer_version(t *testing.T) {
 	fileName := FindConfigFile("mattermost-push-proxy.sample.json")
 	cfg, err := LoadConfig(fileName)

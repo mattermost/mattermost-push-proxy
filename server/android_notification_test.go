@@ -4,12 +4,15 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
@@ -65,6 +68,38 @@ type FirebaseError struct {
 
 func (fe *FirebaseError) Error() string {
 	return fe.String
+}
+
+func TestAndroidCheckCredentialExpiry(t *testing.T) {
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	t.Run("invokes the token validator", func(t *testing.T) {
+		var gotCtx context.Context
+		me := &AndroidNotificationServer{
+			AndroidPushSettings: AndroidPushSettings{Type: "android"},
+			logger:              logger,
+			sendTimeout:         time.Second,
+			validateToken: func(ctx context.Context) error {
+				gotCtx = ctx
+				return errors.New("service account key revoked")
+			},
+		}
+
+		assert.NotPanics(t, me.checkCredentialExpiry)
+		require.NotNil(t, gotCtx, "validateToken should have been called")
+		_, hasDeadline := gotCtx.Deadline()
+		assert.True(t, hasDeadline, "validation should be bounded by sendTimeout")
+	})
+
+	t.Run("no validator is a no-op", func(t *testing.T) {
+		me := &AndroidNotificationServer{
+			AndroidPushSettings: AndroidPushSettings{Type: "android"},
+			logger:              logger,
+		}
+		assert.Nil(t, me.validateToken)
+		assert.NotPanics(t, me.checkCredentialExpiry)
+	})
 }
 
 func TestGetErrorCode(t *testing.T) {
