@@ -139,6 +139,37 @@ func (s *Server) Start() {
 
 	s.statsDone = make(chan struct{})
 	go s.reportStats()
+	go s.watchCredentialExpiry()
+}
+
+// credentialCheckInterval controls how often push-target credentials are
+// re-checked for upcoming expiry, so long-running processes still alert.
+const credentialCheckInterval = 24 * time.Hour
+
+// watchCredentialExpiry checks push-target credentials at startup and daily
+// thereafter, letting targets log a Warn/Error as expiry approaches.
+func (s *Server) watchCredentialExpiry() {
+	s.checkCredentialExpiry()
+
+	ticker := time.NewTicker(credentialCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.statsDone:
+			return
+		case <-ticker.C:
+			s.checkCredentialExpiry()
+		}
+	}
+}
+
+func (s *Server) checkCredentialExpiry() {
+	for _, target := range s.pushTargets {
+		if c, ok := target.(interface{ checkCredentialExpiry() }); ok {
+			c.checkCredentialExpiry()
+		}
+	}
 }
 
 // reportStats logs aggregated send/ack throughput once per

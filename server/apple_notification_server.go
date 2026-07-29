@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -22,6 +23,35 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
+// Thresholds for how much validity remains before the Apple push certificate
+// expiry is logged, so it can be alerted on ahead of an outage.
+const (
+	certExpiryWarnThreshold  = 30 * 24 * time.Hour
+	certExpiryErrorThreshold = 7 * 24 * time.Hour
+)
+
+type expiryStatus int
+
+const (
+	expiryOK expiryStatus = iota
+	expiryWarn
+	expiryError
+)
+
+// certExpiryStatus classifies how urgently a certificate needs rotation based
+// on the time remaining until it expires. A non-positive duration (already
+// expired) falls into expiryError.
+func certExpiryStatus(timeLeft time.Duration) expiryStatus {
+	switch {
+	case timeLeft <= certExpiryErrorThreshold:
+		return expiryError
+	case timeLeft <= certExpiryWarnThreshold:
+		return expiryWarn
+	default:
+		return expiryOK
+	}
+}
+
 type AppleNotificationServer struct {
 	AppleClient       *apns.Client
 	metrics           *metrics
@@ -30,6 +60,9 @@ type AppleNotificationServer struct {
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
 	retryTimeout      time.Duration
+	// certNotAfter is the expiry of the loaded push certificate. It is the
+	// zero value for token (AuthKey) auth, which does not expire.
+	certNotAfter time.Time
 }
 
 func NewAppleNotificationServer(settings ApplePushSettings, logger *mlog.Logger, metrics *metrics, stats *stats, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
@@ -106,6 +139,8 @@ func (me *AppleNotificationServer) Initialize() error {
 			return fmt.Errorf("failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 		}
 
+		me.certNotAfter = certNotAfter(appleCert)
+
 		if me.ApplePushSettings.ApplePushUseDevelopment {
 			me.AppleClient = apns.NewClient(appleCert).Development()
 		} else {
@@ -117,6 +152,44 @@ func (me *AppleNotificationServer) Initialize() error {
 	}
 
 	return fmt.Errorf("apple push notifications not configured: missing ApplePushCertPrivate for type=%v", me.ApplePushSettings.Type)
+}
+
+// certNotAfter returns the expiry of the leaf certificate, or the zero time if
+// it cannot be determined.
+func certNotAfter(cert tls.Certificate) time.Time {
+	if cert.Leaf != nil {
+		return cert.Leaf.NotAfter
+	}
+	if len(cert.Certificate) > 0 {
+		if parsed, err := x509.ParseCertificate(cert.Certificate[0]); err == nil {
+			return parsed.NotAfter
+		}
+	}
+	return time.Time{}
+}
+
+// checkCredentialExpiry logs a Warn/Error as the push certificate nears
+// expiry, so operators can alert on it before deliveries start failing.
+// Token (AuthKey) auth has no expiry and is a no-op.
+func (me *AppleNotificationServer) checkCredentialExpiry() {
+	if me.certNotAfter.IsZero() {
+		return
+	}
+
+	timeLeft := time.Until(me.certNotAfter)
+	fields := []mlog.Field{
+		mlog.String("target_type", me.ApplePushSettings.Type),
+		mlog.Time("expires_at", me.certNotAfter),
+		mlog.Duration("time_left", timeLeft),
+	}
+
+	switch certExpiryStatus(timeLeft) {
+	case expiryError:
+		me.logger.Error("Apple push certificate is expiring soon or has expired", fields...)
+	case expiryWarn:
+		me.logger.Warn("Apple push certificate is expiring soon", fields...)
+	case expiryOK:
+	}
 }
 
 func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.PushNotification) PushResponse {

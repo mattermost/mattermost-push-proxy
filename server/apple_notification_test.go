@@ -4,10 +4,18 @@
 package server
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	apns "github.com/sideshow/apns2"
 	"github.com/stretchr/testify/assert"
@@ -161,6 +169,78 @@ func TestBuildVoIPNotification(t *testing.T) {
 		assert.False(t, hasAck, "ack_id should not appear when not populated")
 	})
 
+}
+
+func TestCertExpiryStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		timeLeft time.Duration
+		want     expiryStatus
+	}{
+		{"plenty of validity", 90 * 24 * time.Hour, expiryOK},
+		{"just above warn threshold", certExpiryWarnThreshold + time.Hour, expiryOK},
+		{"at warn threshold", certExpiryWarnThreshold, expiryWarn},
+		{"within warn window", 20 * 24 * time.Hour, expiryWarn},
+		{"just above error threshold", certExpiryErrorThreshold + time.Hour, expiryWarn},
+		{"at error threshold", certExpiryErrorThreshold, expiryError},
+		{"within error window", 3 * 24 * time.Hour, expiryError},
+		{"already expired", -time.Hour, expiryError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, certExpiryStatus(tc.timeLeft))
+		})
+	}
+}
+
+func TestCertNotAfter(t *testing.T) {
+	notAfter := time.Now().Add(45 * 24 * time.Hour).Truncate(time.Second)
+	der := newTestCertDER(t, notAfter)
+
+	t.Run("uses populated leaf", func(t *testing.T) {
+		leaf, err := x509.ParseCertificate(der)
+		require.NoError(t, err)
+		got := certNotAfter(tls.Certificate{Leaf: leaf, Certificate: [][]byte{der}})
+		assert.WithinDuration(t, notAfter, got, time.Second)
+	})
+
+	t.Run("parses from DER when leaf is nil", func(t *testing.T) {
+		got := certNotAfter(tls.Certificate{Certificate: [][]byte{der}})
+		assert.WithinDuration(t, notAfter, got, time.Second)
+	})
+
+	t.Run("zero time when nothing to parse", func(t *testing.T) {
+		assert.True(t, certNotAfter(tls.Certificate{}).IsZero())
+	})
+}
+
+func newTestCertDER(t *testing.T, notAfter time.Time) []byte {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test apns cert"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     notAfter,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	return der
+}
+
+func TestCheckCredentialExpiryNoCertIsNoop(t *testing.T) {
+	logger, err := mlog.NewLogger()
+	require.NoError(t, err)
+
+	// Token (AuthKey) auth leaves certNotAfter at its zero value.
+	srv := &AppleNotificationServer{
+		ApplePushSettings: ApplePushSettings{Type: "apple"},
+		logger:            logger,
+	}
+
+	assert.True(t, srv.certNotAfter.IsZero())
+	assert.NotPanics(t, srv.checkCredentialExpiry)
 }
 
 func marshalPayload(t *testing.T, n *apns.Notification) map[string]any {
