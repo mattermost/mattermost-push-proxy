@@ -147,10 +147,11 @@ func (s *Server) Start() {
 
 // credentialCheckInterval controls how often push-target credentials are
 // re-checked for upcoming expiry, so long-running processes still alert.
-const credentialCheckInterval = time.Hour
+const credentialCheckInterval = 12 * time.Hour
 
-// watchCredentialExpiry checks push-target credentials at startup and hourly
-// thereafter, letting targets log a Warn/Error as expiry approaches.
+// watchCredentialExpiry checks push-target credentials at startup and every
+// credentialCheckInterval thereafter, letting targets log a Warn/Error as
+// expiry approaches.
 func (s *Server) watchCredentialExpiry() {
 	defer s.bgWorkers.Done()
 
