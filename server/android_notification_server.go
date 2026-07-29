@@ -212,6 +212,22 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 	)
 	err := me.SendNotificationWithRetry(fcmMsg)
 	if err != nil {
+		// An unregistered or mismatched token is a client-driven condition, not
+		// a server fault: log it at Warn and route through the removal branch.
+		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
+			me.logger.Warn(
+				"Android response failure sending remove code",
+				mlog.String("server_id", msg.ServerId),
+				mlog.String("device_id", redactToken(msg.DeviceId)),
+				mlog.String("target_type", me.AndroidPushSettings.Type),
+				mlog.Err(err),
+			)
+			if me.metrics != nil {
+				me.metrics.incrementRemoval(model.PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
+			}
+			return NewRemovePushResponse()
+		}
+
 		errorCode, hasStatusCode := getErrorCode(err)
 		if !hasStatusCode {
 			errorCode = "NONE"
@@ -225,14 +241,6 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 			mlog.String("target_type", me.AndroidPushSettings.Type),
 			mlog.String("error_code", errorCode),
 		)
-
-		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
-			me.logger.Info("Android response failure sending remove code", mlog.String("target_type", me.AndroidPushSettings.Type))
-			if me.metrics != nil {
-				me.metrics.incrementRemoval(model.PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
-			}
-			return NewRemovePushResponse()
-		}
 
 		var reason string
 		switch {

@@ -46,5 +46,8 @@ func (s *stats) incrementAck() {
 // swap atomically reads and resets the counters, returning the totals
 // accumulated since the previous call.
 func (s *stats) swap() (android, apple, acks int64) {
+	if s == nil {
+		return 0, 0, 0
+	}
 	return s.androidSends.Swap(0), s.appleSends.Swap(0), s.acks.Swap(0)
 }
