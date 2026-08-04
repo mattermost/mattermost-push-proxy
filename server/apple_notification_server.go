@@ -30,25 +30,36 @@ const (
 	certExpiryErrorThreshold = 7 * 24 * time.Hour
 )
 
-type expiryStatus int
+type expiryLevel int
 
 const (
-	expiryOK expiryStatus = iota
+	expiryNone expiryLevel = iota
 	expiryWarn
 	expiryError
 )
 
-// certExpiryStatus classifies how urgently a certificate needs rotation based
-// on the time remaining until it expires. A non-positive duration (already
-// expired) falls into expiryError.
-func certExpiryStatus(timeLeft time.Duration) expiryStatus {
-	switch {
+// certExpiryReport decides how a certificate's expiry should be reported. It
+// disambiguates the cases operators care about: a certificate that has already
+// expired vs. one nearing expiry, and a certificate whose expiry could not be
+// determined (notAfter zero while hasCert is true) vs. token auth that has no
+// certificate at all (hasCert false), which never expires.
+func certExpiryReport(hasCert bool, notAfter, now time.Time) (expiryLevel, string) {
+	if notAfter.IsZero() {
+		if hasCert {
+			return expiryWarn, "Could not determine Apple push certificate expiry"
+		}
+		return expiryNone, ""
+	}
+
+	switch timeLeft := notAfter.Sub(now); {
+	case timeLeft <= 0:
+		return expiryError, "Apple push certificate has expired"
 	case timeLeft <= certExpiryErrorThreshold:
-		return expiryError
+		return expiryError, "Apple push certificate is expiring soon"
 	case timeLeft <= certExpiryWarnThreshold:
-		return expiryWarn
+		return expiryWarn, "Apple push certificate is expiring soon"
 	default:
-		return expiryOK
+		return expiryNone, ""
 	}
 }
 
@@ -60,8 +71,11 @@ type AppleNotificationServer struct {
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
 	retryTimeout      time.Duration
-	// certNotAfter is the expiry of the loaded push certificate. It is the
-	// zero value for token (AuthKey) auth, which does not expire.
+	// hasCert reports whether certificate auth is in use. Token (AuthKey) auth
+	// has no certificate and never expires.
+	hasCert bool
+	// certNotAfter is the expiry of the loaded push certificate. It is the zero
+	// value for token auth, or when the expiry could not be parsed.
 	certNotAfter time.Time
 }
 
@@ -139,6 +153,7 @@ func (me *AppleNotificationServer) Initialize() error {
 			return fmt.Errorf("failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 		}
 
+		me.hasCert = true
 		me.certNotAfter = certNotAfter(appleCert)
 
 		if me.ApplePushSettings.ApplePushUseDevelopment {
@@ -168,27 +183,29 @@ func certNotAfter(cert tls.Certificate) time.Time {
 	return time.Time{}
 }
 
-// checkCredentialExpiry logs a Warn/Error as the push certificate nears
-// expiry, so operators can alert on it before deliveries start failing.
-// Token (AuthKey) auth has no expiry and is a no-op.
+// checkCredentialExpiry logs a Warn/Error as the push certificate nears expiry
+// (or once expired), so operators can alert on it before deliveries start
+// failing. Token (AuthKey) auth has no expiry and is a no-op.
 func (me *AppleNotificationServer) checkCredentialExpiry() {
-	if me.certNotAfter.IsZero() {
+	level, message := certExpiryReport(me.hasCert, me.certNotAfter, time.Now())
+	if level == expiryNone {
 		return
 	}
 
-	timeLeft := time.Until(me.certNotAfter)
-	fields := []mlog.Field{
-		mlog.String("target_type", me.ApplePushSettings.Type),
-		mlog.Time("expires_at", me.certNotAfter),
-		mlog.Duration("time_left", timeLeft),
+	fields := []mlog.Field{mlog.String("target_type", me.ApplePushSettings.Type)}
+	if !me.certNotAfter.IsZero() {
+		fields = append(fields,
+			mlog.Time("expires_at", me.certNotAfter),
+			mlog.Duration("time_left", time.Until(me.certNotAfter)),
+		)
 	}
 
-	switch certExpiryStatus(timeLeft) {
-	case expiryError:
-		me.logger.Error("Apple push certificate is expiring soon or has expired", fields...)
+	switch level {
 	case expiryWarn:
-		me.logger.Warn("Apple push certificate is expiring soon", fields...)
-	case expiryOK:
+		me.logger.Warn(message, fields...)
+	case expiryError:
+		me.logger.Error(message, fields...)
+	case expiryNone:
 	}
 }
 

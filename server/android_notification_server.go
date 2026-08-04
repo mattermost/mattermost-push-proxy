@@ -137,13 +137,27 @@ func (me *AndroidNotificationServer) checkCredentialExpiry() {
 	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
 	defer cancel()
 
-	if err := me.validateToken(ctx); err != nil {
-		me.logger.Error(
-			"FCM credentials rejected; the service account key may be revoked, disabled, or expired",
+	err := me.validateToken(ctx)
+	if err == nil {
+		return
+	}
+
+	// A timeout is a transient/network problem, not evidence the key itself is
+	// bad, so keep it out of Error to avoid false credential alerts.
+	if errors.Is(err, context.DeadlineExceeded) {
+		me.logger.Warn(
+			"FCM credential check timed out; could not verify the service account key",
 			mlog.String("target_type", me.AndroidPushSettings.Type),
 			mlog.Err(err),
 		)
+		return
 	}
+
+	me.logger.Error(
+		"FCM credentials rejected; the service account key may be revoked, disabled, or expired",
+		mlog.String("target_type", me.AndroidPushSettings.Type),
+		mlog.Err(err),
+	)
 }
 
 func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNotification) PushResponse {

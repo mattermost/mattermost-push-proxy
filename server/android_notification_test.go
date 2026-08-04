@@ -92,6 +92,18 @@ func TestAndroidCheckCredentialExpiry(t *testing.T) {
 		assert.True(t, hasDeadline, "validation should be bounded by sendTimeout")
 	})
 
+	t.Run("timeout is handled without panicking", func(t *testing.T) {
+		me := &AndroidNotificationServer{
+			AndroidPushSettings: AndroidPushSettings{Type: "android"},
+			logger:              logger,
+			sendTimeout:         time.Second,
+			validateToken: func(_ context.Context) error {
+				return context.DeadlineExceeded
+			},
+		}
+		assert.NotPanics(t, me.checkCredentialExpiry)
+	})
+
 	t.Run("no validator is a no-op", func(t *testing.T) {
 		me := &AndroidNotificationServer{
 			AndroidPushSettings: AndroidPushSettings{Type: "android"},

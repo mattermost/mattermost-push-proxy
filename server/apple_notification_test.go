@@ -171,23 +171,31 @@ func TestBuildVoIPNotification(t *testing.T) {
 
 }
 
-func TestCertExpiryStatus(t *testing.T) {
+func TestCertExpiryReport(t *testing.T) {
+	now := time.Now()
+
 	for _, tc := range []struct {
-		name     string
-		timeLeft time.Duration
-		want     expiryStatus
+		name        string
+		hasCert     bool
+		notAfter    time.Time
+		wantLevel   expiryLevel
+		wantMessage string
 	}{
-		{"plenty of validity", 90 * 24 * time.Hour, expiryOK},
-		{"just above warn threshold", certExpiryWarnThreshold + time.Hour, expiryOK},
-		{"at warn threshold", certExpiryWarnThreshold, expiryWarn},
-		{"within warn window", 20 * 24 * time.Hour, expiryWarn},
-		{"just above error threshold", certExpiryErrorThreshold + time.Hour, expiryWarn},
-		{"at error threshold", certExpiryErrorThreshold, expiryError},
-		{"within error window", 3 * 24 * time.Hour, expiryError},
-		{"already expired", -time.Hour, expiryError},
+		{"token auth, no cert", false, time.Time{}, expiryNone, ""},
+		{"cert present but unparseable expiry", true, time.Time{}, expiryWarn, "Could not determine Apple push certificate expiry"},
+		{"plenty of validity", true, now.Add(90 * 24 * time.Hour), expiryNone, ""},
+		{"just above warn threshold", true, now.Add(certExpiryWarnThreshold + time.Hour), expiryNone, ""},
+		{"at warn threshold", true, now.Add(certExpiryWarnThreshold), expiryWarn, "Apple push certificate is expiring soon"},
+		{"within warn window", true, now.Add(20 * 24 * time.Hour), expiryWarn, "Apple push certificate is expiring soon"},
+		{"just above error threshold", true, now.Add(certExpiryErrorThreshold + time.Hour), expiryWarn, "Apple push certificate is expiring soon"},
+		{"at error threshold", true, now.Add(certExpiryErrorThreshold), expiryError, "Apple push certificate is expiring soon"},
+		{"within error window", true, now.Add(3 * 24 * time.Hour), expiryError, "Apple push certificate is expiring soon"},
+		{"already expired", true, now.Add(-time.Hour), expiryError, "Apple push certificate has expired"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, certExpiryStatus(tc.timeLeft))
+			level, message := certExpiryReport(tc.hasCert, tc.notAfter, now)
+			assert.Equal(t, tc.wantLevel, level)
+			assert.Equal(t, tc.wantMessage, message)
 		})
 	}
 }

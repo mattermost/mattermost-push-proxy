@@ -140,9 +140,8 @@ func (s *Server) Start() {
 	s.logger.Info("Server is listening on " + s.cfg.ListenAddress)
 
 	s.statsDone = make(chan struct{})
-	s.bgWorkers.Add(2)
-	go s.reportStats()
-	go s.watchCredentialExpiry()
+	s.bgWorkers.Go(s.reportStats)
+	s.bgWorkers.Go(s.watchCredentialExpiry)
 }
 
 // credentialCheckInterval controls how often push-target credentials are
@@ -153,8 +152,6 @@ const credentialCheckInterval = 12 * time.Hour
 // credentialCheckInterval thereafter, letting targets log a Warn/Error as
 // expiry approaches.
 func (s *Server) watchCredentialExpiry() {
-	defer s.bgWorkers.Done()
-
 	s.checkCredentialExpiry()
 
 	ticker := time.NewTicker(credentialCheckInterval)
@@ -182,8 +179,6 @@ func (s *Server) checkCredentialExpiry() {
 // statsReportInterval, giving a low-volume operational heartbeat in place of
 // per-notification logging.
 func (s *Server) reportStats() {
-	defer s.bgWorkers.Done()
-
 	ticker := time.NewTicker(statsReportInterval)
 	defer ticker.Stop()
 
@@ -224,6 +219,7 @@ func (s *Server) Stop() {
 		// final throughput flush completes before the logger is shut down.
 		close(s.statsDone)
 		s.bgWorkers.Wait()
+		s.statsDone = nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), WAIT_FOR_SERVER_SHUTDOWN)
 	defer cancel()
