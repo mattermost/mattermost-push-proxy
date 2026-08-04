@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/shared/mlog"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	apns "github.com/sideshow/apns2"
 	"github.com/stretchr/testify/assert"
@@ -237,18 +236,87 @@ func newTestCertDER(t *testing.T, notAfter time.Time) []byte {
 	return der
 }
 
-func TestCheckCredentialExpiryNoCertIsNoop(t *testing.T) {
-	logger, err := mlog.NewLogger()
-	require.NoError(t, err)
+func TestAppleCheckCredentialExpiry(t *testing.T) {
+	t.Run("token auth is a silent no-op", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		srv := &AppleNotificationServer{
+			ApplePushSettings: ApplePushSettings{Type: "apple"},
+			logger:            logger,
+		}
 
-	// Token (AuthKey) auth leaves certNotAfter at its zero value.
-	srv := &AppleNotificationServer{
-		ApplePushSettings: ApplePushSettings{Type: "apple"},
-		logger:            logger,
-	}
+		srv.checkCredentialExpiry()
 
-	assert.True(t, srv.certNotAfter.IsZero())
-	assert.NotPanics(t, srv.checkCredentialExpiry)
+		assert.False(t, srv.hasCert)
+		assert.Empty(t, flushLogs(t, logger, buf))
+	})
+
+	t.Run("warns when a certificate expiry cannot be parsed", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		srv := &AppleNotificationServer{
+			ApplePushSettings: ApplePushSettings{Type: "apple"},
+			logger:            logger,
+			hasCert:           true,
+		}
+
+		srv.checkCredentialExpiry()
+
+		records := flushLogs(t, logger, buf)
+		require.Len(t, records, 1)
+		assert.Equal(t, "warn", records[0]["level"])
+		assert.Contains(t, records[0]["msg"], "Could not determine")
+		_, hasExpiry := records[0]["expires_at"]
+		assert.False(t, hasExpiry, "no expiry fields when expiry is unknown")
+	})
+
+	t.Run("warns within the warning window", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		srv := &AppleNotificationServer{
+			ApplePushSettings: ApplePushSettings{Type: "apple"},
+			logger:            logger,
+			hasCert:           true,
+			certNotAfter:      time.Now().Add(20 * 24 * time.Hour),
+		}
+
+		srv.checkCredentialExpiry()
+
+		records := flushLogs(t, logger, buf)
+		require.Len(t, records, 1)
+		assert.Equal(t, "warn", records[0]["level"])
+		assert.Contains(t, records[0]["msg"], "expiring soon")
+		assert.Contains(t, records[0], "expires_at")
+		assert.Contains(t, records[0], "time_left")
+	})
+
+	t.Run("errors once expired", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		srv := &AppleNotificationServer{
+			ApplePushSettings: ApplePushSettings{Type: "apple"},
+			logger:            logger,
+			hasCert:           true,
+			certNotAfter:      time.Now().Add(-time.Hour),
+		}
+
+		srv.checkCredentialExpiry()
+
+		records := flushLogs(t, logger, buf)
+		require.Len(t, records, 1)
+		assert.Equal(t, "error", records[0]["level"])
+		assert.Contains(t, records[0]["msg"], "has expired")
+	})
+
+	t.Run("stays silent with plenty of validity", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		srv := &AppleNotificationServer{
+			ApplePushSettings: ApplePushSettings{Type: "apple"},
+			logger:            logger,
+			hasCert:           true,
+			certNotAfter:      time.Now().Add(90 * 24 * time.Hour),
+		}
+
+		srv.checkCredentialExpiry()
+
+		assert.Empty(t, flushLogs(t, logger, buf))
+	})
 }
 
 func marshalPayload(t *testing.T, n *apns.Notification) map[string]any {

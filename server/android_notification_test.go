@@ -71,28 +71,28 @@ func (fe *FirebaseError) Error() string {
 }
 
 func TestAndroidCheckCredentialExpiry(t *testing.T) {
-	logger, err := mlog.NewLogger()
-	require.NoError(t, err)
-
-	t.Run("invokes the token validator", func(t *testing.T) {
-		var gotCtx context.Context
+	t.Run("logs Error when credentials are rejected", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
 		me := &AndroidNotificationServer{
 			AndroidPushSettings: AndroidPushSettings{Type: "android"},
 			logger:              logger,
 			sendTimeout:         time.Second,
-			validateToken: func(ctx context.Context) error {
-				gotCtx = ctx
+			validateToken: func(_ context.Context) error {
 				return errors.New("service account key revoked")
 			},
 		}
 
-		assert.NotPanics(t, me.checkCredentialExpiry)
-		require.NotNil(t, gotCtx, "validateToken should have been called")
-		_, hasDeadline := gotCtx.Deadline()
-		assert.True(t, hasDeadline, "validation should be bounded by sendTimeout")
+		me.checkCredentialExpiry()
+
+		records := flushLogs(t, logger, buf)
+		require.Len(t, records, 1)
+		assert.Equal(t, "error", records[0]["level"])
+		assert.Contains(t, records[0]["msg"], "FCM credentials rejected")
+		assert.Equal(t, "android", records[0]["target_type"])
 	})
 
-	t.Run("timeout is handled without panicking", func(t *testing.T) {
+	t.Run("logs Warn on timeout", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
 		me := &AndroidNotificationServer{
 			AndroidPushSettings: AndroidPushSettings{Type: "android"},
 			logger:              logger,
@@ -101,16 +101,45 @@ func TestAndroidCheckCredentialExpiry(t *testing.T) {
 				return context.DeadlineExceeded
 			},
 		}
-		assert.NotPanics(t, me.checkCredentialExpiry)
+
+		me.checkCredentialExpiry()
+
+		records := flushLogs(t, logger, buf)
+		require.Len(t, records, 1)
+		assert.Equal(t, "warn", records[0]["level"])
+		assert.Contains(t, records[0]["msg"], "timed out")
+	})
+
+	t.Run("validates with a bounded context and stays silent on success", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
+		var hasDeadline bool
+		me := &AndroidNotificationServer{
+			AndroidPushSettings: AndroidPushSettings{Type: "android"},
+			logger:              logger,
+			sendTimeout:         time.Second,
+			validateToken: func(ctx context.Context) error {
+				_, hasDeadline = ctx.Deadline()
+				return nil
+			},
+		}
+
+		me.checkCredentialExpiry()
+
+		assert.True(t, hasDeadline, "validation should be bounded by sendTimeout")
+		assert.Empty(t, flushLogs(t, logger, buf), "successful validation should not log")
 	})
 
 	t.Run("no validator is a no-op", func(t *testing.T) {
+		logger, buf := newCapturingLogger(t)
 		me := &AndroidNotificationServer{
 			AndroidPushSettings: AndroidPushSettings{Type: "android"},
 			logger:              logger,
 		}
+
+		me.checkCredentialExpiry()
+
 		assert.Nil(t, me.validateToken)
-		assert.NotPanics(t, me.checkCredentialExpiry)
+		assert.Empty(t, flushLogs(t, logger, buf))
 	})
 }
 
