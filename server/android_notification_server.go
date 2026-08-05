@@ -40,11 +40,16 @@ const (
 
 type AndroidNotificationServer struct {
 	metrics             *metrics
+	stats               *stats
 	logger              *mlog.Logger
 	AndroidPushSettings AndroidPushSettings
 	client              *messaging.Client
 	sendTimeout         time.Duration
 	retryTimeout        time.Duration
+	// validateToken mints an OAuth2 token from the service account to verify
+	// the credentials are still accepted by Google. It is nil until a service
+	// account has been loaded in Initialize.
+	validateToken func(context.Context) error
 }
 
 // serviceAccount contains a subset of the fields in service-account.json.
@@ -58,10 +63,11 @@ type serviceAccount struct {
 	TokenURI    string `json:"token_uri"`
 }
 
-func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AndroidNotificationServer {
+func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Logger, metrics *metrics, stats *stats, sendTimeoutSecs int, retryTimeoutSecs int) *AndroidNotificationServer {
 	return &AndroidNotificationServer{
 		AndroidPushSettings: settings,
 		metrics:             metrics,
+		stats:               stats,
 		logger:              logger,
 		sendTimeout:         time.Duration(sendTimeoutSecs) * time.Second,
 		retryTimeout:        time.Duration(retryTimeoutSecs) * time.Second,
@@ -69,10 +75,10 @@ func NewAndroidNotificationServer(settings AndroidPushSettings, logger *mlog.Log
 }
 
 func (me *AndroidNotificationServer) Initialize() error {
-	me.logger.Info("Initializing Android notification server", mlog.String("type", me.AndroidPushSettings.Type))
+	me.logger.Info("Initializing Android notification server", mlog.String("target_type", me.AndroidPushSettings.Type))
 
 	if me.AndroidPushSettings.AndroidAPIKey != "" {
-		me.logger.Info("AndroidPushSettings.AndroidAPIKey is no longer used. Please remove this config value.")
+		me.logger.Warn("AndroidPushSettings.AndroidAPIKey is no longer used. Please remove this config value.")
 	}
 
 	if me.AndroidPushSettings.ServiceFileLocation == "" {
@@ -95,6 +101,11 @@ func (me *AndroidNotificationServer) Initialize() error {
 		return fmt.Errorf("error parsing service account JSON: %v", err)
 	}
 
+	me.validateToken = func(ctx context.Context) error {
+		_, tErr := cfg.TokenSource(ctx).Token()
+		return tErr
+	}
+
 	opt := option.WithTokenSource(cfg.TokenSource(context.Background()))
 	conf := &firebase.Config{
 		ProjectID:        serviceAcc.ProjectID,
@@ -112,6 +123,41 @@ func (me *AndroidNotificationServer) Initialize() error {
 	me.client = client
 
 	return nil
+}
+
+// checkCredentialExpiry validates the FCM service account credentials by
+// minting an OAuth2 token. The service account key carries no readable expiry,
+// so this actively probes whether the key is still accepted (it fails once the
+// key is revoked, disabled, or deleted) and logs an Error to alert on.
+func (me *AndroidNotificationServer) checkCredentialExpiry() {
+	if me.validateToken == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), me.sendTimeout)
+	defer cancel()
+
+	err := me.validateToken(ctx)
+	if err == nil {
+		return
+	}
+
+	// A timeout is a transient/network problem, not evidence the key itself is
+	// bad, so keep it out of Error to avoid false credential alerts.
+	if errors.Is(err, context.DeadlineExceeded) {
+		me.logger.Warn(
+			"FCM credential check timed out; could not verify the service account key",
+			mlog.String("target_type", me.AndroidPushSettings.Type),
+			mlog.Err(err),
+		)
+		return
+	}
+
+	me.logger.Error(
+		"FCM credentials rejected; the service account key may be revoked, disabled, or expired",
+		mlog.String("target_type", me.AndroidPushSettings.Type),
+		mlog.Err(err),
+	)
 }
 
 func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNotification) PushResponse {
@@ -171,14 +217,31 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 		},
 	}
 
-	me.logger.Info(
+	me.stats.incrementAndroidSend()
+	me.logger.Debug(
 		"Sending android push notification",
-		mlog.String("device", me.AndroidPushSettings.Type),
-		mlog.String("type", msg.Type),
+		mlog.String("target_type", me.AndroidPushSettings.Type),
+		mlog.String("push_type", msg.Type),
 		mlog.String("ack_id", msg.AckId),
 	)
 	err := me.SendNotificationWithRetry(fcmMsg)
 	if err != nil {
+		// An unregistered or mismatched token is a client-driven condition, not
+		// a server fault: log it at Warn and route through the removal branch.
+		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
+			me.logger.Warn(
+				"Android response failure sending remove code",
+				mlog.String("server_id", msg.ServerId),
+				mlog.String("device_id", redactToken(msg.DeviceId)),
+				mlog.String("target_type", me.AndroidPushSettings.Type),
+				mlog.Err(err),
+			)
+			if me.metrics != nil {
+				me.metrics.incrementRemoval(model.PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
+			}
+			return NewRemovePushResponse()
+		}
+
 		errorCode, hasStatusCode := getErrorCode(err)
 		if !hasStatusCode {
 			errorCode = "NONE"
@@ -186,20 +249,12 @@ func (me *AndroidNotificationServer) SendNotification(_ int, msg *model.PushNoti
 
 		me.logger.Error(
 			"Failed to send FCM push",
-			mlog.String("sid", msg.ServerId),
-			mlog.String("did", redactToken(msg.DeviceId)),
+			mlog.String("server_id", msg.ServerId),
+			mlog.String("device_id", redactToken(msg.DeviceId)),
 			mlog.Err(err),
-			mlog.String("type", me.AndroidPushSettings.Type),
-			mlog.String("errorCode", errorCode),
+			mlog.String("target_type", me.AndroidPushSettings.Type),
+			mlog.String("error_code", errorCode),
 		)
-
-		if messaging.IsUnregistered(err) || messaging.IsSenderIDMismatch(err) {
-			me.logger.Info("Android response failure sending remove code", mlog.String("type", me.AndroidPushSettings.Type))
-			if me.metrics != nil {
-				me.metrics.incrementRemoval(model.PushNotifyAndroid, pushType, model.PushTransportStandard, unregistered)
-			}
-			return NewRemovePushResponse()
-		}
 
 		var reason string
 		switch {
@@ -238,7 +293,7 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 	var err error
 	waitTime := time.Second
 
-	logger := me.logger.With(mlog.String("did", redactToken(fcmMsg.Token)))
+	logger := me.logger.With(mlog.String("device_id", redactToken(fcmMsg.Token)))
 
 	// Keep a general context to make sure the whole retry
 	// doesn't take longer than the timeout.
@@ -259,14 +314,14 @@ func (me *AndroidNotificationServer) SendNotificationWithRetry(fcmMsg *messaging
 			break
 		}
 
-		logger.Error(
+		logger.Warn(
 			"Failed to send android push",
 			mlog.Int("retry", retries),
 			mlog.Err(err),
 		)
 
 		if retries == MAX_RETRIES-1 {
-			logger.Error("Max retries reached")
+			logger.Warn("Max retries reached")
 			break
 		}
 

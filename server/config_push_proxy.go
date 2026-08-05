@@ -23,6 +23,7 @@ type ConfigPushProxy struct {
 	EnableConsoleLog        bool
 	EnableFileLog           bool
 	LogFormat               string // json or plain
+	LogLevel                string // debug, info (default), warn, or error
 	ThrottlePerSec          int
 	ThrottleMemoryStoreSize int
 }

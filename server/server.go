@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -44,6 +45,9 @@ type Server struct {
 	pushTargets map[string]NotificationServer
 	metrics     *metrics
 	logger      *mlog.Logger
+	stats       *stats
+	statsDone   chan struct{}
+	bgWorkers   sync.WaitGroup
 }
 
 // New returns a new Server instance.
@@ -52,6 +56,7 @@ func New(cfg *ConfigPushProxy, logger *mlog.Logger) *Server {
 		cfg:         cfg,
 		pushTargets: make(map[string]NotificationServer),
 		logger:      logger,
+		stats:       &stats{},
 	}
 }
 
@@ -72,7 +77,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.ApplePushSettings {
-		server := NewAppleNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
+		server := NewAppleNotificationServer(settings, s.logger, m, s.stats, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Error("Failed to initialize client", mlog.Err(err))
@@ -82,7 +87,7 @@ func (s *Server) Start() {
 	}
 
 	for _, settings := range s.cfg.AndroidPushSettings {
-		server := NewAndroidNotificationServer(settings, s.logger, m, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
+		server := NewAndroidNotificationServer(settings, s.logger, m, s.stats, s.cfg.SendTimeoutSec, s.cfg.RetryTimeoutSec)
 		err := server.Initialize()
 		if err != nil {
 			s.logger.Error("Failed to initialize client", mlog.Err(err))
@@ -98,7 +103,7 @@ func (s *Server) Start() {
 	th := throttled.RateLimit(throttled.PerSec(s.cfg.ThrottlePerSec), &vary, throttledStore.NewMemStore(s.cfg.ThrottleMemoryStoreSize))
 
 	th.DeniedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.logger.Error("Error: code=429", mlog.String("path", r.URL.Path), mlog.String("ip", s.getIpAddress(r)))
+		s.logger.Warn("Request throttled", mlog.Int("code", 429), mlog.String("path", r.URL.Path), mlog.String("ip", s.getIpAddress(r)))
 		throttled.DefaultDeniedHandler.ServeHTTP(w, r)
 	})
 
@@ -133,11 +138,89 @@ func (s *Server) Start() {
 	}()
 
 	s.logger.Info("Server is listening on " + s.cfg.ListenAddress)
+
+	s.statsDone = make(chan struct{})
+	s.bgWorkers.Go(s.reportStats)
+	s.bgWorkers.Go(s.watchCredentialExpiry)
+}
+
+// credentialCheckInterval controls how often push-target credentials are
+// re-checked for upcoming expiry, so long-running processes still alert.
+const credentialCheckInterval = 12 * time.Hour
+
+// watchCredentialExpiry checks push-target credentials at startup and every
+// credentialCheckInterval thereafter, letting targets log a Warn/Error as
+// expiry approaches.
+func (s *Server) watchCredentialExpiry() {
+	s.checkCredentialExpiry()
+
+	ticker := time.NewTicker(credentialCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.statsDone:
+			return
+		case <-ticker.C:
+			s.checkCredentialExpiry()
+		}
+	}
+}
+
+func (s *Server) checkCredentialExpiry() {
+	for _, target := range s.pushTargets {
+		if c, ok := target.(interface{ checkCredentialExpiry() }); ok {
+			c.checkCredentialExpiry()
+		}
+	}
+}
+
+// reportStats logs aggregated send/ack throughput once per
+// statsReportInterval, giving a low-volume operational heartbeat in place of
+// per-notification logging.
+func (s *Server) reportStats() {
+	ticker := time.NewTicker(statsReportInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.statsDone:
+			// Flush the partial final window so no counts are lost on shutdown.
+			s.logThroughput()
+			return
+		case <-ticker.C:
+			s.logThroughput()
+		}
+	}
+}
+
+// logThroughput logs and resets the accumulated counters. Windows with no
+// activity are skipped to keep idle servers quiet.
+func (s *Server) logThroughput() {
+	android, apple, acks := s.stats.swap()
+	if android == 0 && apple == 0 && acks == 0 {
+		return
+	}
+
+	s.logger.Info(
+		"Notification throughput",
+		mlog.Duration("interval", statsReportInterval),
+		mlog.Int("android_sends", android),
+		mlog.Int("apple_sends", apple),
+		mlog.Int("acks", acks),
+	)
 }
 
 // Stop stops the server.
 func (s *Server) Stop() {
 	s.logger.Info("Stopping Server...")
+	if s.statsDone != nil {
+		// Signal the background workers and wait for them to finish so the
+		// final throughput flush completes before the logger is shut down.
+		close(s.statsDone)
+		s.bgWorkers.Wait()
+		s.statsDone = nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), WAIT_FOR_SERVER_SHUTDOWN)
 	defer cancel()
 	if s.metrics != nil {
@@ -159,7 +242,7 @@ func (s *Server) version(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
-		s.logger.Error("Failed to write response", mlog.Err(err))
+		s.logger.Warn("Failed to write response", mlog.Err(err))
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
 		}
@@ -181,10 +264,10 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 	err := json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
 		rMsg := fmt.Sprintf("Failed to read message body: %v", err)
-		s.logger.Error(rMsg)
+		s.logger.Warn("Failed to read message body", mlog.Err(err))
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err2))
+			s.logger.Warn("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -194,10 +277,10 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 
 	if msg.ServerId == "" {
 		rMsg := "Failed because of missing server Id"
-		s.logger.Error(rMsg)
+		s.logger.Warn("Missing server id")
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err2))
+			s.logger.Warn("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -207,10 +290,10 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 
 	if msg.DeviceId == "" {
 		rMsg := fmt.Sprintf("Failed because of missing device Id serverId=%v", msg.ServerId)
-		s.logger.Error(rMsg)
+		s.logger.Warn("Missing device id", mlog.String("server_id", msg.ServerId))
 		resp := NewErrorPushResponse(rMsg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err2))
+			s.logger.Warn("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -236,8 +319,11 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		if e == nil {
 			appVersion = version
 		} else {
-			rMsg := fmt.Sprintf("Could not determine the app version in %v appVersion=%v", msg.Platform, appVersionString)
-			s.logger.Error(rMsg)
+			s.logger.Warn(
+				"Could not determine app version",
+				mlog.String("platform", msg.Platform),
+				mlog.String("app_version", appVersionString),
+			)
 		}
 	}
 
@@ -247,16 +333,20 @@ func (s *Server) handleSendNotification(w http.ResponseWriter, r *http.Request) 
 		}
 		rMsg := server.SendNotification(appVersion, &msg)
 		if err2 := json.NewEncoder(w).Encode(rMsg); err2 != nil {
-			s.logger.Error("Failed to write message", mlog.Err(err2))
+			s.logger.Warn("Failed to write message", mlog.Err(err2))
 		}
 		return
 	}
 	rMsg := fmt.Sprintf("Did not send message because of missing platform property type=%v serverId=%v", msg.Platform, msg.ServerId)
-	s.logger.Error(rMsg)
+	s.logger.Warn(
+		"No push target for platform",
+		mlog.String("platform", msg.Platform),
+		mlog.String("server_id", msg.ServerId),
+	)
 	resp := NewErrorPushResponse(rMsg)
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		s.logger.Error("Failed to write response", mlog.Err(err))
+		s.logger.Warn("Failed to write response", mlog.Err(err))
 	}
 	if s.metrics != nil {
 		s.metrics.incrementBadRequest()
@@ -268,10 +358,10 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&ack)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to read ack body: %v", err)
-		s.logger.Error(msg)
+		s.logger.Warn("Failed to read ack body", mlog.Err(err))
 		resp := NewErrorPushResponse(msg)
 		if err2 := json.NewEncoder(w).Encode(resp); err2 != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err2))
+			s.logger.Warn("Failed to write response", mlog.Err(err2))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -281,10 +371,10 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 
 	if ack.Id == "" {
 		msg := "Failed because of missing ack Id"
-		s.logger.Error(msg)
+		s.logger.Warn("Missing ack id")
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err))
+			s.logger.Warn("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -294,10 +384,10 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 
 	if ack.ClientPlatform == "" {
 		msg := "Failed because of missing ack platform"
-		s.logger.Error(msg)
+		s.logger.Warn("Missing ack platform", mlog.String("ack_id", ack.Id))
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err))
+			s.logger.Warn("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -307,10 +397,10 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 
 	if ack.NotificationType == "" {
 		msg := "Failed because of missing ack type"
-		s.logger.Error(msg)
+		s.logger.Warn("Missing ack type", mlog.String("ack_id", ack.Id))
 		resp := NewErrorPushResponse(msg)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			s.logger.Error("Failed to write response", mlog.Err(err))
+			s.logger.Warn("Failed to write response", mlog.Err(err))
 		}
 		if s.metrics != nil {
 			s.metrics.incrementBadRequest()
@@ -319,14 +409,15 @@ func (s *Server) handleAckNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Increment ACK
-	s.logger.Info("Acknowledged delivery receipt", mlog.String("ack_id", ack.Id))
+	s.stats.incrementAck()
+	s.logger.Debug("Acknowledged delivery receipt", mlog.String("ack_id", ack.Id))
 	if s.metrics != nil {
 		s.metrics.incrementDelivered(ack.ClientPlatform, ack.NotificationType, model.PushTransportStandard)
 	}
 
 	rMsg := NewOkPushResponse()
 	if err := json.NewEncoder(w).Encode(rMsg); err != nil {
-		s.logger.Error("Failed to write message", mlog.Err(err))
+		s.logger.Warn("Failed to write message", mlog.Err(err))
 	}
 }
 
@@ -341,7 +432,7 @@ func (s *Server) getIpAddress(r *http.Request) string {
 	if address == "" {
 		address, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			s.logger.Error("error in getting IP address", mlog.Err(err))
+			s.logger.Warn("error in getting IP address", mlog.Err(err))
 		}
 	}
 

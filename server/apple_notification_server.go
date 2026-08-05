@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -22,19 +23,67 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
+// Thresholds for how much validity remains before the Apple push certificate
+// expiry is logged, so it can be alerted on ahead of an outage.
+const (
+	certExpiryWarnThreshold  = 30 * 24 * time.Hour
+	certExpiryErrorThreshold = 7 * 24 * time.Hour
+)
+
+type expiryLevel int
+
+const (
+	expiryNone expiryLevel = iota
+	expiryWarn
+	expiryError
+)
+
+// certExpiryReport decides how a certificate's expiry should be reported. It
+// disambiguates the cases operators care about: a certificate that has already
+// expired vs. one nearing expiry, and a certificate whose expiry could not be
+// determined (notAfter zero while hasCert is true) vs. token auth that has no
+// certificate at all (hasCert false), which never expires.
+func certExpiryReport(hasCert bool, notAfter, now time.Time) (expiryLevel, string) {
+	if notAfter.IsZero() {
+		if hasCert {
+			return expiryWarn, "Could not determine Apple push certificate expiry"
+		}
+		return expiryNone, ""
+	}
+
+	switch timeLeft := notAfter.Sub(now); {
+	case timeLeft <= 0:
+		return expiryError, "Apple push certificate has expired"
+	case timeLeft <= certExpiryErrorThreshold:
+		return expiryError, "Apple push certificate is expiring soon"
+	case timeLeft <= certExpiryWarnThreshold:
+		return expiryWarn, "Apple push certificate is expiring soon"
+	default:
+		return expiryNone, ""
+	}
+}
+
 type AppleNotificationServer struct {
 	AppleClient       *apns.Client
 	metrics           *metrics
+	stats             *stats
 	logger            *mlog.Logger
 	ApplePushSettings ApplePushSettings
 	sendTimeout       time.Duration
 	retryTimeout      time.Duration
+	// hasCert reports whether certificate auth is in use. Token (AuthKey) auth
+	// has no certificate and never expires.
+	hasCert bool
+	// certNotAfter is the expiry of the loaded push certificate. It is the zero
+	// value for token auth, or when the expiry could not be parsed.
+	certNotAfter time.Time
 }
 
-func NewAppleNotificationServer(settings ApplePushSettings, logger *mlog.Logger, metrics *metrics, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
+func NewAppleNotificationServer(settings ApplePushSettings, logger *mlog.Logger, metrics *metrics, stats *stats, sendTimeoutSecs int, retryTimeoutSecs int) *AppleNotificationServer {
 	return &AppleNotificationServer{
 		ApplePushSettings: settings,
 		metrics:           metrics,
+		stats:             stats,
 		logger:            logger,
 		sendTimeout:       time.Duration(sendTimeoutSecs) * time.Second,
 		retryTimeout:      time.Duration(retryTimeoutSecs) * time.Second,
@@ -67,9 +116,9 @@ func (me *AppleNotificationServer) setupProxySettings(appleCert *tls.Certificate
 	}
 
 	if appleCert != nil {
-		me.logger.Info("Initializing apple notification server with PEM certificate", mlog.String("type", me.ApplePushSettings.Type))
+		me.logger.Info("Initializing apple notification server with PEM certificate", mlog.String("target_type", me.ApplePushSettings.Type))
 	} else {
-		me.logger.Info("Initializing apple notification server with AuthKey", mlog.String("type", me.ApplePushSettings.Type))
+		me.logger.Info("Initializing apple notification server with AuthKey", mlog.String("target_type", me.ApplePushSettings.Type))
 	}
 
 	return nil
@@ -104,6 +153,9 @@ func (me *AppleNotificationServer) Initialize() error {
 			return fmt.Errorf("failed to initialize apple notification service with pem cert err=%v for type=%v", appleCertErr, me.ApplePushSettings.Type)
 		}
 
+		me.hasCert = true
+		me.certNotAfter = certNotAfter(appleCert)
+
 		if me.ApplePushSettings.ApplePushUseDevelopment {
 			me.AppleClient = apns.NewClient(appleCert).Development()
 		} else {
@@ -115,6 +167,46 @@ func (me *AppleNotificationServer) Initialize() error {
 	}
 
 	return fmt.Errorf("apple push notifications not configured: missing ApplePushCertPrivate for type=%v", me.ApplePushSettings.Type)
+}
+
+// certNotAfter returns the expiry of the leaf certificate, or the zero time if
+// it cannot be determined.
+func certNotAfter(cert tls.Certificate) time.Time {
+	if cert.Leaf != nil {
+		return cert.Leaf.NotAfter
+	}
+	if len(cert.Certificate) > 0 {
+		if parsed, err := x509.ParseCertificate(cert.Certificate[0]); err == nil {
+			return parsed.NotAfter
+		}
+	}
+	return time.Time{}
+}
+
+// checkCredentialExpiry logs a Warn/Error as the push certificate nears expiry
+// (or once expired), so operators can alert on it before deliveries start
+// failing. Token (AuthKey) auth has no expiry and is a no-op.
+func (me *AppleNotificationServer) checkCredentialExpiry() {
+	level, message := certExpiryReport(me.hasCert, me.certNotAfter, time.Now())
+	if level == expiryNone {
+		return
+	}
+
+	fields := []mlog.Field{mlog.String("target_type", me.ApplePushSettings.Type)}
+	if !me.certNotAfter.IsZero() {
+		fields = append(fields,
+			mlog.Time("expires_at", me.certNotAfter),
+			mlog.Duration("time_left", time.Until(me.certNotAfter)),
+		)
+	}
+
+	switch level {
+	case expiryWarn:
+		me.logger.Warn(message, fields...)
+	case expiryError:
+		me.logger.Error(message, fields...)
+	case expiryNone:
+	}
 }
 
 func (me *AppleNotificationServer) SendNotification(appVersion int, msg *model.PushNotification) PushResponse {
@@ -242,22 +334,23 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 	}
 
 	logFields := []mlog.Field{
-		mlog.String("device", me.ApplePushSettings.Type),
-		mlog.String("type", msg.Type),
+		mlog.String("target_type", me.ApplePushSettings.Type),
+		mlog.String("push_type", msg.Type),
 		mlog.String("ack_id", msg.AckId),
 	}
 	if transport != model.PushTransportStandard {
 		logFields = append(logFields, mlog.String("transport", string(transport)))
 	}
-	me.logger.Info("Sending apple push notification", logFields...)
+	me.stats.incrementAppleSend()
+	me.logger.Debug("Sending apple push notification", logFields...)
 
 	res, err := me.SendNotificationWithRetry(notification)
 	if err != nil {
 		errFields := []mlog.Field{
-			mlog.String("sid", msg.ServerId),
-			mlog.String("did", redactToken(msg.DeviceId)),
+			mlog.String("server_id", msg.ServerId),
+			mlog.String("device_id", redactToken(msg.DeviceId)),
 			mlog.Err(err),
-			mlog.String("type", me.ApplePushSettings.Type),
+			mlog.String("target_type", me.ApplePushSettings.Type),
 		}
 		if transport != model.PushTransportStandard {
 			errFields = append(errFields, mlog.String("transport", string(transport)))
@@ -273,10 +366,10 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 		if res.Reason == apns.ReasonBadDeviceToken || res.Reason == apns.ReasonUnregistered || res.Reason == apns.ReasonMissingDeviceToken || res.Reason == apns.ReasonDeviceTokenNotForTopic {
 			me.logger.Info(
 				"Failed to send apple push sending remove code res",
-				mlog.String("ApnsID", res.ApnsID),
+				mlog.String("apns_id", res.ApnsID),
 				mlog.String("reason", res.Reason),
 				mlog.Int("code", res.StatusCode),
-				mlog.String("type", me.ApplePushSettings.Type),
+				mlog.String("target_type", me.ApplePushSettings.Type),
 			)
 			if me.metrics != nil {
 				me.metrics.incrementRemoval(model.PushNotifyApple, pushType, transport, res.Reason)
@@ -286,10 +379,10 @@ func (me *AppleNotificationServer) dispatchAndHandleResponse(notification *apns.
 
 		me.logger.Error(
 			"Failed to send apple push with res",
-			mlog.String("ApnsID", res.ApnsID),
+			mlog.String("apns_id", res.ApnsID),
 			mlog.String("reason", res.Reason),
 			mlog.Int("code", res.StatusCode),
-			mlog.String("type", me.ApplePushSettings.Type),
+			mlog.String("target_type", me.ApplePushSettings.Type),
 		)
 		if me.metrics != nil {
 			me.metrics.incrementFailure(model.PushNotifyApple, pushType, transport, res.Reason)
@@ -389,15 +482,15 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 			break
 		}
 
-		me.logger.Error(
+		me.logger.Warn(
 			"Failed to send apple push",
-			mlog.String("did", redactToken(notification.DeviceToken)),
+			mlog.String("device_id", redactToken(notification.DeviceToken)),
 			mlog.Int("retry", retries),
 			mlog.Err(err),
 		)
 
 		if retries == MAX_RETRIES-1 {
-			me.logger.Error("Max retries reached", mlog.String("did", redactToken(notification.DeviceToken)))
+			me.logger.Warn("Max retries reached", mlog.String("device_id", redactToken(notification.DeviceToken)))
 			break
 		}
 
@@ -409,7 +502,7 @@ func (me *AppleNotificationServer) SendNotificationWithRetry(notification *apns.
 		if generalContext.Err() != nil {
 			me.logger.Info(
 				"Not retrying because context error",
-				mlog.String("did", redactToken(notification.DeviceToken)),
+				mlog.String("device_id", redactToken(notification.DeviceToken)),
 				mlog.Int("retry", retries),
 				mlog.Err(generalContext.Err()),
 			)
